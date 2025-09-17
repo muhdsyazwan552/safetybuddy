@@ -1,0 +1,183 @@
+import { useState } from 'react';
+import { Head, Link, router } from '@inertiajs/react';
+import { FiMail, FiLock } from 'react-icons/fi';
+
+const Login = () => {
+ const [credentials, setCredentials] = useState({
+  email: '',
+  password: '',
+  remember: false // Still boolean in state
+});
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+const handleSubmit = (e) => {
+  e.preventDefault();
+  router.post('/login', {
+    email: credentials.email,
+    password: credentials.password,
+    remember: credentials.remember ? 'on' : '' // Convert to string
+  }, {
+    onError: (errors) => {
+      setErrors(errors);
+      setCredentials(prev => ({...prev, password: ''}));
+    }
+  });
+};
+
+const handleInputChange = (e) => {
+  const { name, value, type, checked } = e.target;
+  setCredentials(prev => ({
+    ...prev,
+    [name]: type === 'checkbox' ? checked : value
+  }));
+  // Clear errors when typing
+  setErrors(prev => ({...prev, [name]: undefined}));
+};
+
+  return (
+    <div className="min-h-screen flex">
+      {/* Banner Side with Gradient */}
+      <div className="hidden lg:block w-1/2 bg-gradient-to-br from-blue-600 to-blue-900">
+        <div className="h-full flex flex-col justify-center items-center p-12 text-white">
+          <img 
+            src="https://djati.com.my/wp-content/uploads/2024/08/Symbol-D.png" 
+            alt="Company Logo" 
+            className="h-16 mb-8"
+          />
+          <h2 className="text-3xl font-bold mb-4">Welcome to SafetyBuddy</h2>
+          <p className="text-xl mb-8 text-center max-w-md">
+            Your comprehensive safety management solution
+          </p>
+        </div>
+      </div>
+
+      {/* Login Form Side */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
+        <div className="w-full max-w-md">
+          <Head title="Login" />
+          
+          <div className="text-center lg:hidden mb-8">
+            <img 
+              src="https://djati.com.my/wp-content/uploads/2024/08/Symbol-D.png" 
+              alt="Company Logo" 
+              className="h-12 mx-auto"
+            />
+          </div>
+
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Sign in to your account</h2>
+          
+          {errors.general && (
+            <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
+              {errors.general}
+            </div>
+          )}
+
+          <form className="space-y-6" onSubmit={handleSubmit}>
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                Email address
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiMail className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={credentials.email}
+                  onChange={handleInputChange}
+                  className={`block w-full pl-10 pr-3 py-2 border ${errors.email ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                />
+              </div>
+              {errors.email && (
+                <p className="mt-2 text-sm text-red-600">{errors.email}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                Password
+              </label>
+              <div className="mt-1 relative rounded-md shadow-sm">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <FiLock className="h-5 w-5 text-gray-400" />
+                </div>
+                <input
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  required
+                  value={credentials.password}
+                  onChange={handleInputChange}
+                  className={`block w-full pl-10 pr-3 py-2 border ${errors.password ? 'border-red-300' : 'border-gray-300'} rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm`}
+                />
+              </div>
+              {errors.password && (
+                <p className="mt-2 text-sm text-red-600">{errors.password}</p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  name="remember"
+                  checked={credentials.remember}
+                  onChange={handleInputChange}
+                  className={`h-4 w-4 ${errors.remember ? 'border-red-500' : ''}`}
+                />
+                <label htmlFor="remember" className="ml-2 block text-sm text-gray-900">
+                  Remember me
+                </label>
+              </div>
+
+              <div className="text-sm">
+                <Link 
+                  href="/forgot-password" 
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}`}
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Signing in...
+                  </>
+                ) : 'Sign in'}
+              </button>
+            </div>
+          </form>
+
+          <div className="mt-6 text-center text-sm text-gray-600">
+            Don't have an account?{' '}
+            <Link 
+              href="/register-view" 
+              className="font-medium text-blue-600 hover:text-blue-500"
+            >
+              Register here
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default Login;
