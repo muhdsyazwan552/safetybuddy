@@ -17,49 +17,77 @@ class Project extends Model
         'location',
         'start_date',
         'end_date',
-        'status'
+        'status',
+        'progress'
     ];
 
-    public function executors()
-{
-    return $this->belongsToMany(
-        Executor::class,
-        'executor_project_assign',
-        'project_id',            // project foreign key
-        'executor_company_id'    // company foreign key in pivot table
-    )
-    ->withPivot('role_assignment')
-    ->withTimestamps();
-}
-
-
-    // Relationship with users (if needed)
-    public function users()
+    /**
+     * Get all assignments for this project (polymorphic)
+     * FIXED: Method name should be lowercase for property access
+     */
+    public function projectAssign()
     {
-        return $this->hasMany(User::class);
+        return $this->hasMany(ProjectAssign::class, 'project_id');
     }
 
-    // Use the morph-based pivot table for all assignments
-    public function executorAssignments()
+    /**
+     * Get staff assignments (main company staff)
+     */
+    public function staffAssignments()
     {
-        return $this->hasMany(ExecutorProjectAssign::class, 'project_id');
+        return $this->projectAssign()->where('entity_type', 'staff');
     }
 
-public function executorCompanies()
-{
-    return $this->executorAssignments()
-                ->where('entity_type', 'CP')
-                ->with('executorCompany'); // this fetches the actual company
-}
-
-
-
-
-
-
-    // Only employees assigned to the project
-    public function executorEmployees()
+    /**
+     * Get subcon assignments
+     */
+    public function subconAssignments()
     {
-        return $this->executorAssignments()->where('entity_type', 'EM');
+        return $this->projectAssign()->where('entity_type', 'subcon');
+    }
+
+    /**
+     * Get compsub assignments
+     */
+
+    public function compsubAssignments()
+    {
+        return $this->projectAssign()->where('entity_type', 'compsub');
+    }
+
+    /**
+     * Get all assigned staff members (main company)
+     */
+    public function assignedStaff()
+    {
+        return $this->belongsToMany(
+            CompanyStaff::class,
+            'project_assign',
+            'project_id',
+            'entity_id'
+        )->wherePivot('entity_type', 'staff');
+    }
+
+    /**
+     * Get all assigned subcon staff
+     */
+    public function assignedSubconStaff()
+    {
+        return $this->belongsToMany(
+            SubconStaff::class,
+            'project_assign',
+            'project_id',
+            'entity_id'
+        )->wherePivot('entity_type', 'subcon');
+    }
+
+    public function inspections()
+    {
+        return $this->hasMany(Inspection::class, 'project_id');
+    }
+
+    public function toolboxTalks()
+    {
+        return $this->hasMany(ToolboxTalks::class, 'project_id');
     }
 }

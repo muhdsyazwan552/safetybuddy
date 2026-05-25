@@ -11,42 +11,49 @@ class Inspection extends Model
 
     protected $table = 'inspections';
 
+    // Add this static property for evaluation options
+    public static $evaluationOptions = [
+        'good', 
+        'moderate', 
+        'poor', 
+        'nonconformance', 
+        'clientcomplaint'
+    ];
+
     protected $fillable = [
         'project_id',
-        'executor_companies_id',
+        'company_id',
+        'inspection_by',
         'topic_inspection_id',
-        'inspection_name',
-        'inspection_date',
-        'location',
         'evaluation',
         'description',
         'photo',
-        'created_by',
+        'subcon_company_id',
+        'inspectee_id',
+        'inspection_date',
+        'location',
     ];
 
     protected $casts = [
-        'inspection_date' => 'date',
-        'photo' => 'array',
-    ];
-
-    // Validation rules
-    public static $evaluationOptions = [
-        'good',
-        'moderate', 
-        'poor',
-        'nonconformance',
-        'clientcomplaint'
+        'inspection_date' => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
     // Relationships
     public function project()
     {
-        return $this->belongsTo(Project::class);
+        return $this->belongsTo(Project::class, 'project_id');
     }
 
-    public function executorCompany()
+    public function company()
     {
-        return $this->belongsTo(Executor::class, 'executor_companies_id');
+        return $this->belongsTo(Company::class, 'company_id');
+    }
+
+    public function subconCompany()
+    {
+        return $this->belongsTo(SubconCompany::class, 'subcon_company_id');
     }
 
     public function topic()
@@ -54,8 +61,18 @@ class Inspection extends Model
         return $this->belongsTo(ToolboxTopic::class, 'topic_inspection_id');
     }
 
-    public function creator()
+    public function inspector()
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(CompanyStaff::class, 'inspection_by');
+    }
+
+    public function non_conformance()
+    {
+        return $this->hasOne(NoConformance::class, 'inspection_id');
+    }
+
+    public function client_complaint()
+    {
+        return $this->hasOne(ClientComplaint::class, 'inspection_id');
     }
 }

@@ -40,8 +40,13 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
-    public function executorAssignments()
+    // public function executorAssignments()
+    // {
+    //     return $this->morphMany(ExecutorProjectAssign::class, 'entity');
+    // }
+
+    public function company()
     {
-        return $this->morphMany(ExecutorProjectAssign::class, 'entity');
+        return $this->belongsTo(Company::class, 'company_id', 'id');
     }
 }

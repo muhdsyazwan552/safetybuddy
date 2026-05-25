@@ -13,7 +13,7 @@ class MetricController extends Controller
     public function storeMetrics(Request $request)
 {
     $validated = $request->validate([
-        'company_id' => 'required|exists:executor_companies,id',
+        'company_id' => 'required|exists:company,id',
         'title' => 'required|string|max:255',
         'description' => 'required|string|max:255',
         'percent' => 'required|integer|min:0|max:100',
@@ -62,7 +62,7 @@ public function destroyMetrics($id)
  public function storePenalty(Request $request)
 {
     $validated = $request->validate([
-        'company_id' => 'required|exists:executor_companies,id',
+        'company_id' => 'required|exists:company,id',
         'title' => 'required|string|max:255',
         'description' => 'required|string|max:255',
         'value' => 'required|numeric|min:0',

@@ -14,29 +14,37 @@ class ToolboxTalks extends Model
     protected $fillable = [
         'project_id',
         'conducted',
-        'inspection_name',
+        'inspection_by',
         'total_attended',
         'img_group',
         'img_attendance',
         'inspection_date'
-    
+
+    ];
+
+    protected $casts = [
+        'inspection_date' => 'datetime',
     ];
 
     // In ToolboxTalks model
     public function topics()
-{
-    return $this->belongsToMany(
-        ToolboxTopic::class,
-        'toolbox_talks_topics',
-        'toolbox_talks_id', // Foreign key on the pivot table for this model
-        'toolbox_topic_id' // Foreign key on the pivot table for the related model
-    );
-}
+    {
+        return $this->belongsToMany(
+            ToolboxTopic::class,
+            'toolbox_talks_topics',
+            'toolbox_talks_id', // Foreign key on the pivot table for this model
+            'toolbox_topic_id' // Foreign key on the pivot table for the related model
+        );
+    }
 
     public function project()
     {
         return $this->belongsTo(Project::class);
     }
 
-
+    public function CompanyStaff()
+    {
+        return $this->belongsTo(CompanyStaff::class, 'inspection_by');
+    }
+    
 }

@@ -2,18 +2,27 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Executor;
+use App\Models\Company;
+use App\Models\CompanyStaff;
+use App\Models\SubconCompany;
+use App\Models\SubconStaff;
 use Inertia\Inertia;
 use App\Models\Role;
 use App\Models\Project;
+use App\Models\ProjectAssign;
 use App\Models\User;
 use App\Models\ComplianceMetrics;
 use App\Models\PenaltySettings;
 use App\Models\ToolboxTopic;
 use App\Models\ToolboxTalks;
 use App\Models\Inspection;
+use App\Models\NoConformance;
+use App\Models\ClientComplaint;
+use App\Models\Incident;
+
 
 use Illuminate\Support\Facades\Auth;
+use illuminate\Http\Request;
 
 class ContentController extends Controller
 {
@@ -22,7 +31,7 @@ class ContentController extends Controller
         $companyId = Auth::user()->company_id;
         $metrics = ComplianceMetrics::where('company_id', $companyId)->get();
 
-        return Inertia::render('Contents/Compliance_Metrics', [
+        return Inertia::render('WSIS/Compliance_Metrics', [
             'title' => 'Compliance Metrics',
             'metrics' => $metrics
         ]);
@@ -35,7 +44,7 @@ class ContentController extends Controller
         // Get penalty settings from database for the current company
         $penaltySettings = PenaltySettings::where('company_id', $companyId)->get();
 
-        return Inertia::render('Contents/Penalty_Settings', [
+        return Inertia::render('WSIS/Penalty_Settings', [
             'title' => 'Penalty Settings',
             'metrics' => $penaltySettings, // Pass actual penalty settings data
             'auth' => [
@@ -50,14 +59,16 @@ class ContentController extends Controller
     {
         $companyId = Auth::user()->company_id;
 
-        $staff = User::with('role')
+        // Load staff with role relationship
+        $staff = CompanyStaff::with('role')  // Add this to load role relationship
             ->where('company_id', $companyId)
             ->get();
 
         // Get all roles (not filtered by company)
-        $roles = Role::select('id', 'display_name')->get();
+        $roles = Role::whereIn('id', [4, 7, 8])
+            ->select('id', 'display_name')->get();
 
-        return Inertia::render('Contents/Employee', [
+        return Inertia::render('WSIS/Employee', [
             'title' => 'Manage Employee',
             'staff' => $staff,
             'roles' => $roles
@@ -69,19 +80,15 @@ class ContentController extends Controller
         $user = Auth::user();
 
         $projects = Project::where('company_id', $user->company_id)
-            ->with('executorCompanies.executorCompany') // <- eager load
+
             ->get();
 
 
-        return Inertia::render('Contents/Project', [
+        return Inertia::render('WSIS/Project', [
             'title'    => 'Project Executor',
             'projects' => $projects,
         ]);
     }
-
-
-
-
 
 
     public function executor()
@@ -89,292 +96,146 @@ class ContentController extends Controller
         $user = Auth::user();
 
         // Example: only get projects belonging to the logged-in user's company
-        $companies = Executor::where('company_id', $user->company_id)->get();
+        $companies = SubconCompany::where('company_id', $user->company_id)->get();
 
-        return Inertia::render('Contents/Executor_Project', [
+        return Inertia::render('WSIS/Executor_Project', [
             'title' => 'Executor',
             'companies' => $companies, // 👈 send to React
         ]);
     }
 
+    // For SubconCompany staff management
     public function executorStaff($id)
     {
-        $company = Executor::with('staff')->findOrFail($id);
+        // Get subcon company with its staff using the correct relationship
+        $company = SubconCompany::with('subconStaff')->findOrFail($id);
 
-        return Inertia::render('Contents/Executor_Staff', [
+        return Inertia::render('WSIS/Executor_Staff', [
             'title' => $company->name . ' Staff',
             'company' => $company,
-            'staff' => $company->staff
+            'staff' => $company->subconStaff  // Use the correct relationship name
         ]);
     }
 
-    // public function executorProjDetails($id)
-    // {
-    //     $project = Project::with(['executorAssignments.executorCompany'])->findOrFail($id);
-
-    //     // Get available executors (those not already assigned to this project)
-    //     $assignedExecutorIds = $project->executorAssignments->pluck('executor_company_id');
-    //     $availableExecutors = Executor::whereNotIn('id', $assignedExecutorIds)->get();
-
-    //     return Inertia::render('Contents/Executor_Project_Details', [
-    //         'title' => $project->name . ' Staff',
-    //         'project' => $project,
-    //         'assignments' => $project->executorAssignments ?? collect(),
-    //         'executors' => $project->executorAssignments
-    //             ? $project->executorAssignments->pluck('executorCompany')
-    //             : collect(),
-    //         'availableExecutors' => $availableExecutors // Make sure this is included
-    //     ]);
-    // }
-
-    // public function executorProjDetails($id)
-    // {
-    //     // $project = Project::with([
-    //     //     'executorCompanies' => function($query) {
-    //     //         $query->withCount('staff');
-    //     //     },
-    //     //     'executorAssignments' => function($query) {
-    //     //         $query->with(['executorCompany' => function($q) {
-    //     //             $q->withCount('staff');
-    //     //         }]);
-    //     //     }
-    //     // ])->findOrFail($id);
-
-    //     $project = Project::with([
-    //         'executorAssignments.executorCompany' => function($query) {
-    //             $query->withCount('staff'); // This adds staff_count
-    //         }
-    //     ])->findOrFail($id);
-
-    //     $availableExecutors = Executor::whereDoesntHave('projects', function($query) use ($id) {
-    //         $query->where('projects.id', $id);
-    //     })->get();
-
-    //     $executors = Executor::with('staff')->get();
-
-    //     return Inertia::render('Contents/Executor_Project_Details', [
-    //         'title' => $project->name . ' Dashboard',
-    //         'project' => $project,
-    //         'executors' => $project->executorCompanies,
-    //         'assignments' => $project->executorAssignments,
-    //         'availableExecutors' => $availableExecutors
-    //     ]);
-    // }
-
-    // public function executorProjDetails($id)
-    // {
-    //     $project = Project::with([
-    //         'executorAssignments.executorCompany.staff' // chain until staff
-    //     ])->findOrFail($id);
-
-    // foreach ($project->executorAssignments as $assignment) {
-    //     $company = $assignment->executorCompany;
-    //     dump($company->name, $company->staff); // staff should show here
-    // }
-
-    //     // Get executors not yet assigned
-    //     $availableExecutors = Executor::whereDoesntHave('projects', function($query) use ($id) {
-    //         $query->where('projects.id', $id);
-    //     })->withCount('staff')->get();
-
-    //     return Inertia::render('Contents/Executor_Project_Details', [
-    //         'title' => $project->name . ' Dashboard',
-    //         'project' => $project,
-    //         'companies' => $company,
-    //         'assignments' => $project->executorAssignments,
-    //         'availableExecutors' => $availableExecutors,
-    //     ]);
-    // }
-
-    // public function executorProjDetails($id)
-    // {
-    //     $project = Project::with([
-    //         'executorAssignments.entity' => function ($query) {
-    //             // If entity is Executor, eager load staff_count
-    //             if ($query->getModel() instanceof \App\Models\Executor) {
-    //                 $query->withCount('staff');
-    //             }
-    //         }
-    //     ])->findOrFail($id);
-
-    //     // Collect only companies from assignments
-    //     $companies = $project->executorAssignments
-    //         ->filter(fn($assign) => $assign->entity_type === Executor::class) // only Executors
-    //         ->map(fn($assign) => $assign->entity) // map to actual company model
-    //         ->filter() // remove null
-    //         ->values();
-
-    //     // Get executors not yet assigned to this project
-    //     $availableExecutors = Executor::whereDoesntHave('projects', function ($query) use ($id) {
-    //         $query->where('projects.id', $id);
-    //     })->withCount('staff')->get();
-
-    //     return Inertia::render('Contents/Executor_Project_Details', [
-    //         'title'             => $project->name,
-    //         'project'           => $project,
-    //         'companies'         => $companies, // ✅ all assigned companies
-    //         'assignments'       => $project->executorAssignments, // ✅ includes employees + companies
-    //         'availableExecutors'=> $availableExecutors,
-    //     ]);
-    // }
-
-    // public function executorProjDetails($id)
-    // {
-
-    //      $companyId = Auth::user()->company_id;
-
-    //     // Load project with assignments and their companies
-    //     $project = Project::with([
-    //         'executorAssignments' => function($query) {
-    //             $query->where('entity_type', 'CP')
-    //                   ->with(['entity' => function($q) {
-    //                       $q->withCount('staff');
-    //                   }]);
-    //         }
-    //     ])->findOrFail($id);
-
-    //     // Get assigned companies (already loaded with staff_count)
-    //     $companies = $project->executorAssignments
-    //         ->filter(fn($assign) => $assign->entity_type === 'CP' && $assign->entity)
-    //         ->map(fn($assign) => $assign->entity)
-    //         ->unique('id')
-    //         ->values();
-
-    //     // Get available executors not assigned to this project
-    //     $availableExecutors = Executor::whereDoesntHave('assignments', function($query) use ($id) {
-    //         $query->where('project_id', $id);
-    //     })->withCount('staff')->get();
-
-    //     // $availableEmployees = User::where('role_id', '4')
-    //     // ->where('company_id', $companyId)
-    //     // ->whereDoesntHave('executorAssignments', function($query) use ($id) {
-    //     //     $query->where('project_id', $id)
-    //     //           ->where('entity_type', 'EM');
-    //     // })
-    //     // ->get();
-
-    //     $availableEmployees = User::where('role_id', '4')
-    //     ->where('company_id', $companyId)
-    //     ->whereDoesntHave('executorAssignments', function($query) use ($id) {
-    //         $query->where('project_id', $id);
-    //     })
-    //     ->get();
-
-    //     return Inertia::render('Contents/Executor_Project_Details', [
-    //         'title' => $project->name,
-    //         'project' => [
-    //             'id' => $project->id,
-    //             'name' => $project->name,
-    //             'location' => $project->location,
-    //             'start_date' => $project->start_date,
-    //             'end_date' => $project->end_date,
-    //             'status' => $project->status,
-    //             'progress' => $project->progress
-    //         ],
-    //         'companies' => $companies->map(fn($c) => [
-    //             'id' => $c->id,
-    //             'name' => $c->name,
-    //             'short_name' => $c->short_name,
-    //             'email' => $c->email,
-    //             'contact' => $c->contact,
-    //             'address' => $c->address,
-    //             'status' => $c->status,
-    //             'staff_count' => $c->staff_count,
-    //             'staff' => $c->staff->map(fn($s) => [
-    //                 'id' => $s->id,
-    //                 'name' => $s->name,
-    //                 'role' => $s->role
-    //             ])
-    //         ]),
-    //         'assignments' => $project->executorAssignments->map(fn($assign) => [
-    //             'id' => $assign->id,
-    //             'role_assignment' => $assign->role_assignment,
-    //             'executor_company' => $assign->entity ? [
-    //                 'id' => $assign->entity->id,
-    //                 'name' => $assign->entity->name,
-    //                 'email' => $assign->entity->email,
-    //                 'address' => $assign->entity->address,
-    //                 'staff_count' => $assign->entity->staff_count
-    //             ] : null
-    //         ]),
-    //         'availableExecutors' => $availableExecutors->map(fn($e) => [
-    //             'id' => $e->id,
-    //             'name' => $e->name,
-    //             'short_name' => $e->short_name,
-    //             'staff_count' => $e->staff_count
-    //         ]),
-    //         'availableEmployees' => $availableEmployees->map(fn($e) => [
-    //             'id' => $e->id,
-    //             'name' => $e->name,
-    //             'position' => $e->position // or role name
-    //         ])
-    //     ]);
-    // }
 
     public function executorProjDetails($id)
     {
-        $companyId = Auth::user()->company_id;
+        // Get project
+        $project = Project::findOrFail($id);
 
-        // Load project with assignments for BOTH companies and employees
-        $project = Project::with([
-            'executorAssignments' => function ($query) {
-                $query->with(['entity' => function ($q) {
-                    // Only apply withCount if entity is Executor
-                    if ($q->getModel() instanceof Executor) {
-                        $q->withCount('staff');
-                    }
-                }]);
-            }
-        ])->findOrFail($id);
-
-
-        // Get assigned companies
-        $companies = $project->executorAssignments
-            ->filter(fn($assign) => $assign->entity_type === 'CP' && $assign->entity)
-            ->map(function ($assign) {
-                $company = $assign->entity;
-                $company->staff_count = $company->staff()->count(); // calculate here
-                return $company;
-            })
-            ->unique('id')
-            ->values();
-
-        // Get available executors not assigned to this project
-        $availableExecutors = Executor::whereDoesntHave('assignments', function ($query) use ($id) {
-            $query->where('project_id', $id);
-        })->withCount('staff')->get();
-
-
-
-        $availableEmployees = User::where('role_id', '4')
-            ->where('company_id', $companyId)
-            ->whereDoesntHave('executorAssignments', function ($query) use ($id) {
-                $query->where('project_id', $id);
-            })
+        // Get all assignments with eager loading
+        $assignmentsStaff = ProjectAssign::where('entity_type', 'staff')
+            ->where('project_id', $id)
+            ->with('entity')
             ->get();
 
-        // Format assignments with proper data for both companies and employees
-        $assignments = $project->executorAssignments->map(fn($assign) => [
-            'id' => $assign->id,
-            'entity_type' => $assign->entity_type, // Add entity_type
-            'role_assignment' => $assign->role_assignment,
-            'executor_company' => $assign->entity_type === 'CP' && $assign->entity ? [
-                'id' => $assign->entity->id,
-                'name' => $assign->entity->name,
-                'email' => $assign->entity->email,
-                'address' => $assign->entity->address,
-                'staff_count' => $assign->entity->staff_count
-            ] : null,
-            'employee' => $assign->entity_type === 'EM' && $assign->entity ? [
-                'id' => $assign->entity->id,
-                'name' => $assign->entity->name,
-                'email' => $assign->entity->email,
-                'position' => $assign->entity->position
-            ] : null
-        ]);
+        $assignmentsSubcon = ProjectAssign::where('entity_type', 'subcon')
+            ->where('project_id', $id)
+            ->with('entity')
+            ->get();
 
-        return Inertia::render('Contents/Executor_Project_Details', [
-            'title' => $project->name,
+        $assignmentsCompSub = ProjectAssign::where('entity_type', 'compsub')
+            ->where('project_id', $id)
+            ->with('entity')
+            ->get();
+
+        $formattedAssignments = [];
+
+        // Process staff assignments
+        foreach ($assignmentsStaff as $assign) {
+            $staff = $assign->entity;
+            if ($staff) {
+                $formattedAssignments[] = [
+                    'id' => $assign->id,
+                    'entity_type' => 'staff',
+                    'entity_id' => $staff->id,
+                    'role_assignment' => $assign->role_assignment,
+                    'staff_member' => [
+                        'id' => $staff->id,
+                        'name' => $staff->name,
+                        'email' => $staff->email,
+                        'role' => $staff->role,
+                        'contact' => $staff->contact,
+                        'company_id' => $staff->company_id,
+                        'company_name' => optional($staff->company)->name ?? 'N/A'
+                    ]
+                ];
+            }
+        }
+
+        // Process subcon assignments
+        foreach ($assignmentsSubcon as $assign) {
+            $subcon = $assign->entity;
+            if ($subcon) {
+                $formattedAssignments[] = [
+                    'id' => $assign->id,
+                    'entity_type' => 'subcon',
+                    'entity_id' => $subcon->id,
+                    'role_assignment' => $assign->role_assignment,
+                    'subcon_staff' => [
+                        'id' => $subcon->id,
+                        'name' => $subcon->name,
+                        'email' => $subcon->email,
+                        'role' => $subcon->role,
+                        'contact' => $subcon->contact,
+                        'company_id' => $subcon->company_id,
+                        'company_name' => optional($subcon->subconCompany)->name ?? 'N/A'
+                    ]
+                ];
+            }
+        }
+
+        // Process company subcontractor assignments (compsub)
+        foreach ($assignmentsCompSub as $assign) {
+            $compsub = $assign->entity; // This will be a SubconCompany model
+            if ($compsub) {
+                $formattedAssignments[] = [
+                    'id' => $assign->id,
+                    'entity_type' => 'compsub',
+                    'entity_id' => $compsub->id,
+                    'role_assignment' => $assign->role_assignment,
+                    'compsub_company' => [ // Changed from compsub_staff to compsub_company
+                        'id' => $compsub->id,
+                        'name' => $compsub->name,
+                        'short_name' => $compsub->short_name,
+                        'email' => $compsub->email,
+                        'contact' => $compsub->contact,
+                        'company_name' => $compsub->name // Company name is the company itself
+                    ]
+                ];
+            }
+        }
+
+        // Get available staff (not assigned)
+        $assignedStaffIds = ProjectAssign::where('project_id', $id)
+            ->where('entity_type', 'staff')
+            ->pluck('entity_id')
+            ->toArray();
+
+        $availableStaff = CompanyStaff::with('company', 'role')
+            ->whereIn('role_id', [4, 8, 7])
+            ->whereNotIn('id', $assignedStaffIds)
+            ->get();
+
+        // Get available subcon staff (not assigned)
+        $assignedSubconIds = ProjectAssign::where('project_id', $id)
+            ->where('entity_type', 'subcon')
+            ->pluck('entity_id')
+            ->toArray();
+
+        $availableSubconStaff = SubconStaff::with('subconCompany')
+            ->whereNotIn('id', $assignedSubconIds)
+            ->get();
+
+        // Get available company subcontractors (not assigned - compsub)
+        $assignedCompSubIds = ProjectAssign::where('project_id', $id)
+            ->where('entity_type', 'compsub')
+            ->pluck('entity_id')
+            ->toArray();
+
+        $availableCompSub = SubconCompany::whereNotIn('id', $assignedCompSubIds)->get();
+
+        return Inertia::render('WSIS/Executor_Project_Details', [
             'project' => [
                 'id' => $project->id,
                 'name' => $project->name,
@@ -382,221 +243,360 @@ class ContentController extends Controller
                 'start_date' => $project->start_date,
                 'end_date' => $project->end_date,
                 'status' => $project->status,
-                'progress' => $project->progress
+                'progress' => $project->progress,
             ],
-            'companies' => $companies->map(fn($c) => [
-                'id' => $c->id,
-                'name' => $c->name,
-                'short_name' => $c->short_name,
-                'email' => $c->email,
-                'contact' => $c->contact,
-                'address' => $c->address,
-                'status' => $c->status,
-                'staff_count' => $c->staff_count,
-                'staff' => $c->staff->map(fn($s) => [
-                    'id' => $s->id,
-                    'name' => $s->name,
-                    'role' => $s->role
-                ])
-            ]),
-            'assignments' => $assignments, // Use the formatted assignments
-            'availableExecutors' => $availableExecutors->map(fn($e) => [
-                'id' => $e->id,
-                'name' => $e->name,
-                'short_name' => $e->short_name,
-                'staff_count' => $e->staff_count
-            ]),
-            'availableEmployees' => $availableEmployees->map(fn($e) => [
-                'id' => $e->id,
-                'name' => $e->name,
-                'position' => $e->position
-            ])
+            'assignments' => $formattedAssignments,
+            'availableStaff' => $availableStaff,
+            'availableSubconStaff' => $availableSubconStaff,
+            'availableCompSub' => $availableCompSub,
+            'flash' => session('flash'),
         ]);
     }
 
 
-public function inspection()
-{
-    // Get projects with their assigned executor companies
-    $projects = Project::with(['executorAssignments' => function($query) {
-        $query->where('entity_type', 'CP')->with('executorCompany');
-    }])->get()->map(function ($project) {
-        // Get all assigned companies for this project
-        $assignedCompanies = $project->executorAssignments->map(function ($assignment) {
-            return $assignment->executorCompany ? [
-                'id' => $assignment->executorCompany->id,
-                'name' => $assignment->executorCompany->name,
-                'short_name' => $assignment->executorCompany->short_name,
-                'email' => $assignment->executorCompany->email,
-                'contact' => $assignment->executorCompany->contact,
-                'address' => $assignment->executorCompany->address
-            ] : null;
-        })->filter()->values(); // Remove null values and reset keys
-        
-        return [
-            'id' => $project->id,
-            'name' => $project->name,
-            'location' => $project->location,
-            'assigned_companies' => $assignedCompanies, // This is what the frontend expects
-            'start_date' => $project->start_date,
-            'end_date' => $project->end_date,
-            'status' => $project->status
-        ];
-    });
+    public function inspection()
+    {
+        // Get all projects with their assigned compsub companies
+        $projects = Project::with(['projectAssign' => function ($query) {
+            $query->where('entity_type', 'compsub')->with('entity');
+        }])->get()->map(function ($project) {
+            // Get all assigned subcontractor companies for this project
+            $assignedSubconCompanies = $project->projectAssign->map(function ($assignment) {
+                $company = $assignment->entity;
+                return $company ? [
+                    'id' => $company->id,
+                    'name' => $company->name,
+                    'short_name' => $company->short_name ?? null,
+                    'email' => $company->email,
+                    'contact' => $company->contact,
+                    'address' => $company->address,
+                    'type' => 'compsub'
+                ] : null;
+            })->filter()->values();
 
-    // Get all executor companies
-    $all_companies = Executor::where('status', 'active')->get()->map(function ($company) {
-        return [
-            'id' => $company->id,
-            'name' => $company->name,
-            'short_name' => $company->short_name,
-            'email' => $company->email,
-            'contact' => $company->contact,
-            'address' => $company->address
-        ];
-    });
-
-    $topics = ToolboxTopic::all()->map(function ($topic) {
-        return [
-            'id' => $topic->id,
-            'name' => $topic->name,
-            'description' => $topic->description
-        ];
-    });
-
-    $topics = ToolboxTopic::all(['id', 'name', 'description']);
-
-    // Get inspections with related data
-    $inspections = Inspection::with(['project', 'executorCompany', 'topic'])
-        ->orderBy('created_at', 'desc')
-        ->get()
-        ->map(function ($inspection) {
             return [
-                'id' => $inspection->id,
-                'inspection_name' => $inspection->inspection_name,
-                'inspection_date' => $inspection->inspection_date,
-                'location' => $inspection->location,
-                'evaluation' => $inspection->evaluation,
-                'description' => $inspection->description,
-                'photo' => $inspection->photo,
-                'project' => $inspection->project ? [
-                    'id' => $inspection->project->id,
-                    'name' => $inspection->project->name,
-                ] : null,
-                'executor_company' => $inspection->executorCompany ? [
-                    'id' => $inspection->executorCompany->id,
-                    'name' => $inspection->executorCompany->name,
-                ] : null,
-                'topic' => $inspection->topic ? [
-                    'id' => $inspection->topic->id,
-                    'name' => $inspection->topic->name,
-                ] : null,
-                'created_by' => $inspection->created_by,
-                'created_at' => $inspection->created_at,
-                'updated_at' => $inspection->updated_at,
+                'id' => $project->id,
+                'name' => $project->name,
+                'location' => $project->location,
+                'assigned_companies' => $assignedSubconCompanies,
+                'start_date' => $project->start_date,
+                'end_date' => $project->end_date,
+                'status' => $project->status
             ];
         });
 
-        $toolboxTalks = ToolboxTalks::with(['project', 'topics'])
-    ->orderBy('inspection_date', 'desc') // Sort by date descending (newest first)
-    // ->orderBy('created_at', 'desc')      // Secondary sort by creation date
-    ->get()
-    ->map(function ($talk) {
-        return [
-            'id' => $talk->id,
-            'name' => $talk->inspection_name,
-            'date' => $talk->inspection_date,
-            'project' => $talk->project ? $talk->project->name : 'N/A',
-            'topics' => $talk->topics->pluck('name')->toArray(),
-            'attendance' => $talk->total_attended,
-            'status' => $talk->conducted,
-        ];
-    });
+        // Get all staff with role_id = 7 (Inspectors)
+        // $projectIds = $projects->pluck('id')->toArray();
 
-    return Inertia::render('Contents/Inspection', [
-        'title' => 'Inspection',
-        'projects' => $projects,
-        'all_companies' => $all_companies,
-        'topics' => $topics,
-        'inspections' => $inspections,
-        'toolboxTopics' => $topics,
-        'toolboxTalks' => $toolboxTalks,
-    ]);
-}
+        // $inspectorRows = ProjectAssign::where('project_assign.entity_type', 'staff')
+        //     ->whereIn('project_assign.project_id', $projectIds)
+        //     ->join('company_staff', 'project_assign.entity_id', '=', 'company_staff.id')
+        //     ->select(
+        //         'company_staff.id',
+        //         'company_staff.name',
+        //         'company_staff.email',
+        //         'company_staff.contact',
+        //         'company_staff.role_id',
+        //         'company_staff.company_id',
+        //         'project_assign.project_id',
+        //         'project_assign.role_assignment as project_role'
+        //     )
+        //     ->get();
+
+        // // Group as { project_id: [inspector, ...] }
+        // $inspectors = $inspectorRows->groupBy('project_id');
+
+        $user = Auth::user();
+
+        $authStaff = CompanyStaff::where('user_id', $user->id)->first();
+
+        // Prepare auth_inspector data
+        $authInspector = $authStaff ? [
+            'id'         => $authStaff->id,
+            'name'       => $authStaff->name,
+            'email'      => $authStaff->email,
+            'contact'    => $authStaff->contact,
+            'company_id' => $authStaff->company_id,
+        ] : null;
+
+        // dd($inspectors);
+
+        // Get all executor companies (active companies) - for Toolbox
+        $all_companies = Company::where('status', 'active')->get()->map(function ($company) {
+            return [
+                'id' => $company->id,
+                'name' => $company->name,
+                'short_name' => $company->short_name,
+                'email' => $company->email,
+                'contact' => $company->contact,
+                'address' => $company->address
+            ];
+        });
+
+        // Get all topics
+        $topics = ToolboxTopic::all(['id', 'name', 'description']);
+
+        // Get inspections
+        $inspections = Inspection::with(['project', 'company', 'topic', 'inspector', 'subconCompany'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($inspection) {
+                return [
+                    'id' => $inspection->id,
+                    'inspection_name' => $inspection->inspection_name ?? null,
+                    'inspection_date' => $inspection->inspection_date,
+                    'location' => $inspection->location,
+                    'evaluation' => $inspection->evaluation,
+                    'description' => $inspection->description,
+                    'photo' => $inspection->photo,
+                    'project' => $inspection->project ? [
+                        'id' => $inspection->project->id,
+                        'name' => $inspection->project->name,
+                    ] : null,
+                    'company' => $inspection->company ? [
+                        'id' => $inspection->company->id,
+                        'name' => $inspection->company->name,
+                    ] : null,
+                    'subconCompany' => $inspection->subconCompany ? [
+                        'id' => $inspection->subconCompany->id,
+                        'name' => $inspection->subconCompany->name,
+                    ] : null,
+                    'topic' => $inspection->topic ? [
+                        'id' => $inspection->topic->id,
+                        'name' => $inspection->topic->name,
+                    ] : null,
+                    'inspector' => $inspection->inspector ? [
+                        'id' => $inspection->inspector->id,
+                        'name' => $inspection->inspector->name,
+                    ] : null,
+                    'created_by' => $inspection->created_by,
+                    'created_at' => $inspection->created_at,
+                    'updated_at' => $inspection->updated_at,
+                ];
+            });
+
+        // Get toolbox talks
+        $toolboxTalks = ToolboxTalks::with(['project', 'topics', 'CompanyStaff'])
+            ->orderBy('inspection_date', 'desc')
+            ->get()
+            ->map(function ($talk) {
+                return [
+                    'id' => $talk->id,
+                    'name' => $talk->inspection_name,
+                    'date' => $talk->inspection_date,
+                    'project' => $talk->project ? $talk->project->name : 'N/A',
+                    'topics' => $talk->topics->pluck('name')->toArray(),
+                    'attendance' => $talk->total_attended,
+                    'status' => $talk->conducted,
+                    'staffinpection' => $talk->CompanyStaff ? $talk->CompanyStaff->name : 'N/A',
+                ];
+            });
+
+        $staffNames = CompanyStaff::whereIn('id', $toolboxTalks->pluck('inspection_by'))->pluck('name', 'id');
+
+        
+
+        // dd($inspections);
+
+        return Inertia::render('WSIS/Inspection', [
+            'title' => 'Inspection',
+            'projects' => $projects,
+            'auth_inspector' => $authInspector, // Add inspectors to props
+            'all_companies' => $all_companies,
+            'topics' => $topics,
+            'inspections' => $inspections,
+            'toolboxTopics' => $topics,
+            'toolboxTalks' => $toolboxTalks,
+            'staffinpection' => $staffNames,
+        ]);
+    }
 
 
-public function toolbox()
-{
-    $topics = ToolboxTopic::all()->map(function ($topic) {
-        return [
-            'id' => $topic->id,
-            'name' => $topic->name,
-            'description' => $topic->description
-        ];
-    });
-
-    $talks = ToolboxTalks::with(['project', 'topics'])->get()->map(function ($talk) {
-    return [
-        'id' => $talk->id,
-        'name' => $talk->inspection_name,
-        'date' => $talk->inspection_date,
-        'project' => $talk->project ? $talk->project->name : 'N/A',
-        'topics' => $talk->topics->pluck('name')->toArray(), // 👈 this is an array
-        'attendance' => $talk->total_attendance,
-        'status' => $talk->conducted === 'yes' ? 'Completed' : 'Pending',
-    ];
-});
+    public function toolbox()
+    {
+        // Load topics
+        $topics = ToolboxTopic::all()->map(function ($topic) {
+            return [
+                'id'          => $topic->id,
+                'name'        => $topic->name,
+                'description' => $topic->description,
+            ];
+        });
 
 
-    return Inertia::render('Contents/Toolbox', [
-        'title' => 'Toolbox',
-        'toolboxTopics' => $topics,
-        'toolboxTalks' => $talks,
-    ]);
-}
+        $talks = ToolboxTalks::with(['project', 'topics', 'CompanyStaff'])
+            ->get()
+            ->map(function ($talk) {
+                $staffName = $talk->CompanyStaff ? $talk->CompanyStaff->name : 'No Staff Found';
+
+                // Debug log
+                \Log::info("Talk ID {$talk->id} - Staff: {$staffName}");
+
+                return [
+                    'id'         => $talk->id,
+                    'name'       => $staffName,  // This should be the staff name
+                    'date'       => $talk->inspection_date,
+                    'project'    => $talk->project ? $talk->project->name : 'No Project',
+                    'topics'     => $talk->topics->pluck('name')->toArray(),
+                    'attendance' => $talk->total_attended,
+                    'status'     => $talk->conducted,
+                ];
+            });
+
+        $staffNames = CompanyStaff::whereIn('id', $talks->pluck('inspection_by'))->pluck('name', 'id');
+
+        dd($staffNames);
+
+
+        // Load projects for the dropdown
+        $projects = Project::all();
+
+        return Inertia::render('WSIS/Toolbox', [
+            'title'         => 'Toolbox',
+            'toolboxTopics' => $topics,
+            'toolboxTalks'  => $talks,
+            'projects'      => $projects,
+            'stafftoolbox'    => $talk->CompanyStaff ? $talk->CompanyStaff->name : 'N/A',
+        ]);
+    }
 
 
 
 
     public function nonConformance()
     {
-        return Inertia::render('Contents/Non_Conformance', [
-            'title' => 'Non-Conformance',
-            // Add any other data you want to pass
-            'metrics' => [
-                'total_compliance' => 85,
-                'pending_items' => 3
-            ]
+        $companyId = Auth::user()->company_id;
+
+        $nonConformances = NoConformance::with([
+            'inspection.project',
+            'inspection.topic',
+            'inspection.subconCompany',
+            'inspection.inspector',
+        ])
+            ->whereHas('inspection.project', function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            })
+            ->latest()
+            ->get();
+
+        return Inertia::render('WSIS/Non_Conformance', [
+            'title'           => 'Non-Conformance',
+            'nonConformances' => $nonConformances,
         ]);
     }
 
     public function clientComplaint()
     {
-        return Inertia::render('Contents/Client_Complaint', [
-            'title' => 'Client Complaint',
-            // Add any other data you want to pass
-            'metrics' => [
-                'total_compliance' => 85,
-                'pending_items' => 3
-            ]
+        $companyId = Auth::user()->company_id;
+
+        $clientComplaints = ClientComplaint::with([
+            'inspection.project',
+            'inspection.topic',
+            'inspection.subconCompany',
+            'inspection.inspector',
+        ])
+            ->whereHas('inspection.project', function ($q) use ($companyId) {
+                $q->where('company_id', $companyId);
+            })
+            ->latest()
+            ->get();
+
+        return Inertia::render('WSIS/Client_Complaint', [
+            'title'            => 'Client Complaint',
+            'clientComplaints' => $clientComplaints,
         ]);
     }
 
-    public function inciStatistic()
+    public function inciStatistic(Request $request)
     {
-        return Inertia::render('Contents/Incident_Statistic', [
-            'title' => 'Incident Statistic',
-            // Add any other data you want to pass
-            'metrics' => [
-                'total_compliance' => 85,
-                'pending_items' => 3
-            ]
+        $query = Incident::query()
+            ->with([
+                'project:id,name',
+                'company:id,name',
+                'subcontractor:id,name',
+                'incidentType:id,name',
+                'injuryType:id,name',
+                'reportedBy:id,name,role_id',
+                'reportedBy.role:id,name',
+                'responsibleBy:id,name,role_id',
+                'responsibleBy.role:id,name',
+            ])
+            ->when($request->year,  fn($q) => $q->whereYear('incident_date',  $request->year))
+            ->when($request->month, fn($q) => $q->whereMonth('incident_date', $request->month));
+
+        $incidents = $query
+            ->orderByDesc('incident_date')
+            ->get()
+            ->map(function (Incident $inc) {
+                // Determine which incident-type columns to flag (1 or 0)
+                // based on the related IncidentType name.
+                $typeName = optional($inc->incidentType)->name ?? '';
+
+                return [
+                    'id'                     => $inc->id,
+
+                    // ── Basic Information ──────────────────────────────────────
+                    'incident_year'          => $inc->incident_date?->format('Y'),
+                    'incident_month'         => $inc->incident_date?->format('m'),   // '01'–'12'
+                    'incident_type'          => $typeName,
+                    'injury_type'            => optional($inc->injuryType)->name,
+                    'body_part'              => $inc->body_part,
+                    'location'               => $inc->location,
+                    'project_name'           => optional($inc->project)->name,
+                    'company'                => optional($inc->company)->name,
+                    'subcon_company'         => optional($inc->subcontractor)->name,
+                    // ── Incident Classification counts ─────────────────────────
+                    // Each column is 1 if this record matches that type, 0 otherwise.
+                    // Adjust the string comparisons to match your IncidentType seed data.
+                    'fatality'               => str_contains(strtolower($typeName), 'fatality')               ? 1 : 0,
+                    'occup_health_complaint' => str_contains(strtolower($typeName), 'occup')                  ? 1 : 0,
+                    'lti'                    => str_contains(strtolower($typeName), 'lost time')               ? 1 : 0,
+                    'first_aid_treatment'    => str_contains(strtolower($typeName), 'first aid')               ? 1 : 0,
+                    'fire_cases'             => str_contains(strtolower($typeName), 'fire')                    ? 1 : 0,
+                    'environmental_issue'    => str_contains(strtolower($typeName), 'environment')             ? 1 : 0,
+                    'road_accident'          => str_contains(strtolower($typeName), 'road')                    ? 1 : 0,
+                    'total'                  => 1, // each row is 1 incident
+
+                    // ── Personnel ──────────────────────────────────────────────
+                    'responsible_person'     => optional($inc->responsibleBy)->name,
+                    'position'               => optional(optional($inc->responsibleBy)->role)->name,
+                    'reported_by'            => optional($inc->reportedBy)->name,
+                    'reporter_position'      => optional(optional($inc->reportedBy)->role)->name,
+
+                    // ── LTI Details ────────────────────────────────────────────
+                    'lti_worker_count'       => $inc->lti_worker_count,
+                    'lti_days_lost'          => $inc->lti_days_lost,
+                    'lti_man_hours_lost'     => $inc->lti_man_hours_lost,
+
+                    // ── Case Details ───────────────────────────────────────────
+                    'incident_description'   => $inc->incident_description,
+                    'immediate_cause'        => $inc->immediate_cause,
+                    'underlying_cause'       => $inc->underlying_cause,
+
+                    // ── Follow-up & Actions ────────────────────────────────────
+                    'immediate_action'       => $inc->immediate_action,
+                    'corrective'             => $inc->corrective,
+
+                    // ── Impact & Recording ─────────────────────────────────────
+                    'lti_man_hours_lost'     => $inc->lti_man_hours_lost,
+                    'attachment_upload'      => $inc->attachment_upload
+                        ? asset('storage/' . $inc->attachment_upload)
+                        : null,
+
+                    // ── Status ─────────────────────────────────────────────────
+                    'status'                 => $inc->status, // 'open' | 'in progress' | 'closed'
+                ];
+            });
+
+        return Inertia::render('WSIS/Incident_Statistic', [
+            'title'     => 'Incident Statistic',
+            'incidents' => $incidents,
         ]);
     }
 
     public function manHour()
     {
-        return Inertia::render('Contents/Man_Hour', [
+        return Inertia::render('WSIS/Man_Hour', [
             'title' => 'Man Hour',
             // Add any other data you want to pass
             'metrics' => [
@@ -608,7 +608,7 @@ public function toolbox()
 
     public function dailyReports()
     {
-        return Inertia::render('Contents/Daily_Reports', [
+        return Inertia::render('WSIS/Daily_Reports', [
             'title' => 'Daily Reports',
             // Add any other data you want to pass
             'metrics' => [
@@ -620,7 +620,7 @@ public function toolbox()
 
     public function monthlyReports()
     {
-        return Inertia::render('Contents/Monthly_Reports', [
+        return Inertia::render('WSIS/Monthly_Reports', [
             'title' => 'Monthly Reports',
             // Add any other data you want to pass
             'metrics' => [
@@ -629,7 +629,4 @@ public function toolbox()
             ]
         ]);
     }
-
-
-    
 }
