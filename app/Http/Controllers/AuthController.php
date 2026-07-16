@@ -69,6 +69,10 @@ class AuthController extends Controller
      */
     protected function getRedirectPathByRole($role_id)
     {
+        if ($role_id == 1) {
+            return '/admin/dashboard';
+        }
+
         // Role 2 goes to /module
         if ($role_id == 2) {
             return '/module';

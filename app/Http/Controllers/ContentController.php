@@ -19,6 +19,7 @@ use App\Models\Inspection;
 use App\Models\NoConformance;
 use App\Models\ClientComplaint;
 use App\Models\Incident;
+use App\Models\Manhour;
 
 
 use Illuminate\Support\Facades\Auth;
@@ -596,14 +597,51 @@ class ContentController extends Controller
 
     public function manHour()
     {
+        $staff = CompanyStaff::where('user_id', Auth::id())->first();
+        $companyId = $staff?->company_id;
+
+        $projects = Project::where('company_id', $companyId)
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
         return Inertia::render('WSIS/Man_Hour', [
-            'title' => 'Man Hour',
-            // Add any other data you want to pass
-            'metrics' => [
-                'total_compliance' => 85,
-                'pending_items' => 3
-            ]
+            'title' => 'Company Manhours',
+            'projects' => $projects,
+            'entries' => $this->manhourEntries($companyId),
         ]);
+    }
+
+    public function manHourOverall()
+    {
+        $staff = CompanyStaff::where('user_id', Auth::id())->first();
+
+        return Inertia::render('WSIS/Man_Hour_Overall', [
+            'title' => 'Overall Manhours',
+            'entries' => $this->manhourEntries($staff?->company_id),
+        ]);
+    }
+
+    private function manhourEntries($companyId)
+    {
+        return Manhour::with([
+                'project:id,name',
+                'subcontractor:id,name',
+            ])
+            ->where('company_id', $companyId)
+            ->latest('created_at')
+            ->latest('work_date')
+            ->latest('id')
+            ->get()
+            ->map(fn (Manhour $entry) => [
+                'id' => $entry->id,
+                'work_date' => $entry->work_date->format('Y-m-d'),
+                'created_at' => $entry->created_at?->format('Y-m-d H:i:s'),
+                'project_name' => $entry->project?->name,
+                'subcontractor_name' => $entry->subcontractor?->name,
+                'worker_count' => $entry->worker_count,
+                'working_hours' => (float) $entry->working_hours,
+                'manhours' => round($entry->worker_count * (float) $entry->working_hours, 2),
+            ]);
     }
 
     public function dailyReports()

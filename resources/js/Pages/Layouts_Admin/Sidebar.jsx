@@ -63,7 +63,8 @@ const NAVIGATION = [  // Changed to uppercase constant
     {
     category: 'MAN-HOUR',
     items: [
-      { name: 'Man-Hour', href: '/man-hour', icon: FaHourglass },
+      { name: 'Company Manhours', href: '/man-hour', icon: FaHourglass },
+      { name: 'Overall Manhours', href: '/man-hour/overall', icon: FaChartLine },
      
     ],
   },

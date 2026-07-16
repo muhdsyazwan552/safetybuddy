@@ -10,6 +10,8 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\MetricController;
 use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\IncidentController;
+use App\Http\Controllers\ManhourController;
+use App\Http\Controllers\SystemAdminController;
 use App\Http\Controllers\SubconPublicController;
 use App\Http\Controllers\Inspector\DashboardController;
 use Illuminate\Foundation\Application;
@@ -42,6 +44,17 @@ Route::post('/login', [AuthController::class, 'authenticate'])->name('login');
 
 Route::get('/register-view', [AuthController::class, 'register'])->name('admin.register');
 Route::post('/register', [AuthController::class, 'store']);
+
+Route::middleware(['auth', 'role:1'])->prefix('admin')->name('system.admin.')->group(function () {
+    Route::get('/dashboard', [SystemAdminController::class, 'dashboard'])->name('dashboard');
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::post('/users', [SystemAdminController::class, 'storeUser'])->name('users.store');
+    Route::put('/users/{user}', [SystemAdminController::class, 'updateUser'])->name('users.update');
+    Route::get('/subscriptions', [SystemAdminController::class, 'subscriptions'])->name('subscriptions');
+    Route::post('/subscriptions', [SystemAdminController::class, 'storeSubscription'])->name('subscriptions.store');
+    Route::put('/subscriptions/{subscription}', [SystemAdminController::class, 'updateSubscription'])->name('subscriptions.update');
+    Route::post('/packages', [SystemAdminController::class, 'storePackage'])->name('packages.store');
+});
 
 
 Route::prefix('subcon')->group(function () {
@@ -94,6 +107,12 @@ Route::middleware(['auth', 'role:2'])->group(function () {
         ->name('incident.statistic');
     Route::get('/man-hour', [ContentController::class, 'manHour'])
         ->name('man.hour');
+    Route::get('/man-hour/overall', [ContentController::class, 'manHourOverall'])
+        ->name('man.hour.overall');
+    Route::post('/man-hour', [ManhourController::class, 'store'])
+        ->name('man.hour.store');
+    Route::get('/man-hour/projects/{project}/subcontractors', [ManhourController::class, 'projectSubcontractors'])
+        ->name('man.hour.project-subcontractors');
     Route::get('/daily-reports', [ContentController::class, 'dailyReports'])
         ->name('daily.reports');
     Route::get('/monthly-reports', [ContentController::class, 'monthlyReports'])

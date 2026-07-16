@@ -1,362 +1,300 @@
-import React, { useState } from 'react';
-import { Head } from '@inertiajs/react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { Bar, BarChart, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import AppLayout from '@/Pages/WSIS/Layout';
 
-const ManHour = ({ title }) => {
-  // Sample data with all required fields
-  const [incidents, setIncidents] = useState([
-    { 
-      id: 1, 
-      project_executor: "Safety Solutions Inc.", 
-      fatality: 0,
-      occupational_health_complaint: 3,
-      lost_time_injury: 2,
-      first_aid_treatment: 5,
-      fire_cases: 1,
-      environmental_issue: 2,
-      road_accident: 0,
-      month: "2023-05",
-      status: "open"
-    },
-    { 
-      id: 2, 
-      project_executor: "Compliance Partners", 
-      fatality: 1,
-      occupational_health_complaint: 2,
-      lost_time_injury: 1,
-      first_aid_treatment: 3,
-      fire_cases: 0,
-      environmental_issue: 1,
-      road_accident: 1,
-      month: "2023-06",
-      status: "closed"
-    },
-    { 
-      id: 3, 
-      project_executor: "Risk Management Group", 
-      fatality: 0,
-      occupational_health_complaint: 5,
-      lost_time_injury: 3,
-      first_aid_treatment: 7,
-      fire_cases: 2,
-      environmental_issue: 3,
-      road_accident: 2,
-      month: "2023-07",
-      status: "open"
-    }
-  ]);
+const today = new Date().toISOString().slice(0, 10);
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [entriesToShow, setEntriesToShow] = useState(10);
-  const [selectedMonth, setSelectedMonth] = useState('');
+const number = (value, options = {}) => new Intl.NumberFormat('en-MY', {
+  maximumFractionDigits: 2,
+  ...options,
+}).format(value || 0);
+
+const formatDate = (date) => new Intl.DateTimeFormat('en-MY', {
+  day: '2-digit', month: 'short', year: 'numeric',
+}).format(new Date(`${date}T00:00:00`));
+
+const CHART_COLORS = ['#2563eb', '#16a34a', '#f97316', '#9333ea', '#e11d48', '#0891b2', '#ca8a04', '#4f46e5'];
+const MONTHS = [
+  ['01', 'January'], ['02', 'February'], ['03', 'March'], ['04', 'April'], ['05', 'May'], ['06', 'June'],
+  ['07', 'July'], ['08', 'August'], ['09', 'September'], ['10', 'October'], ['11', 'November'], ['12', 'December'],
+];
+
+const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [step, setStep] = useState(1);
+  const [subcontractors, setSubcontractors] = useState([]);
+  const [loadingSubcontractors, setLoadingSubcontractors] = useState(false);
+  const [search, setSearch] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
-  const [viewingIncident, setViewingIncident] = useState(null);
+  const [selectedMonth, setSelectedMonth] = useState('');
+  const [selectedCompany, setSelectedCompany] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
-  // Generate years and months for filters
-  const years = ['2023', '2024', '2025'];
-  const months = [
-    { value: '01', label: 'January' },
-    { value: '02', label: 'February' },
-    { value: '03', label: 'March' },
-    { value: '04', label: 'April' },
-    { value: '05', label: 'May' },
-    { value: '06', label: 'June' },
-    { value: '07', label: 'July' },
-    { value: '08', label: 'August' },
-    { value: '09', label: 'September' },
-    { value: '10', label: 'October' },
-    { value: '11', label: 'November' },
-    { value: '12', label: 'December' }
-  ];
+  const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
+    project_id: '',
+    subcon_company_id: '',
+    work_date: today,
+    worker_count: '',
+    working_hours: '8',
+  });
 
-  // Filter incidents based on search and date filters
-  const filteredIncidents = incidents.filter(incident => {
-    const matchesSearch = Object.values(incident).some(
-      value => typeof value === 'string' && 
-      value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    const matchesMonth = selectedMonth 
-      ? incident.month.endsWith(`-${selectedMonth}`) 
-      : true;
-    
-    const matchesYear = selectedYear 
-      ? incident.month.startsWith(selectedYear) 
-      : true;
-    
-    return matchesSearch && matchesMonth && matchesYear;
-  }).slice(0, entriesToShow);
-
-  const handleStatusChange = (id) => {
-    setIncidents(incidents.map(item => 
-      item.id === id ? { 
-        ...item, 
-        status: item.status === 'open' ? 'closed' : 'open' 
-      } : item
-    ));
-    
-    if (viewingIncident && viewingIncident.id === id) {
-      setViewingIncident({
-        ...viewingIncident,
-        status: viewingIncident.status === 'open' ? 'closed' : 'open'
-      });
+  useEffect(() => {
+    if (!data.project_id) {
+      setSubcontractors([]);
+      return;
     }
+
+    setLoadingSubcontractors(true);
+    fetch(`/man-hour/projects/${data.project_id}/subcontractors`)
+      .then((response) => response.ok ? response.json() : Promise.reject(response))
+      .then((json) => {
+        setSubcontractors(json.subcontractors || []);
+        setData('subcon_company_id', '');
+      })
+      .catch(() => setSubcontractors([]))
+      .finally(() => setLoadingSubcontractors(false));
+  }, [data.project_id]);
+
+  const filteredEntries = useMemo(() => entries.filter((entry) => {
+    const text = `${entry.project_name || ''} ${entry.subcontractor_name || ''} ${entry.work_date}`.toLowerCase();
+    return text.includes(search.toLowerCase())
+      && (!selectedYear || entry.work_date.startsWith(selectedYear))
+      && (!selectedMonth || entry.work_date.slice(5, 7) === selectedMonth)
+      && (!selectedCompany || entry.subcontractor_name === selectedCompany);
+  }), [entries, search, selectedYear, selectedMonth, selectedCompany]);
+  const totalPages = Math.max(1, Math.ceil(filteredEntries.length / pageSize));
+  const visibleEntries = filteredEntries.slice((page - 1) * pageSize, page * pageSize);
+
+  useEffect(() => setPage(1), [search, selectedYear, selectedMonth, selectedCompany, pageSize]);
+  useEffect(() => { if (page > totalPages) setPage(totalPages); }, [page, totalPages]);
+
+  const years = useMemo(() => [...new Set(entries.map((entry) => entry.work_date.slice(0, 4)))].sort().reverse(), [entries]);
+  const chartPeriod = `${selectedMonth ? MONTHS.find(([value]) => value === selectedMonth)?.[1] : 'All months'} ${selectedYear || 'all years'}`;
+  const companies = useMemo(() => [...new Set(entries.map((entry) => entry.subcontractor_name).filter(Boolean))].sort(), [entries]);
+  const availableMonths = useMemo(() => [...new Set(entries.map((entry) => entry.work_date.slice(0, 7)))].sort().reverse(), [entries]);
+  const fallbackMonth = availableMonths.find((item) => !selectedYear || item.startsWith(selectedYear)) || availableMonths[0] || today.slice(0, 7);
+  const reportYear = selectedYear || fallbackMonth.slice(0, 4);
+  const reportMonth = selectedMonth || fallbackMonth.slice(5, 7);
+  const reportMonthKey = `${reportYear}-${reportMonth}`;
+
+  const stats = useMemo(() => ({
+    manhours: filteredEntries.reduce((total, entry) => total + Number(entry.manhours), 0),
+    workforce: filteredEntries.reduce((total, entry) => total + Number(entry.worker_count), 0),
+    activeDays: new Set(filteredEntries.map((entry) => entry.work_date)).size,
+    projects: new Set(filteredEntries.map((entry) => entry.project_name).filter(Boolean)).size,
+  }), [filteredEntries]);
+
+  // Entries store a headcount rather than individual worker identities. For each
+  // project, combine the subcontractor headcounts per date, then average its active days.
+  const projectWorkforceData = useMemo(() => {
+    const projectsByDate = {};
+    filteredEntries.forEach((entry) => {
+      const key = entry.project_name || 'Unassigned project';
+      projectsByDate[key] ??= {};
+      projectsByDate[key][entry.work_date] = (projectsByDate[key][entry.work_date] || 0) + Number(entry.worker_count);
+    });
+    return Object.entries(projectsByDate)
+      .map(([project, dates]) => {
+        const dailyCounts = Object.values(dates);
+        return { project, workers: Math.round(dailyCounts.reduce((sum, count) => sum + count, 0) / dailyCounts.length), activeDays: dailyCounts.length };
+      })
+      .sort((a, b) => b.workers - a.workers);
+  }, [filteredEntries]);
+
+  const cumulativeBreakdown = useMemo(() => {
+    const totals = {};
+    filteredEntries.forEach((entry) => {
+      const key = entry.project_name || 'Unassigned project';
+      totals[key] = (totals[key] || 0) + Number(entry.manhours);
+    });
+    return Object.entries(totals).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+  }, [filteredEntries]);
+
+  const monthlyProjectNames = useMemo(() => [...new Set(entries
+    .filter((entry) => entry.work_date.startsWith(reportMonthKey) && (!selectedCompany || entry.subcontractor_name === selectedCompany))
+    .map((entry) => entry.project_name || 'Unassigned project'))].sort(), [entries, reportMonthKey, selectedCompany]);
+
+  const monthlyTableData = useMemo(() => {
+    const daysInMonth = new Date(Number(reportYear), Number(reportMonth), 0).getDate();
+    return Array.from({ length: daysInMonth }, (_, index) => {
+      const day = index + 1;
+      const date = `${reportMonthKey}-${String(day).padStart(2, '0')}`;
+      const row = { day, date, projects: {} };
+      monthlyProjectNames.forEach((project) => { row.projects[project] = { workers: 0, manhours: 0 }; });
+      entries.filter((entry) => entry.work_date === date && (!selectedCompany || entry.subcontractor_name === selectedCompany)).forEach((entry) => {
+        const project = entry.project_name || 'Unassigned project';
+        row.projects[project] ??= { workers: 0, manhours: 0 };
+        row.projects[project].workers += Number(entry.worker_count);
+        row.projects[project].manhours += Number(entry.manhours);
+      });
+      row.totalWorkers = Object.values(row.projects).reduce((total, project) => total + project.workers, 0);
+      row.totalManhours = Object.values(row.projects).reduce((total, project) => total + project.manhours, 0);
+      return row;
+    });
+  }, [entries, reportYear, reportMonth, reportMonthKey, selectedCompany, monthlyProjectNames]);
+
+  const monthlyTableTotals = useMemo(() => ({
+    projects: Object.fromEntries(monthlyProjectNames.map((project) => [project, {
+      workers: monthlyTableData.reduce((total, row) => total + row.projects[project].workers, 0),
+      manhours: monthlyTableData.reduce((total, row) => total + row.projects[project].manhours, 0),
+    }])),
+    workers: monthlyTableData.reduce((total, row) => total + row.totalWorkers, 0),
+    manhours: monthlyTableData.reduce((total, row) => total + row.totalManhours, 0),
+  }), [monthlyProjectNames, monthlyTableData]);
+
+  const openModal = () => {
+    reset();
+    clearErrors();
+    setSubcontractors([]);
+    setStep(1);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    if (!processing) setIsModalOpen(false);
+  };
+
+  const next = () => {
+    if (step === 1 && data.project_id) setStep(2);
+    if (step === 2 && data.subcon_company_id) setStep(3);
+  };
+
+  const save = (event) => {
+    event.preventDefault();
+    post(route('man.hour.store'), {
+      onSuccess: () => {
+        setIsModalOpen(false);
+        setStep(1);
+        reset();
+      },
+    });
   };
 
   return (
     <AppLayout>
       <Head title={title} />
-      
-      <div className="p-6">
-        <div className="flex justify-between items-center mb-5">
-          <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
-          <button 
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-            onClick={() => console.log('Generate report clicked')}
-          >
-            Generate Report
+      <div className="p-4 sm:p-6 space-y-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600">Safety performance</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-800">{title}</h1>
+            <p className="mt-1 text-sm text-slate-500">Select one subcontractor company and a date period to review its workforce and manhours.</p>
+          </div>
+          <button onClick={openModal} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
+            <span className="text-lg leading-none">+</span> Add daily manhour
           </button>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          {/* Table Header with Controls */}
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-4 border-b border-gray-200 gap-4">
-            <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-              <div className="flex items-center">
-                <label className="mr-2 text-sm text-gray-600">Show</label>
-                <select 
-                  className="border border-gray-300 rounded px-3 py-1 text-sm"
-                  value={entriesToShow}
-                  onChange={(e) => setEntriesToShow(Number(e.target.value))}
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value={50}>50</option>
-                  <option value={100}>100</option>
-                </select>
-              </div>
-              
-              <div className="flex flex-col md:flex-row gap-2">
-                <select
-                  className="border border-gray-300 rounded px-3 py-1 text-sm"
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                >
-                  <option value="">All Years</option>
-                  {years.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-                
-                <select
-                  className="border border-gray-300 rounded px-3 py-1 text-sm"
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                >
-                  <option value="">All Months</option>
-                  {months.map(month => (
-                    <option key={month.value} value={month.value}>{month.label}</option>
-                  ))}
-                </select>
-              </div>
+        <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
+          <Link href="/man-hour" className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white">Company view</Link>
+          <Link href="/man-hour/overall" className="rounded-md px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Overall view</Link>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            ['Total manhours', `${number(stats.manhours)} hrs`, 'Workers × working hours'],
+            ['Daily workforce', number(stats.workforce), 'Sum of recorded daily workers'],
+            ['Active days', number(stats.activeDays), 'Dates with a manhour entry'],
+            ['Projects recorded', number(stats.projects), 'In the selected results'],
+          ].map(([label, value, detail]) => (
+            <div key={label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
+              <p className="mt-2 text-2xl font-bold text-slate-800">{value}</p>
+              <p className="mt-1 text-xs text-slate-400">{detail}</p>
             </div>
-            
-            <div className="relative w-full md:w-64">
-              <input
-                type="text"
-                placeholder="Search incidents..."
-                className="border border-gray-300 rounded px-4 py-1 pl-8 text-sm w-full"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              <svg className="absolute left-2.5 top-2 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-              </svg>
+          ))}
+        </div>
+
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h2 className="font-bold text-slate-800">Daily manhour records</h2>
+              <p className="text-sm text-slate-500">Newest created records appear first. Saving again updates that day’s record.</p>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Records per page"><option value={10}>10 per page</option><option value={25}>25 per page</option><option value={50}>50 per page</option></select>
+              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Filter by year"><option value="">All years</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}</select>
+              <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Filter by month"><option value="">All months</option>{MONTHS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+              <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Filter by company"><option value="">All subcontractor companies</option>{companies.map((company) => <option key={company} value={company}>{company}</option>)}</select>
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search project or subcontractor" className="rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />
             </div>
           </div>
-          
-          {/* Table */}
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
-                    #
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Project Executor
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                   Total workers work in the month
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total work hours per day
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total work day in the month
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total workers involved in the Lost Time Injury (LTI)
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total work day lost due to LTI
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
-                    Actions
-                  </th>
-                </tr>
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
+              <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                <tr><th className="px-4 py-3">Work date</th><th className="px-4 py-3">Project</th><th className="px-4 py-3">Subcontractor</th><th className="px-4 py-3 text-right">Workers</th><th className="px-4 py-3 text-right">Hours / worker</th><th className="px-4 py-3 text-right">Total manhours</th></tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredIncidents.map((incident) => (
-                  <tr key={incident.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {incident.id}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-800">
-                      {incident.project_executor}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-800">
-                      {incident.fatality}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-800">
-                      {incident.occupational_health_complaint}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-800">
-                      {incident.lost_time_injury}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-800">
-                      {incident.first_aid_treatment}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-800">
-                      {incident.fire_cases}
-                    </td>
-                   
-                    
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-4">
-                        <button 
-                          className="text-blue-600 hover:text-blue-800"
-                          onClick={() => setViewingIncident(incident)}
-                        >
-                          View
-                        </button>
-                      </div>
-                    </td>
+              <tbody className="divide-y divide-slate-100 text-slate-700">
+                {visibleEntries.map((entry) => (
+                  <tr key={entry.id} className="hover:bg-slate-50/70">
+                    <td className="whitespace-nowrap px-4 py-3">{formatDate(entry.work_date)}</td>
+                    <td className="px-4 py-3 font-medium text-slate-800">{entry.project_name || '—'}</td>
+                    <td className="px-4 py-3">{entry.subcontractor_name || '—'}</td>
+                    <td className="px-4 py-3 text-right">{number(entry.worker_count)}</td>
+                    <td className="px-4 py-3 text-right">{number(entry.working_hours)} hrs</td>
+                    <td className="px-4 py-3 text-right font-bold text-slate-800">{number(entry.manhours)} hrs</td>
                   </tr>
                 ))}
+                {!filteredEntries.length && <tr><td colSpan="6" className="px-4 py-12 text-center text-slate-500">No manhour records match these filters. Add your first daily record to begin.</td></tr>}
               </tbody>
             </table>
           </div>
-          
-          {/* Table Footer */}
-          <div className="flex flex-col md:flex-row justify-between items-center p-4 border-t border-gray-200 bg-gray-50">
-            <div className="mb-4 md:mb-0 text-sm text-gray-600">
-              Showing 1 to {filteredIncidents.length} of {incidents.length} entries
-            </div>
-            <div className="flex space-x-2">
-              <button className="px-3 py-1 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-100">
-                Previous
-              </button>
-              <button className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700">
-                1
-              </button>
-              <button className="px-3 py-1 border border-gray-300 rounded text-sm text-gray-600 hover:bg-gray-100">
-                Next
-              </button>
-            </div>
+          <div className="flex flex-col gap-3 border-t border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 sm:flex-row sm:items-center sm:justify-between"><span>{filteredEntries.length ? `Showing ${(page - 1) * pageSize + 1}–${Math.min(page * pageSize, filteredEntries.length)} of ${filteredEntries.length} records` : 'No records'}</span><div className="flex items-center gap-2"><button type="button" onClick={() => setPage((current) => Math.max(1, current - 1))} disabled={page === 1} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">Previous</button><span className="text-xs">Page {page} of {totalPages}</span><button type="button" onClick={() => setPage((current) => Math.min(totalPages, current + 1))} disabled={page === totalPages} className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-50">Next</button></div></div>
+        </section>
+
+        <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-200 px-5 py-4">
+            <h2 className="font-bold text-slate-800">{MONTHS.find(([value]) => value === reportMonth)?.[1]} {reportYear} · Daily project monitoring</h2>
+            <p className="text-sm text-slate-500">{selectedCompany || 'All subcontractor companies'} · days 1 to {monthlyTableData.length}. Each project shows daily workers and manhours, with monthly totals at the bottom.</p>
           </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-max w-full border-collapse text-xs">
+              <thead className="bg-slate-50 text-slate-700">
+                <tr><th rowSpan="2" className="border border-slate-300 px-3 py-2">Day</th>{monthlyProjectNames.map((project) => <th key={project} colSpan="2" className="border border-slate-300 px-3 py-2 text-center">{project}</th>)}<th colSpan="2" className="border border-slate-300 px-3 py-2 text-center">Daily total</th></tr>
+                <tr>{monthlyProjectNames.flatMap((project) => [<th key={`${project}-workers`} className="border border-slate-300 px-3 py-2">Workers</th>, <th key={`${project}-hours`} className="border border-slate-300 px-3 py-2">Manhours</th>])}<th className="border border-slate-300 px-3 py-2">Workers</th><th className="border border-slate-300 px-3 py-2">Manhours</th></tr>
+              </thead>
+              <tbody>{monthlyTableData.map((row) => <tr key={row.date} className="text-right hover:bg-slate-50"><td className="border border-slate-200 px-3 py-2 text-center font-medium text-slate-700">{row.day}</td>{monthlyProjectNames.flatMap((project) => [<td key={`${row.date}-${project}-workers`} className="border border-slate-200 px-3 py-2">{number(row.projects[project].workers)}</td>, <td key={`${row.date}-${project}-hours`} className="border border-slate-200 px-3 py-2">{number(row.projects[project].manhours)}</td>])}<td className="border border-slate-200 px-3 py-2 font-semibold">{number(row.totalWorkers)}</td><td className="border border-slate-200 px-3 py-2 font-semibold">{number(row.totalManhours)}</td></tr>)}</tbody>
+              <tfoot className="bg-slate-100 font-bold text-slate-800"><tr><td className="border border-slate-300 px-3 py-2 text-right">MONTHLY TOTAL</td>{monthlyProjectNames.flatMap((project) => [<td key={`${project}-total-workers`} className="border border-slate-300 px-3 py-2 text-right">{number(monthlyTableTotals.projects[project].workers)}</td>, <td key={`${project}-total-hours`} className="border border-slate-300 px-3 py-2 text-right">{number(monthlyTableTotals.projects[project].manhours)}</td>])}<td className="border border-slate-300 px-3 py-2 text-right">{number(monthlyTableTotals.workers)}</td><td className="border border-slate-300 px-3 py-2 text-right">{number(monthlyTableTotals.manhours)}</td></tr></tfoot>
+            </table>
+          </div>
+        </section>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4"><h2 className="font-bold text-slate-800">Average daily workers by project</h2><p className="text-sm text-slate-500">{chartPeriod}. Subcontractor headcounts are combined for each project day.</p></div>
+            <div className="h-72">{projectWorkforceData.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={projectWorkforceData} margin={{ top: 10, right: 12, left: -20, bottom: 36 }}><XAxis dataKey="project" interval={0} angle={-22} textAnchor="end" tick={{ fontSize: 12 }} /><YAxis allowDecimals={false} /><Tooltip formatter={(value) => [number(value), 'Average workers']} /><Bar dataKey="workers" name="Average workers" fill="#2563eb" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer> : <EmptyChart />}</div>
+          </section>
+          <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4"><h2 className="font-bold text-slate-800">Cumulative manhours breakdown</h2><p className="text-sm text-slate-500">{chartPeriod}, grouped by project.</p></div>
+            <div className="h-72">{cumulativeBreakdown.length ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={cumulativeBreakdown} dataKey="value" nameKey="name" cx="50%" cy="46%" outerRadius={88} label={({ percent }) => `${Math.round(percent * 100)}%`}>{cumulativeBreakdown.map((item, index) => <Cell key={item.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}</Pie><Tooltip formatter={(value) => [`${number(value)} hrs`, 'Manhours']} /><Legend verticalAlign="bottom" height={44} /></PieChart></ResponsiveContainer> : <EmptyChart />}</div>
+          </section>
         </div>
 
-        {/* Floating Create Button */}
-        <button 
-          className="fixed bottom-8 right-8 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
-          onClick={() => console.log('Create new incident')}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-        </button>
-
-        {/* Incident Viewer Modal */}
-        {viewingIncident && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-auto">
-              <div className="p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <h2 className="text-xl font-bold">{viewingIncident.project_executor}</h2>
-                  <button 
-                    className="text-gray-500 hover:text-gray-700"
-                    onClick={() => setViewingIncident(null)}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Month</p>
-                    <p className="text-sm">{viewingIncident.month}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">Status</p>
-                    <p className="text-sm capitalize">{viewingIncident.status}</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Fatality</p>
-                      <p className="text-sm">{viewingIncident.fatality}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Occupational Health</p>
-                      <p className="text-sm">{viewingIncident.occupational_health_complaint}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Lost Time Injury</p>
-                      <p className="text-sm">{viewingIncident.lost_time_injury}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">First Aid Cases</p>
-                      <p className="text-sm">{viewingIncident.first_aid_treatment}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Fire Cases</p>
-                      <p className="text-sm">{viewingIncident.fire_cases}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Environmental Issues</p>
-                      <p className="text-sm">{viewingIncident.environmental_issue}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-500">Road Accidents</p>
-                      <p className="text-sm">{viewingIncident.road_accident}</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="mt-6 flex justify-start space-x-3">
-                  <button 
-                    className={`px-4 py-2 rounded text-white ${
-                      viewingIncident.status === 'open' 
-                        ? 'bg-green-600 hover:bg-green-700' 
-                        : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
-                    onClick={() => handleStatusChange(viewingIncident.id)}
-                  >
-                    {viewingIncident.status === 'open' ? 'Mark as Closed' : 'Reopen'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
+
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onMouseDown={closeModal}>
+          <form onSubmit={save} onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-xl overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+              <div><h2 className="text-lg font-bold text-slate-800">Add daily manhour</h2><p className="mt-1 text-sm text-slate-500">Step {step} of 3</p></div>
+              <button type="button" onClick={closeModal} className="text-xl leading-none text-slate-400 hover:text-slate-700" aria-label="Close">×</button>
+            </div>
+            <div className="flex px-6 pt-5">{['Project', 'Subcontractor', 'Work details'].map((label, index) => <div key={label} className="flex flex-1 items-center last:flex-none"><span className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${step >= index + 1 ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>{index + 1}</span><span className={`ml-2 hidden text-xs font-semibold sm:inline ${step >= index + 1 ? 'text-blue-700' : 'text-slate-400'}`}>{label}</span>{index < 2 && <span className="mx-3 h-px flex-1 bg-slate-200" />}</div>)}</div>
+            <div className="min-h-52 px-6 py-6">
+              {step === 1 && <div><label className="mb-2 block text-sm font-semibold text-slate-700">Which project?</label><select value={data.project_id} onChange={(e) => setData('project_id', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600"><option value="">Select a project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>{errors.project_id && <p className="mt-2 text-xs text-red-600">{errors.project_id}</p>}</div>}
+              {step === 2 && <div><label className="mb-2 block text-sm font-semibold text-slate-700">Assigned subcontractor company</label>{loadingSubcontractors ? <p className="text-sm text-slate-500">Loading assigned companies…</p> : <><select value={data.subcon_company_id} onChange={(e) => setData('subcon_company_id', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600"><option value="">Select a subcontractor company</option>{subcontractors.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select>{!subcontractors.length && <p className="mt-2 text-xs text-amber-600">No subcontractor companies are assigned to this project.</p>}</>}{errors.subcon_company_id && <p className="mt-2 text-xs text-red-600">{errors.subcon_company_id}</p>}</div>}
+              {step === 3 && <div className="grid gap-4 sm:grid-cols-2"><div className="sm:col-span-2"><label className="mb-2 block text-sm font-semibold text-slate-700">Work date</label><input type="date" value={data.work_date} onChange={(e) => setData('work_date', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />{errors.work_date && <p className="mt-2 text-xs text-red-600">{errors.work_date}</p>}</div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Total workers</label><input type="number" min="0" value={data.worker_count} onChange={(e) => setData('worker_count', e.target.value)} placeholder="e.g. 25" className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />{errors.worker_count && <p className="mt-2 text-xs text-red-600">{errors.worker_count}</p>}</div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Working hours</label><input type="number" min="0" max="24" step="0.5" value={data.working_hours} onChange={(e) => setData('working_hours', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />{errors.working_hours && <p className="mt-2 text-xs text-red-600">{errors.working_hours}</p>}</div><div className="sm:col-span-2 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">Daily manhours: <strong>{number(Number(data.worker_count) * Number(data.working_hours))} hrs</strong></div></div>}
+            </div>
+            <div className="flex justify-between border-t border-slate-200 bg-slate-50 px-6 py-4"><button type="button" onClick={() => setStep((current) => Math.max(1, current - 1))} className={`rounded-md px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 ${step === 1 ? 'invisible' : ''}`}>Back</button>{step < 3 ? <button type="button" onClick={next} disabled={(step === 1 && !data.project_id) || (step === 2 && (!data.subcon_company_id || loadingSubcontractors))} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">Next</button> : <button type="submit" disabled={processing} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{processing ? 'Saving…' : 'Save manhour'}</button>}</div>
+          </form>
+        </div>
+      )}
     </AppLayout>
   );
 };
+
+const EmptyChart = () => <div className="flex h-full items-center justify-center text-sm text-slate-400">No manhour data for this period.</div>;
 
 export default ManHour;
