@@ -266,7 +266,3 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::put('/company-details', [\App\Http\Controllers\CompanyDetailsController::class, 'update'])->name('company.details.update');
 });
 
-// Public landing page – demo request form
-Route::post('/demo-request', [\App\Http\Controllers\PublicWebController::class, 'requestDemo'])
-    ->middleware('throttle:6,1')
-    ->name('public.demo.request');

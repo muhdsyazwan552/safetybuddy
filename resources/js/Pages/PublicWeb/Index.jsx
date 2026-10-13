@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { AnimatePresence, motion, useInView, useScroll, useTransform } from 'framer-motion';
 import {
     ArrowUpRight, ArrowRight, Phone, Menu, X, ChevronDown, Check, Play, Quote, Star, ShieldCheck, ClipboardCheck,
@@ -23,8 +23,6 @@ const NAV = [
 ];
 
 const HERO_WORDS = ['safer', 'smarter', 'compliant', 'faster'];
-
-const INTERESTS = ['Inspections', 'Toolbox talks', 'Incident statistics', 'Man-hours', 'Subcontractors'];
 
 const CAPABILITIES = [
     { icon: ClipboardCheck, label: 'Site inspections' },
@@ -92,7 +90,7 @@ const REVIEWS = [
 ];
 
 const STEPS = [
-    { title: 'Request a demo', text: 'Tell us about your projects and what you want to track.' },
+    { title: 'Create your account', text: 'Register your company and choose the modules you need.' },
     { title: 'Set up your company', text: 'Add projects, staff, subcontractors and your compliance metrics.' },
     { title: 'Assign & invite', text: 'Assign inspectors to projects and share the registration link with subcontractors.' },
     { title: 'Inspect & report', text: 'Run inspections and toolbox talks on site, then pull reports in one click.' },
@@ -268,145 +266,9 @@ function Counter({ to, suffix = '+', duration = 1.8 }) {
 }
 
 /* ──────────────────────────────────────────────────────────────
-   Hero estimate / demo form (2 steps)
-────────────────────────────────────────────────────────────── */
-function DemoForm() {
-    const [step, setStep] = useState(1);
-    const [done, setDone] = useState(false);
-    const { data, setData, post, processing, errors, reset } = useForm({
-        interests: [],
-        company: '',
-        projects: '',
-        preferred_date: '',
-        name: '',
-        email: '',
-        phone: '',
-    });
-
-    const toggle = (v) =>
-        setData('interests', data.interests.includes(v) ? data.interests.filter((x) => x !== v) : [...data.interests, v]);
-
-    const submit = (e) => {
-        e.preventDefault();
-        post('/demo-request', {
-            preserveScroll: true,
-            onSuccess: () => {
-                setDone(true);
-                reset();
-            },
-        });
-    };
-
-    const field =
-        'w-full rounded-xl border-0 bg-gray-100 px-4 py-3 text-sm text-ink-900 placeholder-gray-400 focus:bg-white focus:ring-2 focus:ring-brand-500';
-
-    return (
-        <div className="rounded-3xl bg-white p-3 text-ink-950 shadow-2xl">
-            <div className="rounded-2xl bg-brand-500 px-5 py-3.5 text-center text-sm font-semibold text-ink-900 shadow-inner">
-                Get your free demo
-            </div>
-
-            {done ? (
-                <div className="px-5 py-10 text-center">
-                    <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                        <Check className="h-7 w-7" strokeWidth={3} />
-                    </span>
-                    <p className="mt-4 text-lg font-semibold">Request received</p>
-                    <p className="mt-1 text-sm text-gray-500">We will contact you within one working day.</p>
-                    <button onClick={() => { setDone(false); setStep(1); }} className="mt-5 text-sm font-semibold text-ink-900 underline">
-                        Send another request
-                    </button>
-                </div>
-            ) : (
-                <form onSubmit={submit} className="px-3 pb-3 pt-4">
-                    <div className="flex items-center justify-center gap-2">
-                        {[1, 2].map((n) => (
-                            <span key={n} className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold transition ${step === n ? 'bg-ink-900 text-white' : 'bg-gray-100 text-gray-500'}`}>{n}</span>
-                        ))}
-                    </div>
-                    <p className="mt-2 text-center text-xs text-gray-400">Takes 15 seconds • 100% free</p>
-
-                    <AnimatePresence mode="wait">
-                        {step === 1 ? (
-                            <motion.div key="s1" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25 }}>
-                                <p className="mt-4 text-sm font-semibold">What do you want to manage?</p>
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                    {INTERESTS.map((v) => {
-                                        const on = data.interests.includes(v);
-                                        return (
-                                            <button key={v} type="button" onClick={() => toggle(v)}
-                                                className={`rounded-full px-3.5 py-2 text-xs font-medium transition ${on ? 'bg-ink-900 text-white' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
-                                                {v}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="mt-4 grid grid-cols-2 gap-3">
-                                    <div className="col-span-2">
-                                        <label className="mb-1 block text-xs font-medium text-gray-500">Company name</label>
-                                        <input className={field} value={data.company} onChange={(e) => setData('company', e.target.value)} placeholder="Your company" />
-                                    </div>
-                                    <div>
-                                        <label className="mb-1 block text-xs font-medium text-gray-500">Active projects</label>
-                                        <select className={field} value={data.projects} onChange={(e) => setData('projects', e.target.value)}>
-                                            <option value="">Select</option>
-                                            <option>1–3</option>
-                                            <option>4–10</option>
-                                            <option>11–25</option>
-                                            <option>25+</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label className="mb-1 block text-xs font-medium text-gray-500">Preferred date</label>
-                                        <input type="date" className={field} value={data.preferred_date} onChange={(e) => setData('preferred_date', e.target.value)} />
-                                    </div>
-                                </div>
-
-                                <button type="button" onClick={() => setStep(2)} className="mx-auto mt-5 flex items-center gap-1.5 rounded-xl bg-gray-100 px-5 py-2.5 text-sm font-semibold hover:bg-gray-200">
-                                    Next <ArrowRight className="h-4 w-4" />
-                                </button>
-                            </motion.div>
-                        ) : (
-                            <motion.div key="s2" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }} transition={{ duration: 0.25 }}>
-                                <div className="mt-4 space-y-3">
-                                    <div>
-                                        <label className="mb-1 block text-xs font-medium text-gray-500">Full name</label>
-                                        <input className={field} value={data.name} onChange={(e) => setData('name', e.target.value)} required />
-                                        {errors.name && <p className="mt-1 text-xs text-red-500">{errors.name}</p>}
-                                    </div>
-                                    <div>
-                                        <label className="mb-1 block text-xs font-medium text-gray-500">Email</label>
-                                        <input type="email" className={field} value={data.email} onChange={(e) => setData('email', e.target.value)} required />
-                                        {errors.email && <p className="mt-1 text-xs text-red-500">{errors.email}</p>}
-                                    </div>
-                                    <div>
-                                        <label className="mb-1 block text-xs font-medium text-gray-500">Phone number (optional)</label>
-                                        <input type="tel" className={field} value={data.phone} onChange={(e) => setData('phone', e.target.value)} />
-                                    </div>
-                                </div>
-                                <div className="mt-5 flex gap-2">
-                                    <button type="button" onClick={() => setStep(1)} className="rounded-xl bg-gray-100 px-4 py-3 text-sm font-semibold hover:bg-gray-200">Back</button>
-                                    <button type="submit" disabled={processing} className="flex-1 rounded-xl bg-brand-500 px-4 py-3 text-sm font-semibold text-ink-900 hover:bg-brand-400 disabled:opacity-60">
-                                        {processing ? 'Sending…' : 'Get my free demo'}
-                                    </button>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    <p className="mt-4 text-center text-[11px] text-gray-400">We respect your privacy.</p>
-                </form>
-            )}
-        </div>
-    );
-}
-
-/* ──────────────────────────────────────────────────────────────
    Page
 ────────────────────────────────────────────────────────────── */
 export default function Landing({ modules = [] }) {
-    const { flash } = usePage().props;
     const [bar, setBar] = useState(true);
     const [menu, setMenu] = useState(false);
     const [stuck, setStuck] = useState(false);
@@ -457,7 +319,7 @@ export default function Landing({ modules = [] }) {
                         <div className="relative mx-auto flex max-w-7xl items-center justify-center px-10 py-2.5 text-center text-xs font-medium sm:text-sm">
                             <span>
                                 Digitise inspections & toolbox talks for every project.{' '}
-                                <a href="#demo" className="font-semibold underline underline-offset-2">Book a free demo</a>
+                                <Link href="/register-view" className="font-semibold underline underline-offset-2">Create your account</Link>
                             </span>
                             <button onClick={() => setBar(false)} className="absolute right-3 flex h-6 w-6 items-center justify-center rounded-full bg-ink-900/10 hover:bg-ink-900/20" aria-label="Close">
                                 <X className="h-3.5 w-3.5" />
@@ -488,10 +350,10 @@ export default function Landing({ modules = [] }) {
                             <Phone className="h-4 w-4 text-brand-700" /> {CONTACT.phone}
                         </a>
                         <Link href="/login" className="rounded-full px-4 py-2.5 text-sm font-semibold hover:bg-gray-100">Sign in</Link>
-                        <a href="#demo" className="group flex items-center gap-2.5 rounded-full bg-gray-100 py-2 pl-2 pr-5 text-sm font-semibold transition hover:bg-gray-200">
+                        <Link href="/register-view" className="group flex items-center gap-2.5 rounded-full bg-gray-100 py-2 pl-2 pr-5 text-sm font-semibold transition hover:bg-gray-200">
                             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
-                            Get free demo
-                        </a>
+                            Get started
+                        </Link>
                     </div>
 
                     <button onClick={() => setMenu(!menu)} className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 lg:hidden" aria-label="Menu">
@@ -508,7 +370,7 @@ export default function Landing({ modules = [] }) {
                                 ))}
                                 <div className="flex gap-2 pt-3">
                                     <Link href="/login" className="flex-1 rounded-full border border-gray-200 py-3 text-center text-sm font-semibold">Sign in</Link>
-                                    <a href="#demo" onClick={() => setMenu(false)} className="flex-1 rounded-full bg-brand-500 py-3 text-center text-sm font-semibold text-ink-900">Free demo</a>
+                                    <Link href="/register-view" className="flex-1 rounded-full bg-brand-500 py-3 text-center text-sm font-semibold text-ink-900">Get started</Link>
                                 </div>
                             </div>
                         </motion.div>
@@ -520,9 +382,9 @@ export default function Landing({ modules = [] }) {
                 {/* HERO */}
                 <section className="px-1 sm:px-1.5">
                     <Photo src="hero.jpg" alt="Safety inspector on site" className="min-h-[760px] rounded-[28px] lg:min-h-[880px]">
-                        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/45 to-black/10" />
-                        <div className="relative mx-auto grid max-w-[1400px] items-center gap-10 px-5 py-14 sm:px-8 lg:grid-cols-[1.15fr_0.85fr] lg:py-20">
-                            <div className="text-white">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/10 lg:bg-gradient-to-l lg:from-black/85 lg:via-black/55 lg:to-black/0" />
+                        <div className="relative mx-auto flex min-h-[760px] max-w-[1400px] items-end px-5 py-14 sm:px-8 lg:min-h-[880px] lg:items-center lg:justify-end lg:py-20">
+                            <div className="max-w-3xl text-white">
                                 <Reveal>
                                     <div className="mb-8 flex flex-wrap items-center gap-3">
                                         <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs backdrop-blur">
@@ -548,10 +410,10 @@ export default function Landing({ modules = [] }) {
 
                                 <Reveal delay={0.24}>
                                     <div className="mt-8 flex flex-wrap gap-3">
-                                        <PillButton href="#demo">Book a demo</PillButton>
-                                        <a href="#features" className="inline-flex items-center rounded-full bg-white/15 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/25">
-                                            See features
-                                        </a>
+                                        <PillButton href="/register-view">Get started</PillButton>
+                                        <Link href="/login" className="inline-flex items-center rounded-full bg-white/15 px-6 py-3.5 text-sm font-semibold text-white backdrop-blur transition hover:bg-white/25">
+                                            Sign in
+                                        </Link>
                                     </div>
                                 </Reveal>
 
@@ -572,9 +434,6 @@ export default function Landing({ modules = [] }) {
                                 </Reveal>
                             </div>
 
-                            <motion.div id="demo" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.25, ease }} className="scroll-mt-28">
-                                <DemoForm />
-                            </motion.div>
                         </div>
                     </Photo>
                 </section>
@@ -604,10 +463,10 @@ export default function Landing({ modules = [] }) {
                             </Reveal>
                         </div>
                         <Reveal delay={0.15}>
-                            <a href="#demo" className="group inline-flex items-center gap-3 text-sm font-semibold">
-                                Book a demo
+                            <Link href="/register-view" className="group inline-flex items-center gap-3 text-sm font-semibold">
+                                Create an account
                                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-white transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
-                            </a>
+                            </Link>
                         </Reveal>
                     </div>
 
@@ -735,10 +594,10 @@ export default function Landing({ modules = [] }) {
                                             {p.price === 0 ? 'Free' : <>RM {Number(p.price).toLocaleString()}</>}
                                             {p.price > 0 && <span className={`ml-1 text-base font-normal tracking-normal ${p.popular ? 'text-gray-400' : 'text-gray-500'}`}>/ year</span>}
                                         </p>
-                                        <a href="#demo" className={`group mt-6 flex items-center justify-between rounded-full py-2 pl-5 pr-2 text-sm font-semibold transition ${p.popular ? 'bg-brand-500 text-ink-900 hover:bg-brand-400' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
+                                        <Link href="/register-view" className={`group mt-6 flex items-center justify-between rounded-full py-2 pl-5 pr-2 text-sm font-semibold transition ${p.popular ? 'bg-brand-500 text-ink-900 hover:bg-brand-400' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
                                             Get started
                                             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
-                                        </a>
+                                        </Link>
                                         <ul className="mt-7 space-y-3 text-sm">
                                             {p.items.map((it) => (
                                                 <li key={it} className="flex items-start gap-2.5">
@@ -825,7 +684,7 @@ export default function Landing({ modules = [] }) {
                             <Reveal><SectionTag>How it works</SectionTag></Reveal>
                             <Reveal delay={0.05}><H2>Up and running in a day</H2></Reveal>
                             <Reveal delay={0.1}><p className="mt-4 max-w-sm text-gray-500">Tell us about your projects and get a clear, upfront setup plan.</p></Reveal>
-                            <Reveal delay={0.15}><div className="mt-7"><PillButton href="#demo" tone="dark">Get my free demo</PillButton></div></Reveal>
+                            <Reveal delay={0.15}><div className="mt-7"><PillButton href="/register-view" tone="dark">Create my account</PillButton></div></Reveal>
                         </div>
                         <div className="space-y-4">
                             {STEPS.map((s, i) => (
@@ -964,7 +823,7 @@ export default function Landing({ modules = [] }) {
                             </div>
                             <Reveal delay={0.15}>
                                 <div className="mt-12 flex justify-center">
-                                    <PillButton href="#demo" tone="accent">Get my free demo</PillButton>
+                                    <PillButton href="/register-view" tone="accent">Get started</PillButton>
                                 </div>
                             </Reveal>
                         </div>
@@ -991,7 +850,7 @@ export default function Landing({ modules = [] }) {
                     {[
                         { t: 'Product', l: [['Inspections', '#features'], ['Toolbox talks', '#features'], ['Incident statistics', '#features'], ['Modules', '#modules']] },
                         { t: 'Company', l: [['About', '#about'], ['Pricing', '#pricing'], ['Guides', '#guides'], ['Contact', '#contact']] },
-                        { t: 'Access', l: [['Sign in', '/login'], ['Create account', '/register-view'], ['Free demo', '#demo']] },
+                        { t: 'Access', l: [['Sign in', '/login'], ['Create account', '/register-view']] },
                     ].map((c) => (
                         <div key={c.t}>
                             <p className="text-sm font-semibold">{c.t}</p>
@@ -1019,14 +878,6 @@ export default function Landing({ modules = [] }) {
                 </div>
             </footer>
 
-            {/* success toast from the demo form */}
-            <AnimatePresence>
-                {flash?.success && (
-                    <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="fixed bottom-5 left-1/2 z-50 -translate-x-1/2 rounded-full bg-ink-900 px-5 py-3 text-sm font-medium text-white shadow-2xl">
-                        <span className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-brand-400" /> {flash.success}</span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </div>
     );
 }
