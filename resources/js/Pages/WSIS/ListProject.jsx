@@ -79,7 +79,7 @@ const Projects = () => {
               <div className="mb-0 px-3 text-center">
             <img
               className="block w-auto h-12"
-              src="https://djati.com.my/wp-content/uploads/2024/08/Symbol-D.png"
+              src="/images/logo.png"
             />
           </div>
              
@@ -194,7 +194,7 @@ const Projects = () => {
               </div>
 
               {/* Project Details */}
-              <div className="p-6 grid grid-cols-4 gap-4">
+              <div className="p-6 grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="flex items-center space-x-2">
                   <FiCalendar className="text-gray-400" />
                   <div>

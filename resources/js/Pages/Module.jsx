@@ -230,7 +230,7 @@ const Module = () => {
                         <div className="flex items-center space-x-6">
                             {/* Logo */}
                             <div className="flex items-center space-x-2">
-                                <div className="w-10 h-10 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center">
+                                <div className="w-10 h-10 bg-gradient-to-br from-brand-600 to-brand-800 rounded-lg flex items-center justify-center">
                                     <span className="text-white font-bold text-xl">SB</span>
                                 </div>
                                 <span className="font-bold text-gray-800 text-lg hidden sm:block">SafetyBuddy</span>
@@ -263,7 +263,7 @@ const Module = () => {
 
                             {/* Dropdown Menu */}
                             {isDropdownOpen && (
-                                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100">
+                                <div className="absolute right-0 mt-2 w-72 max-w-[90vw] bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100">
                                     {/* User/Company Info Header */}
                                     <div className="px-4 py-3 border-b bg-gradient-to-r from-gray-50 to-white rounded-t-lg">
                                         {isCompanyUser && company ? (
@@ -343,7 +343,7 @@ const Module = () => {
                     <div className="text-center mb-16">
                         <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight mb-4">
                             List{' '}
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-800">
                                 Modules
                             </span>
                         </h1>

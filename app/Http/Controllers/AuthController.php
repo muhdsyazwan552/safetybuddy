@@ -73,9 +73,10 @@ class AuthController extends Controller
             return '/admin/dashboard';
         }
 
-        // Role 2 goes to /module
+        // Role 2 (company admin) goes straight to the dashboard.
+        // The /module page is currently hidden from the login flow.
         if ($role_id == 2) {
-            return '/module';
+            return '/dashboard';
         }
 
         // Roles 4, 7, 8 go to inspector dashboard

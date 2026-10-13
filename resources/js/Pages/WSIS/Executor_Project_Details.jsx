@@ -210,8 +210,8 @@ export default function ExecutorProjectDetails({
 
                     {/* Project Header */}
                     <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-6">
-                        <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700">
-                            <h1 className="text-2xl font-bold text-white">{project?.name}</h1>
+                        <div className="px-6 py-4 bg-gradient-to-r from-ink-900 to-ink-700 border-b-4 border-brand-500">
+                            <h1 className="text-2xl font-bold text-brand-400">{project?.name}</h1>
                         </div>
 
                         <div className="p-6">
@@ -350,7 +350,7 @@ export default function ExecutorProjectDetails({
                                         <div className="overflow-x-auto">
                                             <table className="min-w-full divide-y divide-gray-200">
                                                 <thead className="bg-gray-50">
-                                                    <tr>
+                                                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
                                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                                             Type
                                                         </th>
@@ -369,8 +369,8 @@ export default function ExecutorProjectDetails({
                                                     </tr>
                                                 </thead>
                                                 <tbody className="bg-white divide-y divide-gray-200">
-                                                    {assignments.map((assignment) => (
-                                                        <tr key={assignment.id} className="hover:bg-gray-50">
+                                                    {assignments.map((assignment, rowNo) => (
+                                                        <tr key={assignment.id} className="hover:bg-gray-50"><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{rowNo + 1}</td>
                                                             <td className="px-6 py-4 whitespace-nowrap">
                                                                 <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${assignment.entity_type === 'staff'
                                                                     ? 'bg-blue-100 text-blue-800'

@@ -46,15 +46,15 @@ const Login = () => {
   return (
     <div className="min-h-screen flex">
       {/* Banner Side with Gradient */}
-      <div className="hidden lg:block w-1/2 bg-gradient-to-br from-blue-600 to-blue-900">
+      <div className="hidden lg:block w-1/2 bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700">
         <div className="h-full flex flex-col justify-center items-center p-12 text-white">
           <img 
-            src="https://djati.com.my/wp-content/uploads/2024/08/Symbol-D.png" 
+            src="/images/logo.png" 
             alt="Company Logo" 
-            className="h-16 mb-8"
+            className="h-28 w-28 rounded-full mb-8 ring-4 ring-brand-500"
           />
-          <h2 className="text-3xl font-bold mb-4">Welcome to SafetyBuddy</h2>
-          <p className="text-xl mb-8 text-center max-w-md">
+          <h2 className="text-3xl font-bold mb-4 text-brand-400">Welcome to Safety Buddy</h2>
+          <p className="text-xl mb-8 text-center max-w-md text-gray-200">
             Your comprehensive safety management solution
           </p>
         </div>
@@ -67,9 +67,9 @@ const Login = () => {
           
           <div className="text-center lg:hidden mb-8">
             <img 
-              src="https://djati.com.my/wp-content/uploads/2024/08/Symbol-D.png" 
+              src="/images/logo.png" 
               alt="Company Logo" 
-              className="h-12 mx-auto"
+              className="h-20 w-20 rounded-full mx-auto"
             />
           </div>
 

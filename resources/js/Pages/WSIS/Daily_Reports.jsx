@@ -201,8 +201,8 @@ const DailyReports = ({ title }) => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredIncidents.map((incident) => (
-                  <tr key={incident.id} className="hover:bg-gray-50">
+                {filteredIncidents.map((incident, index) => (
+                  <tr key={index + 1} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {incident.id}
                     </td>
@@ -283,7 +283,7 @@ const DailyReports = ({ title }) => {
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                   <div>
                     <p className="text-sm font-medium text-gray-500">Month</p>
                     <p className="text-sm">{viewingIncident.month}</p>
@@ -295,7 +295,7 @@ const DailyReports = ({ title }) => {
                 </div>
                 
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm font-medium text-gray-500">Fatality</p>
                       <p className="text-sm">{viewingIncident.fatality}</p>

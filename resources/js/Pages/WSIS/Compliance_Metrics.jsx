@@ -356,9 +356,9 @@ const ComplianceMetrics = ({ title, metrics, auth }) => {
                   </tr>
                 )}
                 
-                {displayMetrics.map((item) => (
+                {displayMetrics.map((item, index) => (
                   <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.id}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{index + 1}</td>
                     <td className="px-6 py-4 text-sm text-gray-800 font-medium">{item.title}</td>
                     <td className="px-6 py-4 text-sm text-gray-600">{item.description}</td>
                     <td className="px-16 py-4 whitespace-nowrap text-left">

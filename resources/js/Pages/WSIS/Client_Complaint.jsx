@@ -268,7 +268,7 @@ const ClientComplaint = ({ title, auth, clientComplaints = [] }) => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">
                 <div><p className="text-gray-500 font-medium">Project</p><p>{viewingComplaint.inspection?.project?.name ?? '-'}</p></div>
                 <div><p className="text-gray-500 font-medium">Topic</p><p>{viewingComplaint.inspection?.topic?.name ?? '-'}</p></div>
                 <div><p className="text-gray-500 font-medium">Subcon Company</p><p>{viewingComplaint.inspection?.subcon_company?.name ?? '-'}</p></div>

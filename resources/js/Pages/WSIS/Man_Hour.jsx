@@ -14,7 +14,7 @@ const formatDate = (date) => new Intl.DateTimeFormat('en-MY', {
   day: '2-digit', month: 'short', year: 'numeric',
 }).format(new Date(`${date}T00:00:00`));
 
-const CHART_COLORS = ['#2563eb', '#16a34a', '#f97316', '#9333ea', '#e11d48', '#0891b2', '#ca8a04', '#4f46e5'];
+const CHART_COLORS = ['#F7D31A', '#12171E', '#CA8A04', '#16a34a', '#e11d48', '#0891b2', '#f97316', '#6B7787'];
 const MONTHS = [
   ['01', 'January'], ['02', 'February'], ['03', 'March'], ['04', 'April'], ['05', 'May'], ['06', 'June'],
   ['07', 'July'], ['08', 'August'], ['09', 'September'], ['10', 'October'], ['11', 'November'], ['12', 'December'],
@@ -224,11 +224,11 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                <tr><th className="px-4 py-3">Work date</th><th className="px-4 py-3">Project</th><th className="px-4 py-3">Subcontractor</th><th className="px-4 py-3 text-right">Workers</th><th className="px-4 py-3 text-right">Hours / worker</th><th className="px-4 py-3 text-right">Total manhours</th></tr>
+                <tr><th className="px-4 py-3 w-12">#</th><th className="px-4 py-3">Work date</th><th className="px-4 py-3">Project</th><th className="px-4 py-3">Subcontractor</th><th className="px-4 py-3 text-right">Workers</th><th className="px-4 py-3 text-right">Hours / worker</th><th className="px-4 py-3 text-right">Total manhours</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {visibleEntries.map((entry) => (
-                  <tr key={entry.id} className="hover:bg-slate-50/70">
+                {visibleEntries.map((entry, rowNo) => (
+                  <tr key={entry.id} className="hover:bg-slate-50/70"><td className="whitespace-nowrap px-4 py-3 text-slate-500">{(page - 1) * pageSize + rowNo + 1}</td>
                     <td className="whitespace-nowrap px-4 py-3">{formatDate(entry.work_date)}</td>
                     <td className="px-4 py-3 font-medium text-slate-800">{entry.project_name || '—'}</td>
                     <td className="px-4 py-3">{entry.subcontractor_name || '—'}</td>
@@ -237,7 +237,7 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
                     <td className="px-4 py-3 text-right font-bold text-slate-800">{number(entry.manhours)} hrs</td>
                   </tr>
                 ))}
-                {!filteredEntries.length && <tr><td colSpan="6" className="px-4 py-12 text-center text-slate-500">No manhour records match these filters. Add your first daily record to begin.</td></tr>}
+                {!filteredEntries.length && <tr><td colSpan="7" className="px-4 py-12 text-center text-slate-500">No manhour records match these filters. Add your first daily record to begin.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -264,11 +264,11 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
         <div className="grid gap-6 xl:grid-cols-2">
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4"><h2 className="font-bold text-slate-800">Average daily workers by project</h2><p className="text-sm text-slate-500">{chartPeriod}. Subcontractor headcounts are combined for each project day.</p></div>
-            <div className="h-72">{projectWorkforceData.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={projectWorkforceData} margin={{ top: 10, right: 12, left: -20, bottom: 36 }}><XAxis dataKey="project" interval={0} angle={-22} textAnchor="end" tick={{ fontSize: 12 }} /><YAxis allowDecimals={false} /><Tooltip formatter={(value) => [number(value), 'Average workers']} /><Bar dataKey="workers" name="Average workers" fill="#2563eb" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer> : <EmptyChart />}</div>
+            <div className="h-72">{projectWorkforceData.length ? <ResponsiveContainer width="100%" height="100%"><BarChart data={projectWorkforceData} margin={{ top: 10, right: 12, left: -20, bottom: 36 }}><XAxis dataKey="project" interval={0} angle={-22} textAnchor="end" tick={{ fontSize: 12 }} /><YAxis allowDecimals={false} /><Tooltip formatter={(value) => [number(value), 'Average workers']} /><Bar dataKey="workers" name="Average workers" fill="#EAB308" radius={[4, 4, 0, 0]} /></BarChart></ResponsiveContainer> : <EmptyChart />}</div>
           </section>
           <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4"><h2 className="font-bold text-slate-800">Cumulative manhours breakdown</h2><p className="text-sm text-slate-500">{chartPeriod}, grouped by project.</p></div>
-            <div className="h-72">{cumulativeBreakdown.length ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={cumulativeBreakdown} dataKey="value" nameKey="name" cx="50%" cy="46%" outerRadius={88} label={({ percent }) => `${Math.round(percent * 100)}%`}>{cumulativeBreakdown.map((item, index) => <Cell key={item.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}</Pie><Tooltip formatter={(value) => [`${number(value)} hrs`, 'Manhours']} /><Legend verticalAlign="bottom" height={44} /></PieChart></ResponsiveContainer> : <EmptyChart />}</div>
+            <div className="h-72">{cumulativeBreakdown.length ? <ResponsiveContainer width="100%" height="100%"><PieChart><Pie data={cumulativeBreakdown} dataKey="value" nameKey="name" cx="50%" cy="46%" outerRadius="70%" label={({ percent }) => `${Math.round(percent * 100)}%`}>{cumulativeBreakdown.map((item, index) => <Cell key={item.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />)}</Pie><Tooltip formatter={(value) => [`${number(value)} hrs`, 'Manhours']} /><Legend verticalAlign="bottom" height={44} /></PieChart></ResponsiveContainer> : <EmptyChart />}</div>
           </section>
         </div>
 

@@ -87,7 +87,7 @@ const Dashboard = () => {
               <button className="text-sm font-medium text-gray-500 hover:text-gray-700">Year</button>
             </div>
           </div>
-          <div className="h-80">
+          <div className="h-64 sm:h-80">
             <LineChart />
           </div>
         </div>
@@ -95,7 +95,7 @@ const Dashboard = () => {
         {/* Booking Types Chart */}
         <div className="bg-white shadow shadow-slate-400 rounded-lg p-5">
           <h2 className="text-lg font-medium text-gray-900 mb-4">Man-Hour</h2>
-          <div className="h-80">
+          <div className="h-64 sm:h-80">
             <BarChart />
           </div>
         </div>
@@ -114,7 +114,7 @@ const Dashboard = () => {
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
-              <tr>
+              <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Customer
                 </th>
@@ -133,8 +133,8 @@ const Dashboard = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {recentBookings.map((booking) => (
-                <tr key={booking.id}>
+              {recentBookings.map((booking, rowNo) => (
+                <tr key={booking.id}><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{rowNo + 1}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {booking.customer}
                   </td>

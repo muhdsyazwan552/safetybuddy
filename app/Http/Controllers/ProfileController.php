@@ -18,9 +18,19 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user()->loadMissing('role', 'company');
+
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'title' => 'Settings',
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
+            'account' => [
+                'role' => $user->role->display_name ?? $user->role->name ?? null,
+                'role_id' => $user->role_id,
+                'company' => $user->company->name ?? null,
+                'member_since' => optional($user->created_at)->format('d M Y'),
+                'email_verified' => (bool) $user->email_verified_at,
+            ],
         ]);
     }
 
@@ -37,7 +47,7 @@ class ProfileController extends Controller
 
         $request->user()->save();
 
-        return Redirect::route('profile.edit');
+        return Redirect::route('profile.edit')->with('success', 'Profile updated');
     }
 
     /**

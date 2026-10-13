@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Head, Link } from "@inertiajs/react";
 import AppLayout from "@/Pages/WSIS/Layout";
+import useIsMobile from "@/Components/shared/useIsMobile";
 import {
   PieChart,
   Pie,
@@ -32,6 +33,7 @@ const Dashboard_Inspection = ({
   user_executor_count = 0,
   user_inspection_count = 0,
 }) => {
+  const isMobile = useIsMobile();
   const [dateRange, setDateRange] = useState("month");
   // const [statusFilter, setStatusFilter] = useState("all");
   const [projectFilter, setProjectFilter] = useState("all");
@@ -98,6 +100,10 @@ const Dashboard_Inspection = ({
           poor,
           nonConformance,
           clientComplaints,
+          // Bar dataKeys are lowercase; recompute them here so they respect the
+          // selected project (the backend values are unfiltered by project).
+          nonconformance: nonConformance,
+          clientcomplaint: clientComplaints,
           compliant_count: compliantCount,
           compliance_rate: total > 0 ? Math.round((compliantCount / total) * 100) : 0,
         };
@@ -120,7 +126,7 @@ const Dashboard_Inspection = ({
       { name: "Moderate", value: moderateInspections },
       { name: "Poor", value: poorInspections },
       { name: "Non-conformance", value: nonConformance },
-      { name: "Client Complaints", value: clientComplaints },
+      { name: "Client Complaint", value: clientComplaints },
     ].filter((item) => item.value > 0);
 
     const topicChartData = [];
@@ -439,22 +445,23 @@ const Dashboard_Inspection = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {/* Bar Chart Inspection by Compliance*/}
-          <div className="bg-white rounded-xl shadow p-6 border">
+          <div className="bg-white rounded-xl shadow p-3 sm:p-6 border">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">
               {chartType === "compliance"
                 ? "Inspections by Compliance (Executor Company)"
                 : "Inspections by Project"}
             </h2>
-            <ResponsiveContainer width="100%" height={300}>
+            <div className="overflow-x-auto"><div style={{ minWidth: isMobile ? Math.max(320, chartData.length * 64) : "100%" }}>
+<ResponsiveContainer width="100%" height={300}>
               <BarChart
                 data={chartData}
-                barSize={28}
-                margin={{ top: 20, right: 30, left: 20, bottom: chartType === "compliance" ? 60 : 40 }}
+                barSize={isMobile ? 20 : 28}
+                margin={{ top: 20, right: isMobile ? 10 : 30, left: isMobile ? 0 : 20, bottom: chartType === "compliance" ? 60 : 40 }}
               >
                 <defs>
                   <linearGradient id="colorBar" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
-                    <stop offset="100%" stopColor="#1d4ed8" stopOpacity={0.9} />
+                    <stop offset="0%" stopColor="#FBD926" stopOpacity={0.9} />
+                    <stop offset="100%" stopColor="#CA8A04" stopOpacity={0.9} />
                   </linearGradient>
                   <linearGradient id="complianceBar" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#10b981" stopOpacity={0.9} />
@@ -548,27 +555,28 @@ const Dashboard_Inspection = ({
 
               </BarChart>
             </ResponsiveContainer>
+</div></div>
 
             {chartType === "compliance" && (
-              <div className="mt-4 text-sm text-gray-500 flex justify-center space-x-6">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-emerald-500 mr-2"></div>
+              <div className="mt-4 text-xs sm:text-sm text-gray-600 flex flex-wrap justify-center gap-x-4 gap-y-2">
+                <div className="flex items-center whitespace-nowrap">
+                  <div className="w-3 h-3 bg-emerald-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Good</span>
                 </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-amber-500 mr-2"></div>
+                <div className="flex items-center whitespace-nowrap">
+                  <div className="w-3 h-3 bg-amber-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Moderate</span>
                 </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-red-500 mr-2"></div>
+                <div className="flex items-center whitespace-nowrap">
+                  <div className="w-3 h-3 bg-red-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Poor</span>
                 </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-gray-500 mr-2"></div>
+                <div className="flex items-center whitespace-nowrap">
+                  <div className="w-3 h-3 bg-gray-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Non-Conformance</span>
                 </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-violet-500 mr-2"></div>
+                <div className="flex items-center whitespace-nowrap">
+                  <div className="w-3 h-3 bg-violet-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Client Complaint</span>
                 </div>
               </div>
@@ -576,7 +584,7 @@ const Dashboard_Inspection = ({
           </div>
 
           {/* Pie Chart */}
-          <div className="bg-white rounded-xl shadow p-6 border">
+          <div className="bg-white rounded-xl shadow p-3 sm:p-6 border">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">
               Evaluation Summary
             </h2>
@@ -588,9 +596,9 @@ const Dashboard_Inspection = ({
                   nameKey="name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={100}
+                  outerRadius={isMobile ? 70 : 100}
                   label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
+                    isMobile ? `${(percent * 100).toFixed(0)}%` : `${name} ${(percent * 100).toFixed(0)}%`
                   }
                 >
                   {evaluationData.map((entry, index) => (
@@ -630,25 +638,25 @@ const Dashboard_Inspection = ({
               </PieChart>
 
             </ResponsiveContainer>
-            <div className="mt-4 text-sm text-gray-500 flex justify-center space-x-6">
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-emerald-500 mr-2"></div>
+            <div className="mt-4 text-xs sm:text-sm text-gray-600 flex flex-wrap justify-center gap-x-4 gap-y-2">
+              <div className="flex items-center whitespace-nowrap">
+                <div className="w-3 h-3 bg-emerald-500 mr-2 shrink-0 rounded-sm"></div>
                 <span>Good</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-amber-500 mr-2"></div>
+              <div className="flex items-center whitespace-nowrap">
+                <div className="w-3 h-3 bg-amber-500 mr-2 shrink-0 rounded-sm"></div>
                 <span>Moderate</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-red-500 mr-2"></div>
+              <div className="flex items-center whitespace-nowrap">
+                <div className="w-3 h-3 bg-red-500 mr-2 shrink-0 rounded-sm"></div>
                 <span>Poor</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-gray-500 mr-2"></div>
+              <div className="flex items-center whitespace-nowrap">
+                <div className="w-3 h-3 bg-gray-500 mr-2 shrink-0 rounded-sm"></div>
                 <span>Non-Conformance</span>
               </div>
-              <div className="flex items-center">
-                <div className="w-3 h-3 bg-violet-500 mr-2"></div>
+              <div className="flex items-center whitespace-nowrap">
+                <div className="w-3 h-3 bg-violet-500 mr-2 shrink-0 rounded-sm"></div>
                 <span>Client Complaint</span>
               </div>
             </div>
@@ -657,7 +665,7 @@ const Dashboard_Inspection = ({
         </div>
 
         {/* NEW TOPIC CHART - Modified to show stacked bars by evaluation type */}
-        {/* <div className="bg-white rounded-xl shadow p-6 border">
+        {/* <div className="bg-white rounded-xl shadow p-3 sm:p-6 border">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">
             Inspection Results by Topic
           </h2>
@@ -719,41 +727,42 @@ const Dashboard_Inspection = ({
               <Bar dataKey="clientcomplaint" stackId="a" fill="#8b5cf6" name="clientcomplaint" />
             </BarChart>
           </ResponsiveContainer>
-          <div className="mt-4 text-sm text-gray-500 flex justify-center space-x-6">
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-emerald-500 mr-2"></div>
+          <div className="mt-4 text-xs sm:text-sm text-gray-600 flex flex-wrap justify-center gap-x-4 gap-y-2">
+            <div className="flex items-center whitespace-nowrap">
+              <div className="w-3 h-3 bg-emerald-500 mr-2 shrink-0 rounded-sm"></div>
               <span>Good</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-amber-500 mr-2"></div>
+            <div className="flex items-center whitespace-nowrap">
+              <div className="w-3 h-3 bg-amber-500 mr-2 shrink-0 rounded-sm"></div>
               <span>Moderate</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-red-500 mr-2"></div>
+            <div className="flex items-center whitespace-nowrap">
+              <div className="w-3 h-3 bg-red-500 mr-2 shrink-0 rounded-sm"></div>
               <span>Poor</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-gray-500 mr-2"></div>
+            <div className="flex items-center whitespace-nowrap">
+              <div className="w-3 h-3 bg-gray-500 mr-2 shrink-0 rounded-sm"></div>
               <span>Non-Conformance</span>
             </div>
-            <div className="flex items-center">
-              <div className="w-3 h-3 bg-violet-500 mr-2"></div>
+            <div className="flex items-center whitespace-nowrap">
+              <div className="w-3 h-3 bg-violet-500 mr-2 shrink-0 rounded-sm"></div>
               <span>Client Complaint</span>
             </div>
           </div>
         </div> */}
 
         {/* Topic Chart */}
-        <div className="bg-white rounded-xl shadow p-6 border">
+        <div className="bg-white rounded-xl shadow p-3 sm:p-6 border">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">
             Inspection Results by Topic
           </h2>
           {topicChartData.length > 0 ? (
             <>
-              <ResponsiveContainer width="100%" height={400}>
+              <div className="overflow-x-auto"><div style={{ minWidth: isMobile ? Math.max(320, topicChartData.length * 64) : "100%" }}>
+<ResponsiveContainer width="100%" height={400}>
                 <BarChart
                   data={topicChartData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                  margin={{ top: 20, right: isMobile ? 10 : 30, left: isMobile ? 0 : 20, bottom: 60 }}
                   barGap={0}
                   barCategoryGap="10%"
                 >
@@ -803,25 +812,26 @@ const Dashboard_Inspection = ({
                   <Bar dataKey="clientcomplaint" stackId="a" fill="#8b5cf6" name="clientcomplaint" />
                 </BarChart>
               </ResponsiveContainer>
-              <div className="mt-4 text-sm text-gray-500 flex justify-center space-x-6">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-emerald-500 mr-2"></div>
+</div></div>
+              <div className="mt-4 text-xs sm:text-sm text-gray-600 flex flex-wrap justify-center gap-x-4 gap-y-2">
+                <div className="flex items-center whitespace-nowrap">
+                  <div className="w-3 h-3 bg-emerald-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Good</span>
                 </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-amber-500 mr-2"></div>
+                <div className="flex items-center whitespace-nowrap">
+                  <div className="w-3 h-3 bg-amber-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Moderate</span>
                 </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-red-500 mr-2"></div>
+                <div className="flex items-center whitespace-nowrap">
+                  <div className="w-3 h-3 bg-red-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Poor</span>
                 </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-gray-500 mr-2"></div>
+                <div className="flex items-center whitespace-nowrap">
+                  <div className="w-3 h-3 bg-gray-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Non-Conformance</span>
                 </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-violet-500 mr-2"></div>
+                <div className="flex items-center whitespace-nowrap">
+                  <div className="w-3 h-3 bg-violet-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Client Complaint</span>
                 </div>
               </div>
@@ -841,7 +851,7 @@ const Dashboard_Inspection = ({
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm text-gray-700 border rounded-lg">
                 <thead>
-                  <tr className="bg-gray-100 text-center font-semibold">
+                  <tr className="bg-gray-100 text-center font-semibold"><th className="border px-4 py-2 w-12">#</th>
                     <th className="border px-4 py-2">Topic</th>
                     <th className="border px-4 py-2">GOOD</th>
                     <th className="border px-4 py-2">MODERATE</th>
@@ -851,8 +861,8 @@ const Dashboard_Inspection = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {findingsData.allTopics.map(topic => (
-                    <tr key={topic} className="text-center">
+                  {findingsData.allTopics.map((topic, topicIdx) => (
+                    <tr key={topic} className="text-center"><td className="border px-4 py-2 text-gray-500">{topicIdx + 1}</td>
                       <td className="border px-4 py-2 font-medium">{topic}</td>
                       <td className="border px-4 py-2">{findingsData.topicMatrix[topic]?.good || 0}</td>
                       <td className="border px-4 py-2">{findingsData.topicMatrix[topic]?.moderate || 0}</td>
@@ -864,7 +874,7 @@ const Dashboard_Inspection = ({
                 </tbody>
                 <tfoot>
                   <tr className="bg-gray-50 text-center font-semibold">
-                    <td className="border px-4 py-2">Total</td>
+                    <td className="border px-4 py-2"></td><td className="border px-4 py-2">Total</td>
                     <td className="border px-4 py-2">{findingsData.summary.good.count}</td>
                     <td className="border px-4 py-2">{findingsData.summary.moderate.count}</td>
                     <td className="border px-4 py-2">{findingsData.summary.poor.count}</td>
@@ -872,7 +882,7 @@ const Dashboard_Inspection = ({
                     <td className="border px-4 py-2">{findingsData.summary.clientcomplaint.count}</td>
                   </tr>
                   <tr className="bg-blue-50 text-blue-800 font-bold text-center">
-                    <td colSpan="5" className="border px-4 py-2">Total Findings</td>
+                    <td colSpan="6" className="border px-4 py-2">Total Findings</td>
                     <td className="border px-4 py-2">{findingsData.total}</td>
                   </tr>
                 </tfoot>

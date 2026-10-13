@@ -294,10 +294,58 @@ class InspectionController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Inspection $inspection)
+    public function show(Request $request, Inspection $inspection)
     {
-        return response()->json([
-            'inspection' => $inspection->load(['project', 'company', 'topic', 'inspector', 'subconCompany'])
+        $inspection->load(['project', 'company', 'topic', 'inspector', 'subconCompany']);
+
+        // Keep the JSON response for plain API/ajax callers
+        if ($request->wantsJson() && !$request->header('X-Inertia')) {
+            return response()->json(['inspection' => $inspection]);
+        }
+
+        // A company user may only see inspections of their own projects
+        $companyId = Auth::user()->company_id;
+        if ($companyId && optional($inspection->project)->company_id != $companyId) {
+            abort(404);
+        }
+
+        $inspection->load(['non_conformance', 'client_complaint']);
+
+        // `photo` holds either a single path (old rows) or a JSON list of paths
+        $photos = json_decode((string) $inspection->photo, true);
+        if (!is_array($photos)) {
+            $photos = $inspection->photo ? [$inspection->photo] : [];
+        }
+
+        $reviewerName = function ($record) {
+            if (!$record || !$record->review_by) {
+                return null;
+            }
+            return optional(CompanyStaff::find($record->review_by))->name;
+        };
+
+        // Other inspections for the same project / subcon, for quick context
+        $related = Inspection::with('topic')
+            ->where('project_id', $inspection->project_id)
+            ->where('id', '!=', $inspection->id)
+            ->when($inspection->subcon_company_id, fn ($q) => $q->where('subcon_company_id', $inspection->subcon_company_id))
+            ->orderBy('inspection_date', 'desc')
+            ->limit(5)
+            ->get()
+            ->map(fn ($i) => [
+                'id' => $i->id,
+                'topic' => $i->topic->name ?? 'N/A',
+                'evaluation' => $i->evaluation,
+                'inspection_date' => $i->inspection_date ? $i->inspection_date->format('Y-m-d') : null,
+            ])->values();
+
+        return Inertia::render('WSIS/Inspection_Show', [
+            'title' => 'Inspection Details',
+            'inspection' => $inspection,
+            'photos' => array_values($photos),
+            'ncReviewer' => $reviewerName($inspection->non_conformance),
+            'ccReviewer' => $reviewerName($inspection->client_complaint),
+            'related' => $related,
         ]);
     }
 

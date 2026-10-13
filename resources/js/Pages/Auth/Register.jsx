@@ -112,12 +112,12 @@ const handleSubmit = async (e) => {
     
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
       {/* Stepper Side */}
-      <div className="hidden md:block md:w-1/3 bg-gradient-to-br from-blue-600 to-blue-800 p-8 lg:p-12">
+      <div className="hidden md:block md:w-1/3 bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-8 lg:p-12">
         <div className="h-full flex flex-col items-center">
           <img 
-            src="https://djati.com.my/wp-content/uploads/2024/08/Symbol-D.png" 
+            src="/images/logo.png" 
             alt="Company Logo" 
-            className="h-auto w-32 mb-6"
+            className="h-24 w-24 rounded-full mb-6 ring-4 ring-brand-500"
           />
           
           <div className="flex-1 flex flex-col justify-center w-full max-w-xs">
@@ -127,7 +127,7 @@ const handleSubmit = async (e) => {
               {[1, 2, 3].map((stepNumber) => (
                 <div key={stepNumber} className="flex items-start">
                   <div className={`flex-shrink-0 flex items-center justify-center w-8 h-8 rounded-full ${
-                    step >= stepNumber ? 'bg-white text-blue-600' : 'bg-blue-500 bg-opacity-30 text-white'
+                    step >= stepNumber ? 'bg-brand-500 text-ink-900' : 'bg-white/10 text-white'
                   } font-bold text-sm`}>
                     {stepNumber}
                   </div>

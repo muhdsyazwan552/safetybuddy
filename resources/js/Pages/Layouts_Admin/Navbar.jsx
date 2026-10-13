@@ -1,4 +1,4 @@
-import { FaBars, FaUserCircle, FaChevronDown, FaSignOutAlt, FaHome, FaExchangeAlt, FaUser, FaBuilding, FaShieldAlt, FaHeartbeat, FaLeaf, FaBook, FaExclamationTriangle, FaChartLine } from 'react-icons/fa';
+import { FaBars, FaUserCircle, FaChevronDown, FaSignOutAlt, FaHome, FaUser, FaBuilding } from 'react-icons/fa';
 import { useState, useRef, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import { FiAlignLeft } from 'react-icons/fi';
@@ -46,73 +46,57 @@ export default function Navbar({
     router.post('/logout');
   };
 
-  const handleModuleChange = (modulePath) => {
-    router.get(modulePath);
-    setIsDropdownOpen(false);
-  };
-
-  // Available modules with their respective icons
-  const modules = [
-    { name: 'Safety Module', path: '/module', icon: <FaShieldAlt className="mr-2 text-blue-500" /> },
-    { name: 'Health Module', path: '/module/health', icon: <FaHeartbeat className="mr-2 text-green-500" /> },
-    { name: 'Environment Module', path: '/module/environment', icon: <FaLeaf className="mr-2 text-emerald-500" /> },
-    { name: 'Training Module', path: '/module/training', icon: <FaBook className="mr-2 text-purple-500" /> },
-    { name: 'Incident Module', path: '/module/incident', icon: <FaExclamationTriangle className="mr-2 text-red-500" /> },
-    { name: 'Audit Module', path: '/module/audit', icon: <FaChartLine className="mr-2 text-indigo-500" /> },
-  ];
-
   return (
-    <header className="bg-white shadow px-6 py-4 flex items-center justify-between">
-      <div className="flex items-center space-x-4">
-        {/* Mobile toggle button (always visible on mobile) */}
+    <header className="bg-ink-900 text-white border-b-2 border-brand-500 shadow px-3 sm:px-6 h-16 shrink-0 flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+        {/* Mobile / tablet: open drawer */}
         <button
           onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)}
-          className="text-gray-700 text-xl focus:outline-none md:hidden mr-2"
+          className="lg:hidden p-2 -ml-2 text-brand-400 text-xl focus:outline-none"
+          aria-label="Open menu"
         >
           <FaBars />
         </button>
 
-        {/* Desktop toggle button (only visible when sidebar is collapsed) */}
-        {!collapsed && (
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="text-gray-600 hidden md:block focus:outline-none mr-2"
-          >
-            <FiAlignLeft className="w-5 h-5" />
-          </button>
-        )}
+        {/* Desktop: collapse / expand sidebar */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="hidden lg:block p-2 text-brand-400 hover:text-brand-300 focus:outline-none"
+          aria-label="Toggle sidebar"
+        >
+          <FiAlignLeft className="w-5 h-5" />
+        </button>
 
-        {/* Breadcrumb Navigation */}
-        <div className="flex items-center text-sm text-gray-600">
-          <a href="/dashboard" className="flex items-center hover:text-blue-600">
+        {/* Breadcrumb */}
+        <div className="flex items-center text-sm text-ink-300 min-w-0">
+          <a href="/dashboard" className="hidden sm:flex items-center hover:text-brand-400">
             <FaHome className="mr-1" />
             <span>Home</span>
           </a>
-          <span className="mx-2">/</span>
-          <span className="text-gray-800 font-medium">{title || 'Dashboard'}</span>
+          <span className="mx-2 hidden sm:inline">/</span>
+          <span className="text-white font-semibold truncate">{title || 'Dashboard'}</span>
         </div>
-      
       </div>
 
       {/* User Dropdown */}
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={toggleDropdown}
-          className="group flex items-center gap-2 px-3 py-2 rounded-full hover:bg-gray-100 transition-all duration-200 focus:outline-none"
+          className="group flex items-center gap-2 px-2 sm:px-3 py-2 rounded-full hover:bg-white/10 transition-all duration-200 focus:outline-none"
         >
-          <FaUserCircle className="text-gray-500 group-hover:text-blue-600 text-2xl transition-colors duration-200" />
-          <span className="hidden md:inline text-sm font-medium text-gray-700 group-hover:text-blue-600">
+          <FaUserCircle className="text-brand-400 text-2xl transition-colors duration-200" />
+          <span className="hidden md:inline max-w-[12rem] truncate text-sm font-medium text-gray-100 group-hover:text-brand-400">
             {displayName}
           </span>
           <FaChevronDown
-            className={`text-gray-400 text-sm transition-transform duration-300 ${
+            className={`hidden sm:block text-ink-300 text-sm transition-transform duration-300 ${
               isDropdownOpen ? 'rotate-180' : ''
             }`}
           />
         </button>
 
         {isDropdownOpen && (
-          <div className="absolute right-0 mt-2 w-64 bg-white rounded-md shadow-lg py-1 z-50">
+          <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white text-gray-800 rounded-md shadow-xl py-1 z-50">
             {/* User Info Section */}
             <div className="px-4 py-2 border-b bg-gray-50 rounded-t-md">
               <p className="text-sm font-semibold text-gray-900">
@@ -131,21 +115,6 @@ export default function Navbar({
                   {company.email}
                 </p>
               )}
-            </div>
-
-            {/* Module Switcher Section */}
-            <div className="border-b">
-              <div className="">
-                
-                <button
-                onClick={() => router.get('/module')}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center transition-colors duration-150"
-              >
-                <FaExchangeAlt className="mr-2 text-blue-500" />
-                Module Switcher
-              </button>
-              </div>
-             
             </div>
 
             {/* Profile & Account Section */}
@@ -169,11 +138,11 @@ export default function Navbar({
               )}
               
               <button
-                onClick={() => router.get('/account-details')}
+                onClick={() => router.get('/settings')}
                 className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center transition-colors duration-150"
               >
                 <FaUserCircle className="mr-2 text-gray-500" />
-                Account Details
+                Settings
               </button>
             </div>
 

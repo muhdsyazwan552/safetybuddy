@@ -360,7 +360,7 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
                   <button
                     onClick={handleAddExecutor}
                     disabled={processing}
-                    className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
+                    className="px-6 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-ink-900 rounded-lg hover:from-brand-400 hover:to-brand-500 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
                   >
                     {processing ? 'Creating...' : 'Add Executor'}
                   </button>

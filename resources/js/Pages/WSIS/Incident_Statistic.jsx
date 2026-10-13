@@ -421,7 +421,7 @@ const MonthlySummaryTable = ({ monthlyData, totals }) => {
     <div className="overflow-x-auto">
       <table className="min-w-full text-xs border-collapse">
         <thead>
-          <tr className="bg-gray-50">
+          <tr className="bg-gray-50"><th className="px-3 py-2 text-center border border-gray-200 font-semibold text-gray-600 w-10">#</th>
             <th className="px-3 py-2 text-left border border-gray-200 font-semibold text-gray-600">Month</th>
             {CAT_KEYS.map(k => (
               <th key={k} className="px-3 py-2 text-center border border-gray-200 font-semibold whitespace-nowrap" style={{ color: CAT_COLORS[k] }}>
@@ -433,7 +433,7 @@ const MonthlySummaryTable = ({ monthlyData, totals }) => {
         </thead>
         <tbody>
           {monthlyRows.map((row, i) => (
-            <tr key={i} className={i % 2 === 0 ? 'bg-yellow-50' : 'bg-white'}>
+            <tr key={i} className={i % 2 === 0 ? 'bg-yellow-50' : 'bg-white'}><td className="px-3 py-2 border border-gray-200 text-center text-gray-500">{i + 1}</td>
               <td className="px-3 py-2 border border-gray-200 font-medium text-gray-700 whitespace-nowrap">{row.label}</td>
               {CAT_KEYS.map(k => (
                 <td key={k} className="px-3 py-2 border border-gray-200 text-center font-semibold" style={{ color: row[k] > 0 ? CAT_COLORS[k] : '#d1d5db' }}>
@@ -1003,7 +1003,7 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
               {(viewingIncident.lti > 0 || viewingIncident.lti_worker_count) && (
                 <section>
                   <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">LTI Details</h3>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <Field label="Workers Involved" value={viewingIncident.lti_worker_count} />
                     <Field label="Work Days Lost" value={viewingIncident.lti_days_lost} />
                     <Field label="Man-Hours Lost" value={viewingIncident.lti_man_hours_lost} />
@@ -1030,7 +1030,7 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
 
               <section>
                 <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">Impact & Recording</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label="Manhours Lost" value={viewingIncident.manhours_lost} />
                   {viewingIncident.attachment_upload && (
                     <div>

@@ -2,21 +2,116 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Custom scrollbar for the sidebar */
-.sidebar-scrollbar::-webkit-scrollbar {
-  width: 6px; /* Width of the scrollbar */
+/* ------------------------------------------------------------------
+   Safety Buddy theme  (yellow + dark)
+   `blue-*` / `indigo-*` are mapped to the brand yellow in
+   tailwind.config.js. Yellow text on white is unreadable, so text
+   usages are mapped to the darker gold shades and yellow surfaces get
+   dark text instead of white.
+------------------------------------------------------------------- */
+:root {
+  --sb-yellow: #F7D31A;
+  --sb-yellow-dark: #CA8A04;
+  --sb-ink: #12171E;
+  --sb-ink-soft: #1A212B;
 }
 
-.sidebar-scrollbar::-webkit-scrollbar-track {
-  background: #f1f1f1; /* Track color */
-  border-radius: 3px;
+html { -webkit-text-size-adjust: 100%; }
+body { background-color: #F3F4F6; color: #1F2937; overflow-x: hidden; }
+
+/* Text that used to be blue -> readable gold on light surfaces */
+.text-blue-400, .text-blue-500, .text-blue-600, .text-blue-700,
+.text-indigo-400, .text-indigo-500, .text-indigo-600, .text-indigo-700,
+.hover\:text-blue-500:hover, .hover\:text-blue-600:hover, .hover\:text-blue-700:hover,
+.hover\:text-indigo-500:hover, .hover\:text-indigo-600:hover, .hover\:text-indigo-700:hover,
+.focus\:text-blue-600:focus, .group:hover .group-hover\:text-blue-600 {
+  color: #A16207;
+}
+.text-blue-800, .text-blue-900, .text-indigo-800, .text-indigo-900 { color: #713F12; }
+
+/* Yellow filled surfaces -> dark text instead of white */
+.bg-blue-400.text-white, .bg-blue-500.text-white, .bg-blue-600.text-white, .bg-blue-700.text-white,
+.bg-indigo-400.text-white, .bg-indigo-500.text-white, .bg-indigo-600.text-white, .bg-indigo-700.text-white,
+.bg-blue-400 .text-white, .bg-blue-500 .text-white, .bg-blue-600 .text-white, .bg-blue-700 .text-white {
+  color: var(--sb-ink);
+}
+.bg-blue-500, .bg-blue-600, .bg-indigo-500, .bg-indigo-600 { font-weight: 600; }
+
+/* Dark headers where the pages used a solid brand colour as banner */
+.bg-blue-800.text-white, .bg-blue-900.text-white { background-color: var(--sb-ink-soft); color: var(--sb-yellow); }
+
+/* Inputs: yellow focus ring everywhere (also non-tailwind-forms inputs) */
+input:focus, select:focus, textarea:focus { --tw-ring-color: #EAB308; }
+[type='checkbox'], [type='radio'] { color: #EAB308; }
+
+/* Tables: never blow out the page width on small screens */
+table { max-width: 100%; }
+.sb-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Tap targets + notch safe areas on phones */
+@media (max-width: 767px) {
+  button, a, [role='button'] { touch-action: manipulation; }
+  .swal2-popup { font-size: 0.9rem; }
 }
 
-.sidebar-scrollbar::-webkit-scrollbar-thumb {
-  background: #c1c1c1; /* Thumb color */
-  border-radius: 3px;
+/* Custom scrollbars */
+.sidebar-scrollbar::-webkit-scrollbar,
+.sb-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.sidebar-scrollbar::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 3px; }
+.sidebar-scrollbar::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 3px; }
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8a8a8; }
+.sb-scroll::-webkit-scrollbar-track { background: transparent; }
+.sb-scroll::-webkit-scrollbar-thumb { background: #2E3744; border-radius: 3px; }
+.sb-scroll::-webkit-scrollbar-thumb:hover { background: #4A5565; }
+
+/* ------------------------------------------------------------------
+   Compact buttons on phones (< 640px)
+   Only affects real "button-looking" controls: <button>/<a> that have
+   horizontal padding utilities and rounded corners. Icon-only buttons
+   (p-1 / p-2) and menu items are left alone.
+------------------------------------------------------------------- */
+@media (max-width: 639px) {
+  button[class*="rounded"][class*="px-"],
+  a[class*="rounded"][class*="px-"][class*="py-"],
+  input[type="submit"][class*="px-"],
+  input[type="button"][class*="px-"] {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: 0.375rem !important;
+    padding-bottom: 0.375rem !important;
+    font-size: 0.8125rem !important;
+    line-height: 1.25rem !important;
+    gap: 0.375rem;
+  }
+
+  /* Buttons already small (table actions, pagination) stay as they are */
+  button[class*="rounded"].text-xs,
+  a[class*="rounded"].text-xs {
+    font-size: 0.75rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+
+  /* Icons inside buttons shrink with the text */
+  button[class*="rounded"][class*="px-"] svg { width: 1rem; height: 1rem; }
+
+  /* SweetAlert dialog buttons */
+  .swal2-styled { padding: 0.45rem 0.9rem !important; font-size: 0.85rem !important; }
+
+  /* Stack-friendly: full-width primary actions inside forms look huge, keep natural width */
+  form button[type="submit"].w-full { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
 }
 
-.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8; /* Thumb hover color */
+/* ------------------------------------------------------------------
+   Inspector portal – native-app feel on phones
+------------------------------------------------------------------- */
+.inspector-app { -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+.inspector-app a, .inspector-app button { -webkit-user-select: none; user-select: none; }
+@media (max-width: 1023px) {
+  /* 16px inputs stop iOS from zooming the page on focus */
+  .inspector-app input, .inspector-app select, .inspector-app textarea { font-size: 16px; }
+  /* pressed feedback like a native list row / card */
+  .inspector-app a[class*="rounded"]:active, .inspector-app button[class*="rounded"]:active { transform: scale(0.985); }
+  /* pages draw their own min-h-screen background; stop it forcing extra scroll under the tab bar */
+  .inspector-app main > .min-h-screen { min-height: calc(100dvh - 3.5rem); }
 }

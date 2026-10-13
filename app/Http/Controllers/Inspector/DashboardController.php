@@ -106,12 +106,92 @@ class DashboardController extends Controller
                 ];
             });
 
+        // ---- Insights (new dashboard widgets) ----
+        $inspectionsQuery = fn () => Inspection::whereIn('project_id', $assignedProjectIds);
+        $startOfWeek = now()->startOfWeek();
+        $totalEvaluated = $inspectionsQuery()->count();
+        $goodModerate = $inspectionsQuery()->whereIn('evaluation', ['good', 'moderate'])->count();
+
+        $openNc = NoConformance::where('status', 'open')
+            ->whereHas('inspection', fn ($q) => $q->whereIn('project_id', $assignedProjectIds))
+            ->count();
+        $openCc = ClientComplaint::where('status', 'open')
+            ->whereHas('inspection', fn ($q) => $q->whereIn('project_id', $assignedProjectIds))
+            ->count();
+
+        $insights = [
+            'today_inspections' => $inspectionsQuery()->whereDate('inspection_date', now()->toDateString())->count(),
+            'week_inspections' => $inspectionsQuery()->where('inspection_date', '>=', $startOfWeek)->count(),
+            'last_week_inspections' => $inspectionsQuery()
+                ->whereBetween('inspection_date', [$startOfWeek->copy()->subWeek(), $startOfWeek])
+                ->count(),
+            'compliance_rate' => $totalEvaluated > 0 ? round(($goodModerate / $totalEvaluated) * 100) : 0,
+            'open_nc' => $openNc,
+            'open_cc' => $openCc,
+            'toolbox_this_month' => ToolboxTalks::whereIn('project_id', $assignedProjectIds)
+                ->whereYear('inspection_date', now()->year)
+                ->whereMonth('inspection_date', now()->month)
+                ->count(),
+        ];
+
+        // Last 7 days activity (inspections per day)
+        $perDay = $inspectionsQuery()
+            ->where('inspection_date', '>=', now()->subDays(6)->startOfDay())
+            ->get(['inspection_date'])
+            ->groupBy(fn ($i) => $i->inspection_date->format('Y-m-d'))
+            ->map->count();
+
+        $weeklyActivity = collect(range(6, 0))->map(function ($daysAgo) use ($perDay) {
+            $date = now()->subDays($daysAgo);
+            return [
+                'date' => $date->format('Y-m-d'),
+                'label' => $date->format('D'),
+                'count' => (int) ($perDay[$date->format('Y-m-d')] ?? 0),
+                'is_today' => $daysAgo === 0,
+            ];
+        })->values();
+
+        // Open items that need follow-up (latest first)
+        $attention = collect()
+            ->merge(
+                NoConformance::with('inspection.project', 'inspection.subconCompany')
+                    ->where('status', 'open')
+                    ->whereHas('inspection', fn ($q) => $q->whereIn('project_id', $assignedProjectIds))
+                    ->latest()->limit(5)->get()
+                    ->map(fn ($r) => [
+                        'type' => 'Non-Conformance',
+                        'inspection_id' => $r->inspection_id,
+                        'project_name' => $r->inspection->project->name ?? 'N/A',
+                        'subcon_name' => $r->inspection->subconCompany->name ?? 'Main Company',
+                        'date_open' => $r->date_open ? $r->date_open->format('d M Y') : null,
+                        'sort' => optional($r->created_at)->timestamp ?? 0,
+                    ])
+            )
+            ->merge(
+                ClientComplaint::with('inspection.project', 'inspection.subconCompany')
+                    ->where('status', 'open')
+                    ->whereHas('inspection', fn ($q) => $q->whereIn('project_id', $assignedProjectIds))
+                    ->latest()->limit(5)->get()
+                    ->map(fn ($r) => [
+                        'type' => 'Client Complaint',
+                        'inspection_id' => $r->inspection_id,
+                        'project_name' => $r->inspection->project->name ?? 'N/A',
+                        'subcon_name' => $r->inspection->subconCompany->name ?? 'Main Company',
+                        'date_open' => $r->date_open ? $r->date_open->format('d M Y') : null,
+                        'sort' => optional($r->created_at)->timestamp ?? 0,
+                    ])
+            )
+            ->sortByDesc('sort')->take(5)->values();
+
         return Inertia::render('Inspector/Dashboard', [
             'stats' => $stats,
             'recentInspections' => $recentInspections,
             'projects' => $projects,
             'evaluationStats' => $evaluationStats,
             'recentToolboxTalks' => $recentToolboxTalks,
+            'insights' => $insights,
+            'weeklyActivity' => $weeklyActivity,
+            'attention' => $attention,
             'user' => [
                 'name' => $user->name,
                 'email' => $user->email,
@@ -136,6 +216,9 @@ class DashboardController extends Controller
             'projects' => [],
             'evaluationStats' => [],
             'recentToolboxTalks' => [],
+            'insights' => [],
+            'weeklyActivity' => [],
+            'attention' => [],
             'user' => [
                 'name' => $user->name,
                 'email' => $user->email,
@@ -316,7 +399,7 @@ class DashboardController extends Controller
                         'description' => $item['description'] ?? null,
                         'subcon_company_id' => $item['subcon_company_id'],
                         'inspectee_id' => null,
-                        'photos' => json_encode($photoPaths),
+                        'photo' => $this->encodePhotoPaths($photoPaths),
                     ]);
 
                     // Auto-create nonconformance record
@@ -521,7 +604,19 @@ class DashboardController extends Controller
             ->where('entity_id', $staff->id)
             ->pluck('project_id');
 
-        $projects = Project::whereIn('id', $assignedProjectIds)->where('status', 'active')->get();
+        $projects = Project::whereIn('id', $assignedProjectIds)->get()->map(function ($project) {
+            $subconCompanyIds = ProjectAssign::where('entity_type', 'compsub')
+                ->where('project_id', $project->id)
+                ->pluck('entity_id')
+                ->unique();
+
+            $project->subcon_companies = SubconCompany::whereIn('id', $subconCompanyIds)
+                ->where('status', 'active')
+                ->select('id', 'name')
+                ->get();
+
+            return $project;
+        });
         $subconCompanies = SubconCompany::where('status', 'active')->get();
         $topics = ToolboxTopic::all();
         $evaluations = Inspection::$evaluationOptions;
@@ -537,6 +632,24 @@ class DashboardController extends Controller
     }
 
     /**
+     * Encode uploaded photo paths for the `photo` column.
+     * The column is varchar(255) on older databases, so keep as many as fit.
+     */
+    private function encodePhotoPaths(array $paths): ?string
+    {
+        $paths = array_values($paths);
+        while (count($paths) > 0) {
+            $json = json_encode($paths);
+            if (strlen($json) <= 255) {
+                return $json;
+            }
+            array_pop($paths);
+        }
+
+        return null;
+    }
+
+    /**
      * Update inspection
      */
     public function updateInspection(Request $request, $id)
@@ -546,13 +659,27 @@ class DashboardController extends Controller
         $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
             'subcon_company_id' => 'nullable|exists:subcon_company,id',
-            'topic_inspection_id' => 'nullable|exists:toolbox_topics,id',
+            'topic_inspection_id' => 'nullable|exists:toolbox_topic,id',
             'evaluation' => 'required|in:good,moderate,poor,nonconformance,clientcomplaint',
             'description' => 'nullable|string',
             'inspection_date' => 'required|date',
             'location' => 'nullable|string|max:255',
             'inspectee_id' => 'nullable|exists:subcon_staff,id',
+            'photos' => 'nullable|array',
+            'photos.*' => 'image|max:2048',
         ]);
+
+        unset($validated['photos']);
+
+        // Append any newly uploaded photos to the existing list
+        if ($request->hasFile('photos')) {
+            $existing = json_decode((string) $inspection->photo, true);
+            $existing = is_array($existing) ? $existing : array_filter([$inspection->photo]);
+            foreach ($request->file('photos') as $photo) {
+                $existing[] = $photo->store('inspections/photos', 'public');
+            }
+            $validated['photo'] = $this->encodePhotoPaths(array_values($existing));
+        }
 
         $inspection->update($validated);
 
@@ -808,12 +935,7 @@ class DashboardController extends Controller
      */
     public function showToolboxTalk($id)
     {
-        $toolboxTalk = ToolboxTalks::with(['project', 'CompanyStaff', 'topics'])->findOrFail($id);
-
-        return Inertia::render('Inspector/ToolboxTalkDetails', [
-            'toolboxTalk' => $toolboxTalk,
-            'user' => Auth::user(),
-        ]);
+        return $this->showToolboxTalkDetail($id);
     }
 
     /**
@@ -848,27 +970,41 @@ class DashboardController extends Controller
     {
         $toolboxTalk = ToolboxTalks::findOrFail($id);
 
-        $validated = $request->validate([
+        $conducted = (int) $request->input('is_conducted', 1) === 1;
+
+        $rules = [
             'project_id' => 'required|exists:projects,id',
-            'conducted' => 'nullable|string|max:255',
-            'total_attended' => 'required|integer|min:1',
-            'topics' => 'required|array|min:1',
-            'topics.*' => 'exists:toolbox_topics,id',
             'inspection_date' => 'required|date',
-            'img_group' => 'nullable|image|max:2048',
-            'img_attendance' => 'nullable|image|max:2048',
-        ]);
+        ];
 
-        if ($request->hasFile('img_group')) {
-            $validated['img_group'] = $request->file('img_group')->store('toolbox-talks/group', 'public');
+        if ($conducted) {
+            $rules['total_attended'] = 'required|integer|min:1';
+            $rules['topics'] = 'required|array|min:1';
+            $rules['topics.*'] = 'exists:toolbox_topic,id';
+            $rules['img_group'] = 'nullable|image|max:2048';
+            $rules['img_attendance'] = 'nullable|image|max:2048';
         }
 
-        if ($request->hasFile('img_attendance')) {
-            $validated['img_attendance'] = $request->file('img_attendance')->store('toolbox-talks/attendance', 'public');
+        $validated = $request->validate($rules);
+
+        $data = [
+            'project_id' => $validated['project_id'],
+            'inspection_date' => date('Y-m-d', strtotime($validated['inspection_date'])),
+            'conducted' => $conducted ? 'yes' : 'no',
+            'total_attended' => $conducted ? (int) $validated['total_attended'] : 0,
+        ];
+
+        if ($conducted) {
+            if ($request->hasFile('img_group')) {
+                $data['img_group'] = $request->file('img_group')->store('toolbox-talks/group', 'public');
+            }
+            if ($request->hasFile('img_attendance')) {
+                $data['img_attendance'] = $request->file('img_attendance')->store('toolbox-talks/attendance', 'public');
+            }
         }
 
-        $toolboxTalk->update($validated);
-        $toolboxTalk->topics()->sync($validated['topics']);
+        $toolboxTalk->update($data);
+        $toolboxTalk->topics()->sync($conducted ? $validated['topics'] : []);
 
         return redirect()->route('inspector.toolbox-talks')->with('success', 'Toolbox Talk updated successfully');
     }
@@ -903,7 +1039,11 @@ class DashboardController extends Controller
             ->where('entity_id', $staff->id)
             ->pluck('project_id');
 
-        $query = Project::whereIn('id', $assignedProjectIds)->withCount('inspections');
+        $query = Project::whereIn('id', $assignedProjectIds)
+            ->withCount(['inspections', 'toolboxTalks'])
+            ->withCount([
+                'inspections as open_issue_count' => fn ($q) => $q->whereIn('evaluation', ['nonconformance', 'clientcomplaint']),
+            ]);
 
         if ($request->search) {
             $query->where('name', 'like', "%{$request->search}%");
@@ -913,10 +1053,24 @@ class DashboardController extends Controller
             $query->where('status', $request->status);
         }
 
+        $myRoles = ProjectAssign::where('entity_type', 'staff')
+            ->where('entity_id', $staff->id)
+            ->pluck('role_assignment', 'project_id');
+
+        $statusCounts = Project::whereIn('id', $assignedProjectIds)
+            ->select('status', DB::raw('count(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
+
         $projects = $query->orderBy('created_at', 'desc')->paginate(15);
+        $projects->getCollection()->transform(function ($project) use ($myRoles) {
+            $project->my_role = $myRoles[$project->id] ?? null;
+            return $project;
+        });
 
         return Inertia::render('Inspector/Projects', [
             'projects' => $projects,
+            'statusCounts' => $statusCounts,
             'filters' => $request->only(['search', 'status']),
             'user' => $user,
         ]);
@@ -927,33 +1081,118 @@ class DashboardController extends Controller
      */
     public function showProject($id)
     {
-        $project = Project::with([
-            'assignedStaff',
-            'assignedSubconStaff',
-            'inspections' => function ($q) {
-                $q->orderBy('inspection_date', 'desc');
-            },
-            'inspections.subconCompany',
-            'inspections.topic',
-            'toolboxTalks',
-            'toolboxTalks.topics',
-            'toolboxTalks.CompanyStaff',
-        ])->findOrFail($id);
+        $user = Auth::user();
+        $staff = CompanyStaff::where('user_id', $user->id)->first();
 
-        $stats = [
-            'total_inspections' => $project->inspections->count(),
-            'nonconformance_count' => $project->inspections->where('evaluation', 'nonconformance')->count(),
-            'complaint_count' => $project->inspections->where('evaluation', 'clientcomplaint')->count(),
-            'good_count' => $project->inspections->where('evaluation', 'good')->count(),
-            'moderate_count' => $project->inspections->where('evaluation', 'moderate')->count(),
-            'poor_count' => $project->inspections->where('evaluation', 'poor')->count(),
-            'toolbox_talks_count' => $project->toolboxTalks->count(),
-        ];
+        // Only projects assigned to this inspector
+        $isAssigned = $staff && ProjectAssign::where('entity_type', 'staff')
+            ->where('entity_id', $staff->id)
+            ->where('project_id', $id)
+            ->exists();
+
+        if (!$isAssigned) {
+            return redirect()->route('inspector.projects')->with('error', 'Project not found');
+        }
+
+        $project = Project::findOrFail($id);
+        // raw rows: the ProjectAssign model rewrites entity_type to class names
+        $assigns = DB::table('project_assign')->where('project_id', $id)->get();
+
+        // Main company team (inspectors / site staff)
+        $staffAssign = $assigns->where('entity_type', 'staff');
+        $team = CompanyStaff::whereIn('id', $staffAssign->pluck('entity_id'))->get()
+            ->map(fn ($m) => [
+                'id' => $m->id,
+                'name' => $m->name,
+                'email' => $m->email,
+                'contact' => $m->contact,
+                'role' => optional($staffAssign->firstWhere('entity_id', $m->id))->role_assignment,
+                'is_me' => $m->id === $staff->id,
+            ])->values();
+
+        // Subcontractor companies assigned to the project
+        $compAssign = $assigns->where('entity_type', 'compsub');
+        $subStaffAssign = $assigns->where('entity_type', 'subcon');
+        $subStaffAll = SubconStaff::whereIn('id', $subStaffAssign->pluck('entity_id'))->get();
+
+        $inspectionCounts = Inspection::where('project_id', $id)
+            ->select('subcon_company_id', DB::raw('count(*) as total'))
+            ->groupBy('subcon_company_id')
+            ->pluck('total', 'subcon_company_id');
+
+        $subcons = SubconCompany::whereIn('id', $compAssign->pluck('entity_id'))->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'email' => $c->email,
+                'contact' => $c->contact,
+                'status' => $c->status,
+                'scope' => optional($compAssign->firstWhere('entity_id', $c->id))->role_assignment,
+                'inspections' => (int) ($inspectionCounts[$c->id] ?? 0),
+                'staff' => $subStaffAll->where('company_id', $c->id)->map(fn ($st) => [
+                    'id' => $st->id,
+                    'name' => $st->name,
+                    'role' => optional($subStaffAssign->firstWhere('entity_id', $st->id))->role_assignment ?: $st->role,
+                    'contact' => $st->contact,
+                ])->values(),
+            ])->values();
+
+        $inspections = Inspection::with(['subconCompany', 'topic'])
+            ->where('project_id', $id)
+            ->orderBy('inspection_date', 'desc')
+            ->get();
+
+        $evaluation = [];
+        foreach (['good', 'moderate', 'poor', 'nonconformance', 'clientcomplaint'] as $ev) {
+            $evaluation[$ev] = $inspections->where('evaluation', $ev)->count();
+        }
+
+        $recentInspections = $inspections->take(8)->map(fn ($i) => [
+            'id' => $i->id,
+            'subcon_name' => $i->subconCompany->name ?? 'Main Company',
+            'topic' => $i->topic->name ?? 'N/A',
+            'evaluation' => $i->evaluation,
+            'inspection_date' => $i->inspection_date ? $i->inspection_date->format('Y-m-d') : null,
+            'location' => $i->location,
+        ])->values();
+
+        $talks = ToolboxTalks::with('CompanyStaff')
+            ->where('project_id', $id)
+            ->orderBy('inspection_date', 'desc')
+            ->get();
+
+        $recentTalks = $talks->take(5)->map(fn ($t) => [
+            'id' => $t->id,
+            'conducted' => $t->conducted,
+            'total_attended' => $t->total_attended,
+            'conducted_by' => $t->CompanyStaff->name ?? null,
+            'inspection_date' => $t->inspection_date ? $t->inspection_date->format('Y-m-d') : null,
+        ])->values();
 
         return Inertia::render('Inspector/ProjectDetails', [
-            'project' => $project,
-            'stats' => $stats,
-            'user' => Auth::user(),
+            'project' => [
+                'id' => $project->id,
+                'name' => $project->name,
+                'location' => $project->location,
+                'status' => $project->status,
+                'start_date' => $project->start_date,
+                'end_date' => $project->end_date,
+            ],
+            'myRole' => optional($staffAssign->firstWhere('entity_id', $staff->id))->role_assignment,
+            'stats' => [
+                'total_inspections' => $inspections->count(),
+                'open_issues' => $evaluation['nonconformance'] + $evaluation['clientcomplaint'],
+                'toolbox_talks' => $talks->count(),
+                'conducted_talks' => $talks->where('conducted', 'yes')->count(),
+                'team' => $team->count(),
+                'subcons' => $subcons->count(),
+            ],
+            'evaluation' => $evaluation,
+            'team' => $team,
+            'subcons' => $subcons,
+            'recentInspections' => $recentInspections,
+            'recentTalks' => $recentTalks,
+            'user' => $user,
         ]);
     }
 

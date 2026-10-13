@@ -77,7 +77,7 @@ export default function StaffList({ staffs, onEdit, onDelete, canEdit, canDelete
         <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
-                    <tr>
+                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
@@ -89,8 +89,8 @@ export default function StaffList({ staffs, onEdit, onDelete, canEdit, canDelete
                     </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                    {staffs.map((staff) => (
-                        <tr key={staff.id} className="hover:bg-gray-50">
+                    {staffs.map((staff, rowNo) => (
+                        <tr key={staff.id} className="hover:bg-gray-50"><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{rowNo + 1}</td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {staff.name}
                             </td>

@@ -386,7 +386,7 @@ export default function Home({ auth }) {
 
         {/* Services Section */}
         <div className="container mx-auto px-4 mt-6">
-          <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg p-6">
+          <div className="bg-gradient-to-r from-brand-500 to-brand-700 rounded-lg p-6">
             <h2 className="text-xl font-bold text-white mb-4">Professional Services</h2>
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               {services.map((service) => (

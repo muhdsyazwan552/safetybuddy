@@ -27,8 +27,8 @@ export const LineChart = () => {
       {
         label: 'Incident',
         data: [1200, 1900, 3000, 5000, 2000, 3000],
-        borderColor: 'rgb(79, 70, 229)',
-        backgroundColor: 'rgba(79, 70, 229, 0.5)',
+        borderColor: 'rgb(202, 138, 4)',
+        backgroundColor: 'rgba(247, 211, 26, 0.35)',
         tension: 0.4,
       },
     ],
@@ -36,6 +36,7 @@ export const LineChart = () => {
 
   const options = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top',

@@ -1,302 +1,243 @@
-import React, { useState, useEffect } from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import React, { useMemo, useState } from 'react';
+import { Head, router } from '@inertiajs/react';
 import axios from 'axios';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Trash2, ChevronLeft, ChevronRight, Send, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import InspectorLayout from '@/Layouts/InspectorLayout';
+import InspectionFields from '@/Components/inspector/InspectionFields';
+import { ActionBar, Sheet, EVAL, ghostBtn, darkBtn, primaryBtn } from '@/Components/inspector/kit';
 
-export default function CreateInspection({ projects, allSubconCompanies, topics, evaluations, user, staffId }) {
-    // --- Logic remains identical to your current implementation ---
-    const [currentStep, setCurrentStep] = useState(0);
-    const [inspectionItems, setInspectionItems] = useState([
-        {
-            id: 1,
-            project_id: '',
-            subcon_company_id: '',
-            topic_id: '',
-            evaluation: '',
-            inspection_date: new Date().toISOString().split('T')[0],
-            location: '',
-            description: '',
-            photos: [],
-            photoPreviews: []
+const today = () => new Date().toISOString().split('T')[0];
+const blank = (id) => ({
+    id,
+    project_id: '',
+    subcon_company_id: '',
+    topic_id: '',
+    evaluation: '',
+    inspection_date: today(),
+    location: '',
+    description: '',
+    photos: [],      // File[]
+    previews: [],    // string[]
+});
+
+const REQUIRED = ['project_id', 'subcon_company_id', 'topic_id', 'evaluation', 'inspection_date', 'location'];
+const isComplete = (item) => REQUIRED.every((k) => String(item[k] || '').trim() !== '');
+
+export default function CreateInspection({ projects = [], topics = [], evaluations = [], user }) {
+    const [items, setItems] = useState([blank(1)]);
+    const [step, setStep] = useState(0);
+    const [errors, setErrors] = useState({});
+    const [saving, setSaving] = useState(false);
+    const [serverError, setServerError] = useState('');
+    const [confirmDiscard, setConfirmDiscard] = useState(false);
+
+    const item = items[step];
+    const isLast = step === items.length - 1;
+
+    const subcons = useMemo(() => {
+        const p = projects.find((x) => String(x.id) === String(item.project_id));
+        return p?.subcon_companies || [];
+    }, [projects, item.project_id]);
+
+    const update = (field, value) => {
+        setItems((all) => all.map((it, i) => (i === step ? { ...it, [field]: value } : it)));
+        if (errors[field]) setErrors((e) => ({ ...e, [field]: undefined }));
+    };
+
+    const addNew = () => {
+        const nextId = Math.max(...items.map((i) => i.id), 0) + 1;
+        // carry over project / date to speed up repeated entry
+        const fresh = { ...blank(nextId), project_id: item.project_id, subcon_company_id: item.subcon_company_id, inspection_date: item.inspection_date };
+        setItems([...items, fresh]);
+        setStep(items.length);
+        setErrors({});
+    };
+
+    const removeCurrent = () => {
+        if (items.length === 1) return;
+        const next = items.filter((_, i) => i !== step);
+        setItems(next);
+        setStep(Math.min(step, next.length - 1));
+        setErrors({});
+    };
+
+    const pickPhotos = (fileList) => {
+        const files = Array.from(fileList || []).filter((f) => f.size <= 2 * 1024 * 1024);
+        if (files.length !== (fileList?.length || 0)) setServerError('Some photos were skipped (over 2 MB).');
+        const previews = files.map((f) => URL.createObjectURL(f));
+        setItems((all) => all.map((it, i) => (i === step ? { ...it, photos: [...it.photos, ...files], previews: [...it.previews, ...previews] } : it)));
+    };
+
+    const removePhoto = (idx) =>
+        setItems((all) =>
+            all.map((it, i) =>
+                i === step ? { ...it, photos: it.photos.filter((_, p) => p !== idx), previews: it.previews.filter((_, p) => p !== idx) } : it,
+            ),
+        );
+
+    const validateCurrent = () => {
+        const e = {};
+        REQUIRED.forEach((k) => { if (!String(item[k] || '').trim()) e[k] = 'Required'; });
+        setErrors(e);
+        return Object.keys(e).length === 0;
+    };
+
+    const next = () => {
+        if (!validateCurrent()) return;
+        setStep((s) => Math.min(s + 1, items.length - 1));
+    };
+
+    const submit = () => {
+        // find first incomplete sheet
+        const bad = items.findIndex((it) => !isComplete(it));
+        if (bad !== -1) {
+            setStep(bad);
+            const e = {};
+            REQUIRED.forEach((k) => { if (!String(items[bad][k] || '').trim()) e[k] = 'Required'; });
+            setErrors(e);
+            setServerError(`Inspection ${bad + 1} is missing required fields.`);
+            return;
         }
-    ]);
 
-    const [filteredSubconCompanies, setFilteredSubconCompanies] = useState({});
-    const { post, processing } = useForm({});
-
-    useEffect(() => {
-        const newFilters = {};
-        inspectionItems.forEach(item => {
-            if (item.project_id) {
-                const selectedProject = projects.find(p => p.id === parseInt(item.project_id));
-                newFilters[item.id] = selectedProject?.subcon_companies || [];
-            } else {
-                newFilters[item.id] = [];
-            }
-        });
-        setFilteredSubconCompanies(newFilters);
-    }, [inspectionItems, projects]);
-
-    const addNewInspection = () => {
-        const newId = Math.max(...inspectionItems.map(i => i.id), 0) + 1;
-        setInspectionItems([
-            ...inspectionItems,
-            {
-                id: newId,
-                project_id: '',
-                subcon_company_id: '',
-                topic_id: '',
-                evaluation: '',
-                inspection_date: new Date().toISOString().split('T')[0],
-                location: '',
-                description: '',
-                photos: [],
-                photoPreviews: []
-            }
-        ]);
-        setCurrentStep(inspectionItems.length);
-    };
-
-    const removeInspection = (id) => {
-        if (inspectionItems.length === 1) return;
-        const newItems = inspectionItems.filter(item => item.id !== id);
-        setInspectionItems(newItems);
-        if (currentStep >= newItems.length) setCurrentStep(newItems.length - 1);
-    };
-
-    const updateInspectionItem = (id, field, value) => {
-        setInspectionItems(items =>
-            items.map(item => item.id === id ? { ...item, [field]: value } : item)
-        );
-    };
-
-    const handleFileChange = (id, e) => {
-        const files = Array.from(e.target.files);
-        const previews = files.map(file => URL.createObjectURL(file));
-        setInspectionItems(items =>
-            items.map(item => item.id === id ? { ...item, photos: files, photoPreviews: previews } : item)
-        );
-    };
-
-    const removePhoto = (id, index) => {
-        setInspectionItems(items =>
-            items.map(item =>
-                item.id === id
-                    ? {
-                        ...item,
-                        photos: item.photos.filter((_, i) => i !== index),
-                        photoPreviews: item.photoPreviews.filter((_, i) => i !== index)
-                    }
-                    : item
-            )
-        );
-    };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        const formData = new FormData();
-        inspectionItems.forEach((item, index) => {
-            formData.append(`inspections[${index}][project_id]`, item.project_id);
-            formData.append(`inspections[${index}][subcon_company_id]`, item.subcon_company_id);
-            formData.append(`inspections[${index}][topic_id]`, item.topic_id);
-            formData.append(`inspections[${index}][evaluation]`, item.evaluation);
-            formData.append(`inspections[${index}][inspection_date]`, item.inspection_date);
-            formData.append(`inspections[${index}][location]`, item.location);
-            formData.append(`inspections[${index}][description]`, item.description || '');
-            if (item.photos) {
-                item.photos.forEach((photo, pIdx) => formData.append(`inspections[${index}][photos][${pIdx}]`, photo));
-            }
+        setSaving(true);
+        setServerError('');
+        const fd = new FormData();
+        items.forEach((it, index) => {
+            fd.append(`inspections[${index}][project_id]`, it.project_id);
+            fd.append(`inspections[${index}][subcon_company_id]`, it.subcon_company_id);
+            fd.append(`inspections[${index}][topic_id]`, it.topic_id);
+            fd.append(`inspections[${index}][evaluation]`, it.evaluation);
+            fd.append(`inspections[${index}][inspection_date]`, it.inspection_date);
+            fd.append(`inspections[${index}][location]`, it.location);
+            fd.append(`inspections[${index}][description]`, it.description || '');
+            it.photos.forEach((photo, p) => fd.append(`inspections[${index}][photos][${p}]`, photo));
         });
 
-        axios.post('/inspector/inspections/multiple', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' },
-        }).then(response => {
-            if (response.data.success) {
-                alert(response.data.message);
-                window.location.href = '/inspector/inspections';
-            }
-        }).catch(error => alert('Error: ' + (error.response?.data?.message || 'Failed to save')));
+        axios
+            .post('/inspector/inspections/multiple', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+            .then((res) => {
+                if (res.data?.success) {
+                    router.visit('/inspector/inspections');
+                } else {
+                    setServerError(res.data?.message || 'Could not save inspections.');
+                    setSaving(false);
+                }
+            })
+            .catch((err) => {
+                const apiErrors = err.response?.data?.errors;
+                setServerError(
+                    apiErrors ? Object.values(apiErrors).flat().slice(0, 3).join(' ') : err.response?.data?.message || 'Failed to save. Please try again.',
+                );
+                setSaving(false);
+            });
     };
 
-    const currentItem = inspectionItems[currentStep];
-    const isLastItem = currentStep === inspectionItems.length - 1;
-
-    // --- Design Utility Classes ---
-    const labelClass = "text-[11px] font-black uppercase tracking-widest text-slate-500 ml-1 mb-2 block";
-    const inputClass = "w-full rounded-2xl border-slate-200 bg-slate-50/50 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 transition-all duration-200";
+    const hasData = items.some((it) => it.project_id || it.location || it.description || it.photos.length);
 
     return (
-        <div className="min-h-screen bg-[#F8FAFC] pb-24">
-            <Head title="Create Multiple Inspections" />
+        <InspectorLayout user={user}>
+            <Head title="New Inspection" />
 
-            <div className="max-w-3xl mx-auto px-4 pt-8">
-                {/* Modern Progress Bar */}
-                <div className="mb-8">
-                    <div className="flex justify-between items-end mb-3 px-1">
-                        <div>
-                            <h2 className="text-sm font-bold text-slate-400 uppercase tracking-tighter">Current Progress</h2>
-                            <p className="text-2xl font-black text-slate-800">Inspection {currentStep + 1} <span className="text-slate-300">/ {inspectionItems.length}</span></p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={addNewInspection}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-lg shadow-indigo-100 flex items-center gap-2"
-                        >
-                            <span>+</span> Add New
+            <div className="mx-auto max-w-2xl px-4 pb-40 pt-5 sm:px-6 lg:pb-32">
+                {/* Sheet switcher */}
+                <div className="mb-4">
+                    <div className="mb-2 flex items-center justify-between">
+                        <p className="text-sm font-bold text-gray-900">
+                            Inspection {step + 1} <span className="font-medium text-gray-400">of {items.length}</span>
+                        </p>
+                        <button type="button" onClick={addNew} className="inline-flex items-center gap-1.5 rounded-xl bg-ink-900 px-3 py-2 text-xs font-bold text-brand-400 active:scale-95 transition">
+                            <Plus className="h-4 w-4" strokeWidth={3} /> Add another
                         </button>
                     </div>
-                    <div className="w-full bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner">
-                        <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${((currentStep + 1) / inspectionItems.length) * 100}%` }}
-                            className="bg-gradient-to-r from-indigo-500 to-blue-500 h-full rounded-full"
-                        />
+
+                    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sb-scroll sm:mx-0 sm:px-0">
+                        {items.map((it, idx) => {
+                            const done = isComplete(it);
+                            const active = idx === step;
+                            const color = EVAL[it.evaluation]?.color;
+                            return (
+                                <button
+                                    key={it.id}
+                                    type="button"
+                                    onClick={() => { setStep(idx); setErrors({}); }}
+                                    className={`flex shrink-0 items-center gap-2 rounded-2xl border-2 px-3.5 py-2 text-xs font-bold transition ${
+                                        active ? 'border-ink-900 bg-ink-900 text-white' : 'border-gray-200 bg-white text-gray-600'
+                                    }`}
+                                >
+                                    {done ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <span className="h-2.5 w-2.5 rounded-full" style={{ background: color || '#d1d5db' }} />}
+                                    #{idx + 1}
+                                </button>
+                            );
+                        })}
                     </div>
                 </div>
 
-                {/* Form Navigation Header */}
-                <div className="flex justify-between items-center mb-4 gap-2">
-                    <button
-                        type="button"
-                        onClick={() => setCurrentStep(prev => prev - 1)}
-                        disabled={currentStep === 0}
-                        className={`flex-1 py-3 rounded-2xl font-bold transition-all ${currentStep === 0 ? 'bg-slate-100 text-slate-300' : 'bg-white text-slate-600 border border-slate-200 shadow-sm'}`}
-                    >
-                        ← Back
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => isLastItem ? null : setCurrentStep(prev => prev + 1)}
-                        className={`flex-1 py-3 rounded-2xl font-bold transition-all ${isLastItem ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-indigo-600 text-white shadow-lg shadow-indigo-100'}`}
-                    >
-                        {isLastItem ? 'Last Item Reached' : 'Next Step →'}
-                    </button>
-                </div>
+                {serverError && (
+                    <div className="mb-4 flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                        <span>{serverError}</span>
+                    </div>
+                )}
 
-                {/* Main Inspection Card */}
-                <div className="bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.04)] border border-slate-100 overflow-hidden">
-                    <div className="p-6 bg-gradient-to-br from-slate-50 to-white border-b border-slate-100 flex justify-between items-center">
-                        <div>
-                            <span className="bg-indigo-100 text-indigo-700 text-[10px] font-black px-2 py-1 rounded-md uppercase tracking-wider">Active Sheet</span>
-                            <h3 className="text-xl font-bold text-slate-800 mt-1">Inspection Details</h3>
-                        </div>
-                        {inspectionItems.length > 1 && (
-                            <button onClick={() => removeInspection(currentItem.id)} className="p-3 bg-rose-50 text-rose-500 rounded-2xl hover:bg-rose-500 hover:text-white transition-all">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+                    <div className="mb-5 flex items-center justify-between">
+                        <h2 className="text-base font-extrabold text-gray-900">Inspection details</h2>
+                        {items.length > 1 && (
+                            <button type="button" onClick={removeCurrent} className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-50 text-red-500 active:scale-95 transition" aria-label="Remove this inspection">
+                                <Trash2 className="h-5 w-5" />
                             </button>
                         )}
                     </div>
 
-                    <div className="p-8 space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className={labelClass}>Project Reference *</label>
-                                <select value={currentItem.project_id} onChange={(e) => { updateInspectionItem(currentItem.id, 'project_id', e.target.value); updateInspectionItem(currentItem.id, 'subcon_company_id', ''); }} className={inputClass} required>
-                                    <option value="">Select Project</option>
-                                    {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className={labelClass}>Subcon Company *</label>
-                                <select value={currentItem.subcon_company_id} onChange={(e) => updateInspectionItem(currentItem.id, 'subcon_company_id', e.target.value)} className={`${inputClass} ${!currentItem.project_id ? 'opacity-50' : ''}`} required disabled={!currentItem.project_id}>
-                                    <option value="">Select Subcon</option>
-                                    {(filteredSubconCompanies[currentItem.id] || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className={labelClass}>Inspection Topic *</label>
-                                <select value={currentItem.topic_id} onChange={(e) => updateInspectionItem(currentItem.id, 'topic_id', e.target.value)} className={inputClass} required>
-                                    <option value="">Select Topic</option>
-                                    {topics.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className={labelClass}>Evaluation Status *</label>
-                                <select value={currentItem.evaluation} onChange={(e) => updateInspectionItem(currentItem.id, 'evaluation', e.target.value)} className={inputClass} required>
-                                    <option value="">Select Evaluation</option>
-                                    {evaluations.map(ev => <option key={ev} value={ev}>{ev.toUpperCase()}</option>)}
-                                </select>
-                            </div>
-
-                            <div>
-                                <label className={labelClass}>Date *</label>
-                                <input type="date" value={currentItem.inspection_date} onChange={(e) => updateInspectionItem(currentItem.id, 'inspection_date', e.target.value)} className={inputClass} required />
-                            </div>
-
-                            <div>
-                                <label className={labelClass}>Specific Location *</label>
-                                <input type="text" value={currentItem.location} onChange={(e) => updateInspectionItem(currentItem.id, 'location', e.target.value)} className={inputClass} placeholder="Level 3, Zone B..." required />
-                            </div>
-                        </div>
-
-                        <div>
-                            <label className={labelClass}>Description / Notes</label>
-                            <textarea value={currentItem.description} onChange={(e) => updateInspectionItem(currentItem.id, 'description', e.target.value)} rows="3" className={inputClass} placeholder="Add detailed observations..." />
-                        </div>
-
-                        {/* Photo Upload Area */}
-                        <div className="bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
-                            <label className={labelClass}>Evidence Photos</label>
-                            <div className="flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-2xl p-6 bg-white hover:border-indigo-400 transition-all cursor-pointer relative">
-                                <span className="text-slate-400 font-bold text-sm">Drop photos here or Click to upload</span>
-                                <input type="file" multiple accept="image/*" onChange={(e) => handleFileChange(currentItem.id, e)} className="absolute inset-0 opacity-0 cursor-pointer" />
-                            </div>
-
-                            {currentItem.photoPreviews?.length > 0 && (
-                                <div className="grid grid-cols-4 gap-3 mt-4">
-                                    {currentItem.photoPreviews.map((preview, idx) => (
-                                        <div key={idx} className="relative group rounded-xl overflow-hidden aspect-square border border-slate-200">
-                                            <img src={preview} className="w-full h-full object-cover" />
-                                            <button type="button" onClick={() => removePhoto(currentItem.id, idx)} className="absolute top-1 right-1 bg-rose-500 text-white rounded-full w-6 h-6 flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity">×</button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Quick Jump Bar */}
-                    {inspectionItems.length > 1 && (
-                        <div className="px-8 py-4 bg-slate-50 border-t border-slate-100 flex items-center gap-3 overflow-x-auto">
-                            <span className="text-[10px] font-black text-slate-400 uppercase">Jump To:</span>
-                            {inspectionItems.map((item, idx) => (
-                                <button
-                                    key={item.id}
-                                    type="button"
-                                    onClick={() => setCurrentStep(idx)}
-                                    className={`w-8 h-8 rounded-full text-xs font-bold transition-all shrink-0 ${idx === currentStep ? 'bg-indigo-600 text-white scale-110 shadow-md' : 'bg-white text-slate-400 border border-slate-200'}`}
-                                >
-                                    {idx + 1}
-                                </button>
-                            ))}
-                        </div>
-                    )}
+                    <InspectionFields
+                        item={item}
+                        onChange={update}
+                        projects={projects}
+                        subcons={subcons}
+                        topics={topics}
+                        evaluations={evaluations.length ? evaluations : undefined}
+                        errors={errors}
+                        newPhotos={item.previews.map((preview) => ({ preview }))}
+                        onPickPhotos={pickPhotos}
+                        onRemovePhoto={removePhoto}
+                    />
                 </div>
 
-                {/* Final Submission Button - Only visible on last item */}
-                <AnimatePresence>
-                    {isLastItem && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="mt-8 flex flex-col gap-3"
-                        >
-                            <button
-                                type="submit"
-                                onClick={handleSubmit}
-                                disabled={processing}
-                                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-[1.5rem] font-black text-lg shadow-xl shadow-emerald-100 transition-all disabled:opacity-50"
-                            >
-                                {processing ? 'Uploading All Data...' : `Submit All ${inspectionItems.length} Inspections`}
-                            </button>
-                            <button onClick={() => window.history.back()} className="text-slate-400 font-bold text-sm hover:text-slate-600 transition-colors">Cancel and discard all</button>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                {hasData && (
+                    <button type="button" onClick={() => setConfirmDiscard(true)} className="mx-auto mt-5 block text-sm font-semibold text-gray-400">
+                        Discard everything
+                    </button>
+                )}
             </div>
-        </div>
+
+            <ActionBar>
+                <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || saving} className={`${ghostBtn} disabled:opacity-40`}>
+                    <ChevronLeft className="h-4 w-4" /> Back
+                </button>
+                {isLast ? (
+                    <button type="button" onClick={submit} disabled={saving} className={primaryBtn}>
+                        {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Send className="h-4 w-4" /> Submit {items.length > 1 ? `${items.length} inspections` : 'inspection'}</>}
+                    </button>
+                ) : (
+                    <button type="button" onClick={next} className={darkBtn}>
+                        Next <ChevronRight className="h-4 w-4" />
+                    </button>
+                )}
+            </ActionBar>
+
+            <Sheet
+                open={confirmDiscard}
+                onClose={() => setConfirmDiscard(false)}
+                title="Discard all inspections?"
+                footer={
+                    <div className="flex gap-3">
+                        <button onClick={() => setConfirmDiscard(false)} className={ghostBtn}>Keep editing</button>
+                        <button onClick={() => window.history.back()} className="inline-flex flex-1 items-center justify-center rounded-2xl bg-red-600 px-5 py-3 text-sm font-bold text-white">Discard</button>
+                    </div>
+                }
+            >
+                <p className="py-2 text-sm text-gray-600">Everything you entered on this screen will be lost.</p>
+            </Sheet>
+        </InspectorLayout>
     );
 }

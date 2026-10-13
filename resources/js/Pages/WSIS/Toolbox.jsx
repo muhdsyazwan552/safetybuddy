@@ -485,7 +485,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
+                    className="px-6 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-ink-900 rounded-lg hover:from-brand-400 hover:to-brand-500 transition-all duration-200 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
                     disabled={processing}
                   >
                     {processing ? (
@@ -560,7 +560,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
-              <tr>
+              <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
@@ -586,7 +586,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredToolboxTalks.map((talk, index) => (
-                <tr key={talk.id} className="hover:bg-gray-50">
+                <tr key={talk.id} className="hover:bg-gray-50"><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
                   <td className="px-6 py-4 text-sm text-gray-800">
                     {new Date(talk.date).toLocaleDateString('en-GB')}
                   </td>

@@ -6,18 +6,18 @@ export default function Layout({ children }) {
         <>
           <header className="bg-white shadow-lg">
     {/* First Banner - Branding */}
-<div className="bg-blue-800 text-white">
+<div className="bg-ink-900 text-white border-b-2 border-brand-500">
     <div className="container mx-auto px-2 lg:px-4 py-2 flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-2 lg:space-y-0">
         <div className="flex items-center space-x-2">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
             </svg>
-            <span className="text-sm font-medium">Welcome to our sports booking platform</span>
+            <span className="text-sm font-medium">Safety Buddy — Control. Performance. Report.</span>
         </div>
 
         <div className="flex flex-col lg:flex-row lg:space-x-4 text-sm space-y-1 lg:space-y-0">
-            <span>Support: info@bookingsport.com</span>
-            <span>Phone: +1 (234) 567-890</span>
+            <span></span>
+            <span></span>
         </div>
     </div>
 </div>
@@ -30,12 +30,12 @@ export default function Layout({ children }) {
            <Link href="/" className="flex items-center space-x-2">
   {/* Replace the SVG with your image logo */}
   <img 
-    src="/logo.jpg" 
-    alt="DJARENA Logo" 
+    src="/images/logo.png" 
+    alt="Safety Buddy" 
     className="w-14 h-14 object-contain rounded-full" // Maintains same size as original SVG
   />
-  <span className="text-2xl font-bold text-blue-800">
-    <span className='text-red-700'>D</span>JARENA
+  <span className="text-2xl font-extrabold text-ink-900">
+    Safety <span className='text-brand-600'>Buddy</span>
   </span>
 </Link>
 
@@ -97,9 +97,9 @@ export default function Layout({ children }) {
                 {children}
             </main>
             
-            <footer className="bg-gray-100 py-8 mt-2">
+            <footer className="bg-ink-900 text-gray-300 py-8 mt-2">
                 <div className="container mx-auto px-4 text-center">
-                    &copy; {new Date().getFullYear()} Your Shop Name
+                    &copy; {new Date().getFullYear()} Safety Buddy
                 </div>
             </footer>
         </>

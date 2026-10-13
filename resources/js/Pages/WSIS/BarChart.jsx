@@ -26,10 +26,10 @@ export const BarChart = () => {
         label: 'Hours',
         data: [65, 59, 80, 81],
         backgroundColor: [
-          'rgba(79, 70, 229, 0.8)',
-          'rgba(99, 102, 241, 0.8)',
-          'rgba(129, 140, 248, 0.8)',
-          'rgba(165, 180, 252, 0.8)',
+          'rgba(247, 211, 26, 0.9)',
+          'rgba(234, 179, 8, 0.9)',
+          'rgba(202, 138, 4, 0.9)',
+          'rgba(18, 23, 30, 0.85)',
         ],
       },
     ],
@@ -37,6 +37,7 @@ export const BarChart = () => {
 
   const options = {
     responsive: true,
+    maintainAspectRatio: false,
     plugins: {
       legend: {
         position: 'top',

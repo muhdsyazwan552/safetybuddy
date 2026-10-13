@@ -553,7 +553,7 @@ const Inspection = ({
                         </button>
                         <button
                           type="submit"
-                          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:from-blue-700 hover:to-purple-700 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
+                          className="px-6 py-3 bg-gradient-to-r from-brand-500 to-brand-600 text-ink-900 rounded-lg hover:from-brand-400 hover:to-brand-500 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
                           disabled={processing}
                         >
                           {processing ? 'Saving...' : 'Save Inspection'}
@@ -633,7 +633,7 @@ const Inspection = ({
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
-                    <tr>
+                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
@@ -646,8 +646,8 @@ const Inspection = ({
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {paginatedInspections.length > 0 ? (
-                      paginatedInspections.map((inspection) => (
-                        <tr key={inspection.id} className="hover:bg-gray-50">
+                      paginatedInspections.map((inspection, rowNo) => (
+                        <tr key={inspection.id} className="hover:bg-gray-50"><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{startIndex + rowNo + 1}</td>
                           <td className="px-6 py-4 text-sm text-gray-800">
                             {inspection.inspection_date ? new Date(inspection.inspection_date).toLocaleDateString() : '-'}
                           </td>
@@ -696,7 +696,7 @@ const Inspection = ({
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="8" className="px-6 py-4 text-center text-sm text-gray-500">
+                        <td colSpan="9" className="px-6 py-4 text-center text-sm text-gray-500">
                           No inspections found
                         </td>
                       </tr>

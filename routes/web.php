@@ -77,7 +77,6 @@ Route::prefix('subcon')->group(function () {
 });
 
 Route::middleware(['auth', 'role:2'])->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::get('/module', [SubscriptionController::class, 'index'])->name('index.module');
 
     Route::get('/compliance-metrics', [ContentController::class, 'compMetrics'])
@@ -238,4 +237,13 @@ Route::middleware(['auth', 'role:4,7,8'])->prefix('inspector')->name('inspector.
     // Subcon Companies
     Route::get('/subcon-companies', [DashboardController::class, 'subconCompanies'])->name('subcon-companies');
     Route::get('/subcon-companies/{id}', [DashboardController::class, 'showSubconCompany'])->name('subcon-companies.show');
+});
+
+// Settings / profile (all roles)
+Route::middleware('auth')->group(function () {
+    // Logout must work for every role (inspector, staff, company...), not just role 2
+    Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/settings', [ProfileController::class, 'edit'])->name('settings');
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });

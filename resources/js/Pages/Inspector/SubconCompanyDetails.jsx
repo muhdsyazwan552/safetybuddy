@@ -1,0 +1,101 @@
+// resources/js/Pages/Inspector/SubconCompanyDetails.jsx
+import React from 'react';
+import { Head, Link } from '@inertiajs/react';
+import { Phone, Mail, MapPin, Users, ClipboardCheck, AlertTriangle, FolderKanban, ChevronRight } from 'lucide-react';
+import InspectorLayout from '@/Layouts/InspectorLayout';
+import { EVAL, EvalBadge, EmptyState, SectionCard, fmtDate } from '@/Components/inspector/kit';
+import { statusMeta } from '@/Components/inspector/projectUtils';
+
+export default function SubconCompanyDetails({ company, inspections = [], stats = {}, user }) {
+    const staff = company.subcon_staff || company.subconStaff || [];
+    const projects = company.projects || [];
+
+    return (
+        <InspectorLayout user={user}>
+            <Head title={`Subcon: ${company.name}`} />
+
+            <div className="mx-auto max-w-3xl space-y-4 px-4 pb-10 pt-5 sm:px-6">
+                <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
+                    <div className="flex items-center gap-4">
+                        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-500 text-2xl font-extrabold text-ink-900">
+                            {(company.name || '?').charAt(0).toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Subcontractor</p>
+                            <h1 className="truncate text-xl font-extrabold">{company.name}</h1>
+                        </div>
+                    </div>
+                    <div className="mt-4 space-y-1.5 text-sm text-gray-300">
+                        {company.contact && <a href={`tel:${company.contact}`} className="flex items-center gap-2"><Phone className="h-4 w-4 text-brand-400" />{company.contact}</a>}
+                        {company.email && <a href={`mailto:${company.email}`} className="flex items-center gap-2 truncate"><Mail className="h-4 w-4 text-brand-400" />{company.email}</a>}
+                        {company.address && <p className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-400" />{company.address}</p>}
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    {[
+                        { label: 'Staff', value: stats.total_staff ?? 0, icon: Users },
+                        { label: 'Projects', value: stats.active_projects ?? 0, icon: FolderKanban },
+                        { label: 'Inspections', value: stats.total_inspections ?? 0, icon: ClipboardCheck },
+                        { label: 'NC', value: stats.nonconformance_count ?? 0, icon: AlertTriangle, danger: (stats.nonconformance_count ?? 0) > 0 },
+                    ].map((s) => (
+                        <div key={s.label} className={`rounded-2xl border p-3.5 shadow-sm ${s.danger ? 'border-red-100 bg-red-50' : 'border-gray-100 bg-white'}`}>
+                            <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">{s.label}</span>
+                                <s.icon className={`h-4 w-4 ${s.danger ? 'text-red-500' : 'text-gray-400'}`} />
+                            </div>
+                            <p className={`mt-1.5 text-2xl font-extrabold ${s.danger ? 'text-red-600' : 'text-gray-900'}`}>{s.value}</p>
+                        </div>
+                    ))}
+                </div>
+
+                <SectionCard title={`Staff (${staff.length})`} icon={Users}>
+                    {staff.length === 0 ? <p className="text-sm text-gray-400">No staff registered.</p> : (
+                        <ul className="space-y-3">
+                            {staff.map((s) => (
+                                <li key={s.id} className="flex items-center gap-3">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-sm font-extrabold text-brand-900">{(s.name || '?').charAt(0).toUpperCase()}</span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-sm font-semibold text-gray-900">{s.name}</span>
+                                        <span className="block truncate text-xs text-gray-500">{s.role || '-'}</span>
+                                    </span>
+                                    {s.contact && <a href={`tel:${s.contact}`} className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-600" aria-label="Call"><Phone className="h-4 w-4" /></a>}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </SectionCard>
+
+                {projects.length > 0 && (
+                    <SectionCard title={`Projects (${projects.length})`} icon={FolderKanban}>
+                        <div className="flex flex-wrap gap-2">
+                            {projects.map((p) => (
+                                <Link key={p.id} href={`/inspector/projects/${p.id}`} className="rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-bold text-gray-700">
+                                    {p.name} <span className="ml-1 text-gray-400">· {statusMeta(p.status).label}</span>
+                                </Link>
+                            ))}
+                        </div>
+                    </SectionCard>
+                )}
+
+                <SectionCard title="Recent inspections" icon={ClipboardCheck}>
+                    {inspections.length === 0 ? <p className="text-sm text-gray-400">No inspections yet.</p> : (
+                        <div className="-mx-5 -mb-5 divide-y divide-gray-100">
+                            {inspections.map((i) => (
+                                <Link key={i.id} href={`/inspector/inspections/${i.id}`} className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-gray-50 active:bg-gray-50">
+                                    <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: EVAL[i.evaluation]?.color || '#9ca3af' }} />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-sm font-semibold text-gray-900">{i.project?.name || '-'}</p>
+                                        <p className="truncate text-xs text-gray-500">{i.topic?.name || '-'} · {fmtDate(i.inspection_date)}</p>
+                                    </div>
+                                    <EvalBadge value={i.evaluation} />
+                                    <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </SectionCard>
+            </div>
+        </InspectorLayout>
+    );
+}
