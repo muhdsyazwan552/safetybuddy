@@ -36,7 +36,13 @@ Route::get('/product', function () {
 
 
 Route::get('/', function () {
-    return Inertia::render('PublicWeb/Index', []);
+    // real module prices for the pricing section
+    $modules = \App\Models\Module::where('is_active', 'Y')
+        ->orderBy('price', 'desc')
+        ->get(['code', 'name', 'price'])
+        ->map(fn ($m) => ['code' => $m->code, 'name' => $m->name, 'price' => (float) $m->price]);
+
+    return Inertia::render('PublicWeb/Index', ['modules' => $modules]);
 });
 
 Route::get('/login', [AuthController::class, 'login'])->name('admin.login');
@@ -63,10 +69,15 @@ Route::prefix('subcon')->group(function () {
         ->name('subcon.public.staff')
         ->defaults('role', 'staff');
 
-    // Leader access (full permissions)
-    Route::get('/{token}/leader', [SubconPublicController::class, 'show'])
+    // Leader access (full permissions) – needs the secret leader key in the URL
+    Route::get('/{token}/leader/{key}', [SubconPublicController::class, 'show'])
         ->name('subcon.public.leader')
         ->defaults('role', 'leader');
+
+    // Old leader links (no key) fall back to the staff page
+    Route::get('/{token}/leader', function ($token) {
+        return redirect()->route('subcon.public.staff', ['token' => $token]);
+    });
 
     // Common routes (both roles)
     Route::post('/{token}/staff', [SubconPublicController::class, 'storeStaff'])->name('subcon.public.staff.store');
@@ -89,6 +100,7 @@ Route::middleware(['auth', 'role:2'])->group(function () {
 
     Route::get('/manage-project', [ContentController::class, 'manageProject'])->name('manage.project');
     Route::put('/update-project/{id}', [ProjectController::class, 'updateProject'])->name('admin.projects.update');
+    Route::delete('/delete-project/{id}', [ProjectController::class, 'destroyProject'])->name('admin.projects.destroy');
     Route::post('/admin/projects', [ProjectController::class, 'storeProject'])->name('admin.projects.store');
     Route::post('/store-company', [ProjectController::class, 'storeExCompany'])->name('admin.company.store');
     Route::post('/executor-staff', [ProjectController::class, 'storeExStaff'])->name('admin.staff.store');
@@ -247,3 +259,14 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
 });
+
+// Company profile (company account only)
+Route::middleware(['auth', 'role:2'])->group(function () {
+    Route::get('/company-details', [\App\Http\Controllers\CompanyDetailsController::class, 'show'])->name('company.details');
+    Route::put('/company-details', [\App\Http\Controllers\CompanyDetailsController::class, 'update'])->name('company.details.update');
+});
+
+// Public landing page – demo request form
+Route::post('/demo-request', [\App\Http\Controllers\PublicWebController::class, 'requestDemo'])
+    ->middleware('throttle:6,1')
+    ->name('public.demo.request');

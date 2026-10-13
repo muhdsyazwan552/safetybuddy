@@ -32,6 +32,7 @@ const Dashboard_Inspection = ({
   user_employee_count = 0,
   user_executor_count = 0,
   user_inspection_count = 0,
+  dashboard_cards = null,
 }) => {
   const isMobile = useIsMobile();
   const [dateRange, setDateRange] = useState("month");
@@ -296,95 +297,76 @@ const Dashboard_Inspection = ({
 
       <div className="p-6 space-y-8">
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-
-          <div className="card bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02]">
-            <div className="p-5">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-gray-500 text-sm font-medium">Total Projects</h2>
-                  <p className="text-3xl font-bold text-gray-800 mt-2">{user_project_count}</p>
-                  <div className="flex items-center mt-3">
-                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full shadow-sm">
-                      <i className="fas fa-arrow-up mr-1"></i> 12.5%
-                    </span>
-                    <span className="text-gray-600 text-sm ml-2">from last week</span>
+        {(() => {
+          const fallback = { total: 0, active: 0, this_month: 0, last_month: 0 };
+          const c = dashboard_cards || {};
+          const cards = [
+            {
+              key: 'projects', label: 'Total Projects', icon: 'fa-folder-open', tone: 'blue',
+              data: c.projects || { ...fallback, total: user_project_count },
+              sub: (d) => `${d.active} active`,
+              period: 'created',
+            },
+            {
+              key: 'employees', label: 'Total Employees', icon: 'fa-users', tone: 'purple',
+              data: c.employees || { ...fallback, total: user_employee_count },
+              sub: (d) => `${d.active} active`,
+              period: 'joined',
+            },
+            {
+              key: 'executors', label: 'Total Executors', icon: 'fa-user-tie', tone: 'amber',
+              data: c.executors || { ...fallback, total: user_executor_count },
+              sub: (d) => `${d.active} active`,
+              period: 'added',
+            },
+            {
+              key: 'inspections', label: 'Total Inspections', icon: 'fa-clipboard-check', tone: 'green',
+              data: c.inspections || { ...fallback, total: user_inspection_count },
+              sub: (d) => `${d.active} NC / complaints`,
+              period: 'recorded',
+            },
+          ];
+          const tones = {
+            blue: ['bg-blue-100', 'text-blue-600', 'bg-blue-600'],
+            purple: ['bg-purple-100', 'text-purple-600', 'bg-purple-600'],
+            amber: ['bg-amber-100', 'text-amber-600', 'bg-amber-600'],
+            green: ['bg-green-100', 'text-green-600', 'bg-green-600'],
+          };
+          return (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {cards.map((card) => {
+                const d = card.data;
+                const diff = d.this_month - d.last_month;
+                const [softBg, iconColor, barBg] = tones[card.tone];
+                return (
+                  <div key={card.key} className="card bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02]">
+                    <div className="p-5">
+                      <div className="flex justify-between items-center">
+                        <div className="min-w-0">
+                          <h2 className="text-gray-500 text-sm font-medium">{card.label}</h2>
+                          <p className="text-3xl font-bold text-gray-800 mt-2">{d.total}</p>
+                          <p className="text-xs text-gray-500 mt-1">{card.sub(d)}</p>
+                          <div className="flex flex-wrap items-center mt-3 gap-x-2 gap-y-1">
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${d.this_month > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                              {d.this_month > 0 ? '+' : ''}{d.this_month} this month
+                            </span>
+                            <span className="text-gray-500 text-xs">
+                              {diff === 0 ? 'same as last month' : `${diff > 0 ? '+' : ''}${diff} vs last month`}
+                            </span>
+                          </div>
+                        </div>
+                        <div className={`${softBg} p-4 rounded-full shadow-inner shrink-0`}>
+                          <i className={`fas ${card.icon} ${iconColor} text-xl`}></i>
+                        </div>
+                      </div>
+                    </div>
+                    <div className={`${barBg} h-1 w-full`}></div>
                   </div>
-                </div>
-                <div className="bg-blue-100 p-4 rounded-full shadow-inner">
-                  <i className="fas fa-folder-open text-blue-600 text-xl"></i>
-                </div>
-              </div>
+                );
+              })}
             </div>
-            <div className="bg-blue-600 h-1 w-full"></div>
-          </div>
-
-
-          <div className="card bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02]">
-            <div className="p-5">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-gray-500 text-sm font-medium">Total Employees</h2>
-                  <p className="text-3xl font-bold text-gray-800 mt-2">{user_employee_count}</p>
-                  <div className="flex items-center mt-3">
-                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full">
-                      <i className="fas fa-arrow-up mr-1"></i> 5.2%
-                    </span>
-                    <span className="text-gray-600 text-sm ml-2">from last week</span>
-                  </div>
-                </div>
-                <div className="bg-purple-100 p-4 rounded-full">
-                  <i className="fas fa-users text-purple-600 text-xl"></i>
-                </div>
-              </div>
-            </div>
-            <div className="bg-purple-600 h-1 w-full"></div>
-          </div>
-
-
-          <div className="card bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02]">
-            <div className="p-5">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-gray-500 text-sm font-medium">Total Executors</h2>
-                  <p className="text-3xl font-bold text-gray-800 mt-2">{user_executor_count}</p>
-                  <div className="flex items-center mt-3">
-                    <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-0.5 rounded-full">
-                      <i className="fas fa-arrow-down mr-1"></i> 3.1%
-                    </span>
-                    <span className="text-gray-600 text-sm ml-2">from last week</span>
-                  </div>
-                </div>
-                <div className="bg-amber-100 p-4 rounded-full">
-                  <i className="fas fa-user-tie text-amber-600 text-xl"></i>
-                </div>
-              </div>
-            </div>
-            <div className="bg-amber-600 h-1 w-full"></div>
-          </div>
-
-
-          <div className="card bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02]">
-            <div className="p-5">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-gray-500 text-sm font-medium">Total Inspections</h2>
-                  <p className="text-3xl font-bold text-gray-800 mt-2">{user_inspection_count}</p>
-                  <div className="flex items-center mt-3">
-                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2 py-0.5 rounded-full">
-                      <i className="fas fa-arrow-up mr-1"></i> 8.7%
-                    </span>
-                    <span className="text-gray-600 text-sm ml-2">from last week</span>
-                  </div>
-                </div>
-                <div className="bg-green-100 p-4 rounded-full">
-                  <i className="fas fa-clipboard-check text-green-600 text-xl"></i>
-                </div>
-              </div>
-            </div>
-            <div className="bg-green-600 h-1 w-full"></div>
-          </div>
-        </div>
+          );
+        })()}
         {/* Header */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
           <div>

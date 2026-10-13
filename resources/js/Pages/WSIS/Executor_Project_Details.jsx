@@ -102,7 +102,7 @@ export default function ExecutorProjectDetails({
 
     // Handle remove assignment with confirmation
     const handleRemoveAssignment = async (assignmentId) => {
-        const confirmed = await showAlert.confirm(
+        const confirmed = await showAlert.confirmDelete(
             'Are you sure you want to remove this assignment?',
             'Confirm Removal'
         );

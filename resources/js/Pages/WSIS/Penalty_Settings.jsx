@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import { showAlert } from '@/Helpers/alert';
 
 const PenaltySettings = ({ title, metrics, auth }) => {
   const { flash } = usePage().props || {};
@@ -89,8 +90,12 @@ const PenaltySettings = ({ title, metrics, auth }) => {
     resetEdit();
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this penalty setting?')) {
+  const handleDelete = async (id) => {
+    const ok = await showAlert.confirmDelete(
+      'This penalty setting will be permanently removed.',
+      'Delete this penalty?'
+    );
+    if (ok) {
       destroy(route('penalty-settings.destroy', id), {
         onSuccess: () => {
           console.log('Penalty setting deleted successfully');

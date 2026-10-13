@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { Head, useForm, usePage, router } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
 import dayjs from 'dayjs';
+import { showAlert } from '@/Helpers/alert';
+import ShareSubconLink from '@/Components/shared/ShareSubconLink';
 
 const ExecutorStaff = ({ title, company, staff }) => {
   const [showForm, setShowForm] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const [showCreatePage, setShowCreatePage] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,8 +61,12 @@ const ExecutorStaff = ({ title, company, staff }) => {
   };
 
   // Rest of your code remains the same...
-  const handleDelete = (id) => {
-    if (confirm('Are you sure you want to delete this staff member?')) {
+  const handleDelete = async (id) => {
+    const ok = await showAlert.confirmDelete(
+      'The staff member will be removed from this company. Their project assignments are removed too.',
+      'Delete this staff member?'
+    );
+    if (ok) {
       router.delete(`/executor-staff/${id}`, {
         onSuccess: () => {
           // Staff will be removed from list via Inertia refresh
@@ -117,6 +124,16 @@ const ExecutorStaff = ({ title, company, staff }) => {
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-800">{company.name}</h2>
+                <button
+                  type="button"
+                  onClick={() => setShowShare(true)}
+                  className="mr-3 ml-auto inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-extrabold text-ink-900 shadow-sm hover:bg-brand-400 active:scale-95 transition"
+                >
+                  <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  Share link
+                </button>
                 <span
                   className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
                     company.status === 'active'
@@ -410,6 +427,7 @@ const ExecutorStaff = ({ title, company, staff }) => {
             </div>
           </div>
         )}
+        <ShareSubconLink company={company} open={showShare} onClose={() => setShowShare(false)} />
       </AppLayout>
     );
   }

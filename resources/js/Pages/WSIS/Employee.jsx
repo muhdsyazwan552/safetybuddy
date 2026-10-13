@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
 import axios from 'axios';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { showAlert } from '@/Helpers/alert';
 
 const StaffManagement = ({ title }) => {
   // Get all props from Inertia
@@ -67,35 +66,27 @@ const StaffManagement = ({ title }) => {
           item.id === id ? { ...item, ...editValues } : item
         ));
         setEditingId(null);
-        toast.success('Staff member updated successfully!', {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        showAlert.success('Staff member updated successfully!');
       }
     } catch (error) {
       console.error('Error updating staff:', error);
-      toast.error('Failed to update staff member. Please try again.', {
-        position: "top-right",
-        autoClose: 3000,
-      });
+      showAlert.error('Failed to update staff member. Please try again.');
     }
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this staff member?')) {
+    const ok = await showAlert.confirmDelete(
+      'This staff member will be permanently removed.',
+      'Delete this staff member?'
+    );
+    if (ok) {
       try {
         await axios.delete(`/staff/${id}`);
         setStaffMembers(staffMembers.filter(item => item.id !== id));
-        toast.success('Staff member deleted successfully!', {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        showAlert.success('Staff member deleted successfully!');
       } catch (error) {
         console.error('Error deleting staff:', error);
-        toast.error('Failed to delete staff member. Please try again.', {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        showAlert.error('Failed to delete staff member. Please try again.');
       }
     }
   };
@@ -128,24 +119,15 @@ const StaffManagement = ({ title }) => {
           company_id: auth.user.company_id
         });
         setIsAdding(false);
-        toast.success('Staff member added successfully!', {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        showAlert.success('Staff member added successfully!');
       }
     } catch (error) {
       console.error('Error adding staff:', error);
       if (error.response && error.response.data.errors) {
         const errorMessages = Object.values(error.response.data.errors).join('\n');
-        toast.error(errorMessages, {
-          position: "top-right",
-          autoClose: 5000,
-        });
+        showAlert.error(errorMessages);
       } else {
-        toast.error('Failed to add staff member. Please try again.', {
-          position: "top-right",
-          autoClose: 3000,
-        });
+        showAlert.error('Failed to add staff member. Please try again.');
       }
     }
   };
@@ -170,17 +152,6 @@ const StaffManagement = ({ title }) => {
   return (
     <AppLayout>
       <Head title={title} />
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-      />
       
       <div className="p-4">
         <div className="flex justify-between items-center mb-5">

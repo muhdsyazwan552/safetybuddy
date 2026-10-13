@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { router, usePage } from '@inertiajs/react';
+import { showAlert } from '@/Helpers/alert';
 import { 
   FaBuilding, 
   FaUserCircle, 
@@ -60,7 +61,7 @@ const ModuleCard = ({ module }) => {
 
     const handleSubscribeClick = (e) => {
         e.stopPropagation();
-        alert(`Redirecting to ${needsRenew ? 'renew' : 'subscribe'} for ${module.code}`);
+        showAlert.info(`Please contact support to ${needsRenew ? 'renew' : 'subscribe to'} ${module.code}.`, needsRenew ? 'Renew module' : 'Subscribe to module');
     };
 
     return (

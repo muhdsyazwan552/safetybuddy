@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Head, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import { showAlert } from '@/Helpers/alert';
 
 const ComplianceMetrics = ({ title, metrics, auth }) => {
   const { flash } = usePage().props || {};
@@ -89,8 +90,12 @@ const ComplianceMetrics = ({ title, metrics, auth }) => {
     resetEdit();
   };
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this metric?')) {
+  const handleDelete = async (id) => {
+    const ok = await showAlert.confirmDelete(
+      'This compliance metric and its evaluations will be permanently removed.',
+      'Delete this metric?'
+    );
+    if (ok) {
       destroy(route('compliance-metrics.destroy', id), {
         onSuccess: () => {
           console.log('Metric deleted successfully');

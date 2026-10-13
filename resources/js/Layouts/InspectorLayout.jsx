@@ -4,6 +4,7 @@
 //  - desktop (lg+): dark sidebar, same content
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, router, usePage } from '@inertiajs/react';
+import Toast from '@/Components/Toast';
 import {
     LayoutDashboard,
     HardHat,
@@ -189,6 +190,8 @@ export default function InspectorLayout({ children, user }) {
                 {/* Page content – leave room for the bottom tab bar on phones */}
                 <main className="flex-1 pb-28 lg:pb-0">{children}</main>
             </div>
+
+            <Toast />
 
             {/* ───────── Bottom tab bar (phones / tablets) ───────── */}
             <nav

@@ -59,6 +59,26 @@ class SubconCompany extends Model
     }
 
     /**
+     * Secret that unlocks the *leader* version of the public staff page.
+     * Derived from the public token with the app key, so the plain staff link
+     * (which only contains the public token) can never be turned into a leader link.
+     */
+    public function leaderKey(): string
+    {
+        return static::leaderKeyFor($this->public_token);
+    }
+
+    public static function leaderKeyFor(?string $token): string
+    {
+        return substr(hash_hmac('sha256', 'subcon-leader|' . $token, config('app.key')), 0, 40);
+    }
+
+    public function isValidLeaderKey(?string $key): bool
+    {
+        return is_string($key) && $key !== '' && hash_equals($this->leaderKey(), $key);
+    }
+
+    /**
      * Generate a unique public token for the company
      */
     public static function generatePublicToken()

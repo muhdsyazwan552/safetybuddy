@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -20,6 +22,107 @@ use Inertia\Inertia;
 
 class ProjectController extends Controller
 {
+
+    /**
+     * Delete a project together with everything recorded under it:
+     * inspections (+ non-conformances, client complaints, photos), toolbox talks
+     * (+ topic links, photos), incidents (incident statistic), man-hours and
+     * every staff / subcontractor assignment.
+     *
+     * Staff, subcontractor companies and users themselves are NOT deleted - only
+     * their assignment to this project is removed.
+     */
+    public function destroyProject($id)
+    {
+        $user = Auth::user();
+
+        $project = Project::findOrFail($id);
+
+        // a company account may only delete its own projects
+        if ($user->company_id && $project->company_id != $user->company_id) {
+            abort(403, 'You are not allowed to delete this project.');
+        }
+
+        $files = [];
+        $counts = [];
+
+        try {
+            DB::transaction(function () use ($project, &$files, &$counts) {
+                $pid = $project->id;
+
+                // --- inspections and what hangs off them
+                $inspections = DB::table('inspections')->where('project_id', $pid)->get(['id', 'photo']);
+                $inspectionIds = $inspections->pluck('id');
+
+                foreach ($inspections as $row) {
+                    $decoded = json_decode((string) $row->photo, true);
+                    $paths = is_array($decoded) ? $decoded : array_filter([$row->photo]);
+                    foreach ($paths as $path) {
+                        $files[] = $path;
+                    }
+                }
+
+                $counts['non_conformances'] = DB::table('non_conformances')->whereIn('inspection_id', $inspectionIds)->delete();
+                $counts['client_complaints'] = DB::table('client_complaints')->whereIn('inspection_id', $inspectionIds)->delete();
+                $counts['inspections'] = DB::table('inspections')->where('project_id', $pid)->delete();
+
+                // --- toolbox talks
+                $talks = DB::table('toolbox_talks')->where('project_id', $pid)->get(['id', 'img_group', 'img_attendance']);
+                foreach ($talks as $talk) {
+                    $files[] = $talk->img_group;
+                    $files[] = $talk->img_attendance;
+                }
+                DB::table('toolbox_talks_topics')->whereIn('toolbox_talks_id', $talks->pluck('id'))->delete();
+                $counts['toolbox_talks'] = DB::table('toolbox_talks')->where('project_id', $pid)->delete();
+
+                // --- incident statistic
+                $incidents = DB::table('incident')->where('project_id', $pid)->get(['id', 'attachment_upload']);
+                foreach ($incidents as $incident) {
+                    $decoded = json_decode((string) $incident->attachment_upload, true);
+                    $paths = is_array($decoded) ? $decoded : array_filter([$incident->attachment_upload]);
+                    foreach ($paths as $path) {
+                        $files[] = $path;
+                    }
+                }
+                $counts['incidents'] = DB::table('incident')->where('project_id', $pid)->delete();
+
+                // --- man-hours
+                $counts['manhours'] = DB::table('manhours')->where('project_id', $pid)->delete();
+
+                // --- assignments only (staff / subcon staff / companies stay untouched)
+                $counts['assignments'] = DB::table('project_assign')->where('project_id', $pid)->delete();
+                DB::table('project_user_roles')->where('project_id', $pid)->delete();
+
+                $project->delete();
+            });
+        } catch (\Throwable $e) {
+            Log::error('Failed to delete project', ['project_id' => $id, 'error' => $e->getMessage()]);
+
+            return redirect()->back()->with('error', 'Could not delete the project. Nothing was removed.');
+        }
+
+        // Remove uploaded files only after the database part succeeded
+        foreach (array_unique(array_filter($files)) as $path) {
+            try {
+                Storage::disk('public')->delete($path);
+            } catch (\Throwable $e) {
+                // a missing file must not break the deletion
+            }
+        }
+
+        $message = sprintf(
+            'Project "%s" deleted with %d inspection(s), %d toolbox talk(s), %d incident(s), %d non-conformance(s), %d client complaint(s) and %d assignment(s).',
+            $project->name,
+            $counts['inspections'] ?? 0,
+            $counts['toolbox_talks'] ?? 0,
+            $counts['incidents'] ?? 0,
+            $counts['non_conformances'] ?? 0,
+            $counts['client_complaints'] ?? 0,
+            $counts['assignments'] ?? 0
+        );
+
+        return redirect()->route('manage.project')->with('success', $message);
+    }
 
     public function storeProject(Request $request)
     {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { usePage, useForm, Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import { showAlert } from '@/Helpers/alert';
 
 const ProjectManagement = () => {
   const { projects: initialProjects = [], title, flash } = usePage().props || {};
@@ -119,19 +120,33 @@ const handleUpdateProject = (e) => {
     setShowProjectModal(true);
   };
 
-  const handleDelete = (id) => {
-    if (confirm('Are you sure you want to delete this project?')) {
-      // Use Inertia's delete method for proper handling
-      router.delete(route('admin.projects.destroy', id), {
-        onSuccess: () => {
-          router.reload({ only: ['projects'] });
-        },
-        onError: (errors) => {
-          console.error('Delete error:', errors);
-          alert('Failed to delete project. Please try again.');
-        }
-      });
-    }
+  const handleDelete = async (id) => {
+    const target = projects.find((p) => p.id === id);
+    const name = target?.name ? `"${target.name}"` : 'this project';
+
+    const ok = await showAlert.confirmDelete(
+      `You are about to delete ${name}. Everything recorded in it will be permanently removed:`,
+      'Delete this project?',
+      {
+        confirmText: 'Yes, delete project',
+        details: [
+          'Inspections, non-conformances and client complaints',
+          'Toolbox talks',
+          'Incident statistics',
+          'Man-hour records',
+          'Staff and subcontractor assignments (the staff themselves are kept)',
+        ],
+      }
+    );
+    if (!ok) return;
+
+    router.delete(route('admin.projects.destroy', id), {
+      preserveScroll: true,
+      onError: (errors) => {
+        console.error('Delete error:', errors);
+        showAlert.error('The project could not be deleted. Nothing was removed.', 'Delete failed');
+      },
+    });
   };
 
   const handleInputChange = (e) => {

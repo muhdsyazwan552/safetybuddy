@@ -1,66 +1,16 @@
-import Swal from 'sweetalert2';
 import { useEffect } from 'react';
 import { usePage } from '@inertiajs/react';
+import { showAlert } from '@/Helpers/alert';
 
+// Shows Laravel flash messages (->with('success' | 'error' | 'warning' | 'info', ...)).
 export default function Toast() {
     const { flash } = usePage().props;
 
     useEffect(() => {
-        if (flash?.success) {
-            Swal.fire({
-                icon: 'success',
-                title: 'Success!',
-                text: flash.success,
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-                didOpen: (toast) => {
-                    toast.addEventListener('mouseenter', Swal.stopTimer);
-                    toast.addEventListener('mouseleave', Swal.resumeTimer);
-                }
-            });
-        }
-
-        if (flash?.error) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error!',
-                text: flash.error,
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-            });
-        }
-
-        if (flash?.warning) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Warning!',
-                text: flash.warning,
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-            });
-        }
-
-        if (flash?.info) {
-            Swal.fire({
-                icon: 'info',
-                title: 'Info!',
-                text: flash.info,
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-            });
-        }
+        if (flash?.success) showAlert.success(flash.success);
+        if (flash?.error) showAlert.error(flash.error);
+        if (flash?.warning) showAlert.warning(flash.warning);
+        if (flash?.info) showAlert.info(flash.info);
     }, [flash]);
 
     return null;

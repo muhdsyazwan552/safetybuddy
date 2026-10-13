@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Head, useForm, usePage, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
 import { showAlert } from '@/Helpers/alert';
+import ShareSubconLink from '@/Components/shared/ShareSubconLink';
 
 const ExecutorManagement = ({ title, executors: initialExecutors }) => {
   const { companies } = usePage().props;
@@ -14,6 +15,7 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
   const [entriesToShow, setEntriesToShow] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [showAddExecutorModal, setShowAddExecutorModal] = useState(false);
+  const [shareCompany, setShareCompany] = useState(null);
 
   // Show flash messages
   useEffect(() => {
@@ -66,7 +68,7 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
 
   // Handle delete company
   const handleDelete = async (id, name) => {
-    const confirmed = await showAlert.confirm(
+    const confirmed = await showAlert.confirmDelete(
       `Are you sure you want to delete "${name}"?`,
       'Confirm Deletion'
     );
@@ -194,6 +196,17 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-4">
+                          <button
+                            type="button"
+                            onClick={() => setShareCompany(company)}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-extrabold text-ink-900 shadow-sm hover:bg-brand-400 active:scale-95 transition"
+                            title="Share the public staff registration link"
+                          >
+                            <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                            </svg>
+                            Share link
+                          </button>
                           <Link
                             href={route('executor.staff', { id: company.id })}
                             className="text-blue-600 hover:text-blue-800"
@@ -370,6 +383,7 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
           </div>
         )}
       </div>
+      <ShareSubconLink company={shareCompany} open={!!shareCompany} onClose={() => setShareCompany(null)} />
     </AppLayout>
   );
 };

@@ -31,34 +31,77 @@ class InspectionController extends Controller
         logger('Selected Project ID:', ['project_id' => $selectedProjectId]);
 
 
-        $userProjectCount = Project::where('company_id', $companyId)->count();
-        $userEmployeeCount = User::where('company_id', $companyId)->where('role_id', '4')->count();
-        $userExecutorCount = Company::where('id', $companyId)->count();
-        $userInspectionCount = Inspection::whereHas('project', function ($query) use ($companyId) {
-            $query->where('company_id', $companyId);
-        })
-            ->with(['project', 'company', 'topic', 'inspector', 'subconCompany'])
-            ->count();
+        // Everything on this dashboard is scoped to the logged-in company.
+        $companyProjects = Project::where('company_id', $companyId);
+        $projectIds = (clone $companyProjects)->pluck('id');
 
+        $thisMonth = now()->startOfMonth();
+        $lastMonth = now()->subMonthNoOverflow()->startOfMonth();
+
+        // [total, active, created/recorded this month, same for last month]
+        $makeCard = function ($total, $active, $thisCount, $lastCount) {
+            return [
+                'total' => (int) $total,
+                'active' => (int) $active,
+                'this_month' => (int) $thisCount,
+                'last_month' => (int) $lastCount,
+            ];
+        };
+
+        $projectsAll = Project::where('company_id', $companyId);
+        $cards = [
+            'projects' => $makeCard(
+                (clone $projectsAll)->count(),
+                (clone $projectsAll)->whereIn('status', ['active', 'in_progress'])->count(),
+                (clone $projectsAll)->where('created_at', '>=', $thisMonth)->count(),
+                (clone $projectsAll)->whereBetween('created_at', [$lastMonth, $thisMonth])->count()
+            ),
+            // company staff (inspectors, site staff, managers) - not just users with role 4
+            'employees' => $makeCard(
+                CompanyStaff::where('company_id', $companyId)->count(),
+                CompanyStaff::where('company_id', $companyId)->where('status', 'active')->count(),
+                CompanyStaff::where('company_id', $companyId)->where('created_at', '>=', $thisMonth)->count(),
+                CompanyStaff::where('company_id', $companyId)->whereBetween('created_at', [$lastMonth, $thisMonth])->count()
+            ),
+            // executors = subcontractor companies registered under this company
+            'executors' => $makeCard(
+                SubconCompany::where('company_id', $companyId)->count(),
+                SubconCompany::where('company_id', $companyId)->where('status', 'active')->count(),
+                SubconCompany::where('company_id', $companyId)->where('created_at', '>=', $thisMonth)->count(),
+                SubconCompany::where('company_id', $companyId)->whereBetween('created_at', [$lastMonth, $thisMonth])->count()
+            ),
+            'inspections' => $makeCard(
+                Inspection::whereIn('project_id', $projectIds)->count(),
+                Inspection::whereIn('project_id', $projectIds)->whereIn('evaluation', ['nonconformance', 'clientcomplaint'])->count(),
+                Inspection::whereIn('project_id', $projectIds)->where('inspection_date', '>=', $thisMonth)->count(),
+                Inspection::whereIn('project_id', $projectIds)->whereBetween('inspection_date', [$lastMonth, $thisMonth])->count()
+            ),
+        ];
+
+        $userProjectCount = $cards['projects']['total'];
+        $userEmployeeCount = $cards['employees']['total'];
+        $userExecutorCount = $cards['executors']['total'];
+        $userInspectionCount = $cards['inspections']['total'];
 
         $inspections = Inspection::with(['project', 'company', 'topic', 'inspector', 'subconCompany'])
+            ->whereIn('project_id', $projectIds)
             ->latest();
 
-        // ✅ If project is selected, only load inspections for that project
+        // If a project is selected, only load inspections for that project
         if ($selectedProjectId) {
             $inspections->where('project_id', $selectedProjectId);
         }
 
         $inspections = $inspections->get();
 
-        $projects = Project::all();
-        $all_companies = SubconCompany::all();
+        $projects = Project::where('company_id', $companyId)->get();
         if ($selectedProjectId) {
-            $all_companies = \App\Models\SubconCompany::whereHas('inspections', function ($q) use ($selectedProjectId) {
-                $q->where('project_id', $selectedProjectId);
-            })->get();
+            $all_companies = SubconCompany::where('company_id', $companyId)
+                ->whereHas('inspections', function ($q) use ($selectedProjectId) {
+                    $q->where('project_id', $selectedProjectId);
+                })->get();
         } else {
-            $all_companies = \App\Models\SubconCompany::all();
+            $all_companies = SubconCompany::where('company_id', $companyId)->get();
         }
         $topics = ToolboxTopic::all();
 
@@ -81,7 +124,8 @@ class InspectionController extends Controller
             'user_project_count' => $userProjectCount,
             'user_employee_count' => $userEmployeeCount,
             'user_executor_count' => $userExecutorCount,
-            'user_inspection_count' => $userInspectionCount
+            'user_inspection_count' => $userInspectionCount,
+            'dashboard_cards' => $cards,
         ]);
     }
 

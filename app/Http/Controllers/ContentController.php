@@ -97,7 +97,8 @@ class ContentController extends Controller
         $user = Auth::user();
 
         // Example: only get projects belonging to the logged-in user's company
-        $companies = SubconCompany::where('company_id', $user->company_id)->get();
+        $companies = SubconCompany::where('company_id', $user->company_id)->get()
+            ->each(fn ($c) => $c->setAttribute('leader_key', $c->leaderKey()));
 
         return Inertia::render('WSIS/Executor_Project', [
             'title' => 'Executor',
@@ -110,6 +111,7 @@ class ContentController extends Controller
     {
         // Get subcon company with its staff using the correct relationship
         $company = SubconCompany::with('subconStaff')->findOrFail($id);
+        $company->setAttribute('leader_key', $company->leaderKey());
 
         return Inertia::render('WSIS/Executor_Staff', [
             'title' => $company->name . ' Staff',
@@ -376,27 +378,6 @@ class ContentController extends Controller
                 ];
             });
 
-        // Get toolbox talks
-        $toolboxTalks = ToolboxTalks::with(['project', 'topics', 'CompanyStaff'])
-            ->orderBy('inspection_date', 'desc')
-            ->get()
-            ->map(function ($talk) {
-                return [
-                    'id' => $talk->id,
-                    'name' => $talk->inspection_name,
-                    'date' => $talk->inspection_date,
-                    'project' => $talk->project ? $talk->project->name : 'N/A',
-                    'topics' => $talk->topics->pluck('name')->toArray(),
-                    'attendance' => $talk->total_attended,
-                    'status' => $talk->conducted,
-                    'staffinpection' => $talk->CompanyStaff ? $talk->CompanyStaff->name : 'N/A',
-                ];
-            });
-
-        $staffNames = CompanyStaff::whereIn('id', $toolboxTalks->pluck('inspection_by'))->pluck('name', 'id');
-
-        
-
         // dd($inspections);
 
         return Inertia::render('WSIS/Inspection', [
@@ -406,63 +387,39 @@ class ContentController extends Controller
             'all_companies' => $all_companies,
             'topics' => $topics,
             'inspections' => $inspections,
-            'toolboxTopics' => $topics,
-            'toolboxTalks' => $toolboxTalks,
-            'staffinpection' => $staffNames,
         ]);
     }
 
 
     public function toolbox()
     {
-        // Load topics
-        $topics = ToolboxTopic::all()->map(function ($topic) {
-            return [
-                'id'          => $topic->id,
-                'name'        => $topic->name,
-                'description' => $topic->description,
-            ];
-        });
-
+        $topics = ToolboxTopic::all()->map(fn ($topic) => [
+            'id'          => $topic->id,
+            'name'        => $topic->name,
+            'description' => $topic->description,
+        ]);
 
         $talks = ToolboxTalks::with(['project', 'topics', 'CompanyStaff'])
+            ->orderBy('inspection_date', 'desc')
             ->get()
-            ->map(function ($talk) {
-                $staffName = $talk->CompanyStaff ? $talk->CompanyStaff->name : 'No Staff Found';
-
-                // Debug log
-                \Log::info("Talk ID {$talk->id} - Staff: {$staffName}");
-
-                return [
-                    'id'         => $talk->id,
-                    'name'       => $staffName,  // This should be the staff name
-                    'date'       => $talk->inspection_date,
-                    'project'    => $talk->project ? $talk->project->name : 'No Project',
-                    'topics'     => $talk->topics->pluck('name')->toArray(),
-                    'attendance' => $talk->total_attended,
-                    'status'     => $talk->conducted,
-                ];
-            });
-
-        $staffNames = CompanyStaff::whereIn('id', $talks->pluck('inspection_by'))->pluck('name', 'id');
-
-        dd($staffNames);
-
-
-        // Load projects for the dropdown
-        $projects = Project::all();
+            ->map(fn ($talk) => [
+                'id'             => $talk->id,
+                'name'           => $talk->CompanyStaff ? $talk->CompanyStaff->name : 'N/A',
+                'date'           => $talk->inspection_date,
+                'project'        => $talk->project ? $talk->project->name : 'N/A',
+                'topics'         => $talk->topics->pluck('name')->toArray(),
+                'attendance'     => $talk->total_attended,
+                'status'         => $talk->conducted,
+                'staffinpection' => $talk->CompanyStaff ? $talk->CompanyStaff->name : 'N/A',
+            ]);
 
         return Inertia::render('WSIS/Toolbox', [
-            'title'         => 'Toolbox',
+            'title'         => 'Toolbox Talks',
             'toolboxTopics' => $topics,
             'toolboxTalks'  => $talks,
-            'projects'      => $projects,
-            'stafftoolbox'    => $talk->CompanyStaff ? $talk->CompanyStaff->name : 'N/A',
+            'projects'      => Project::all(['id', 'name']),
         ]);
     }
-
-
-
 
     public function nonConformance()
     {

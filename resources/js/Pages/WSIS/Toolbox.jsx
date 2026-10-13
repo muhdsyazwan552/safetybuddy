@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react'; // Add usePage here
 import AppLayout from '@/Pages/WSIS/Layout';
+import { showAlert } from '@/Helpers/alert';
 
 const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromLaravel, stafftoolbox }) => {
 
@@ -117,7 +118,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
     e.preventDefault();
 
     if (data.conducted === 'yes' && data.topics.length === 0) {
-      alert('Please select at least one topic');
+      showAlert.warning('Select at least one safety topic that was discussed.', 'Topic required');
       return;
     }
 
@@ -178,6 +179,8 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
   };
 
   return (
+    <AppLayout user={auth?.user} title={title}>
+      <Head title={title} />
 
     <div className="p-0">
       <div className="flex justify-between items-center mb-5">
@@ -651,7 +654,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
         </div>
       </div>
     </div>
-
+    </AppLayout>
   );
 };
 

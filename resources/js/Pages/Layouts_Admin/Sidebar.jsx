@@ -42,7 +42,8 @@ const NAVIGATION = [  // Changed to uppercase constant
   {
     category: 'Inspection',
     items: [
-      { name: 'Inspection', href: '/inspection', icon: FaSearch },
+      { name: 'Inspections', href: '/inspection', icon: FaSearch },
+      { name: 'Toolbox Talks', href: '/toolbox-talks', icon: FaHardHat },
       // { name: 'Dashboard', href: '/dashboard-inspection', icon: FaChartLine },
     ],
   },

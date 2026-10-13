@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
-import Toolbox from './Toolbox';
+import { showAlert } from '@/Helpers/alert';
 
 const Inspection = ({
   title,
@@ -23,7 +23,6 @@ const Inspection = ({
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [inspectionItems, setInspectionItems] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState('toolbox');
   const [availableInspectors, setAvailableInspectors] = useState([]);
 
   // Form handling
@@ -109,7 +108,11 @@ const Inspection = ({
   const requiredFieldStyle = "after:content-['*'] after:ml-0.5 after:text-red-500";
 
   const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this inspection?')) {
+    const ok = await showAlert.confirmDelete(
+      'The inspection together with its non-conformance / client complaint record will be permanently removed.',
+      'Delete this inspection?'
+    );
+    if (ok) {
       try {
         const response = await fetch(`/inspections/${id}`, {
           method: 'DELETE',
@@ -123,13 +126,13 @@ const Inspection = ({
 
         if (data.success) {
           setInspections(inspections.filter(item => item.id !== id));
-          alert('Inspection deleted successfully!');
+          showAlert.success('The inspection has been deleted.', 'Inspection deleted');
         } else {
-          alert('Error deleting inspection: ' + data.message);
+          showAlert.error(data.message || 'The inspection could not be deleted.', 'Delete failed');
         }
       } catch (error) {
         console.error('Error:', error);
-        alert('Error deleting inspection');
+        showAlert.error('Something went wrong while deleting. Please try again.', 'Delete failed');
       }
     }
   };
@@ -139,12 +142,12 @@ const Inspection = ({
 
     // Validate main form fields
     if (!data.project_id) {
-      alert('Please select a project');
+      showAlert.warning('Choose the project this inspection belongs to.', 'Project required');
       return;
     }
 
     if (!data.inspection_date) {
-      alert('Please select an inspection date');
+      showAlert.warning('Pick the date the inspection took place.', 'Date required');
       return;
     }
 
@@ -173,7 +176,7 @@ const Inspection = ({
     });
 
     if (validationErrors.length > 0) {
-      alert('Please fix the following errors:\n' + validationErrors.join('\n'));
+      showAlert.errors(validationErrors, 'Please complete the inspection items');
       return;
     }
 
@@ -208,18 +211,17 @@ const Inspection = ({
         setIsCreatingNew(false);
         setInspectionItems([]);
         reset();
-        alert('Inspections created successfully!');
+        showAlert.success('Your inspections have been saved.', 'Inspections created');
       } else {
         if (result.errors) {
-          const errorMessages = Object.values(result.errors).flat().join('\n');
-          alert('Validation errors:\n' + errorMessages);
+          showAlert.errors(Object.values(result.errors).flat(), 'Please check the form');
         } else {
-          alert('Error: ' + result.message);
+          showAlert.error(result.message || 'The inspections could not be saved.', 'Save failed');
         }
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      alert('An error occurred while submitting the form.');
+      showAlert.error('We could not reach the server. Please try again.', 'Save failed');
     }
   };
 
@@ -258,41 +260,7 @@ const Inspection = ({
       <Head title={title} />
 
       <div className="p-6">
-        {/* Tabs */}
-        <div className="mb-6">
-          <div className="inline-flex rounded-lg bg-gray-100 p-1">
-            <button
-              className={`rounded-md py-2 px-3 text-center text-sm font-medium transition-all duration-200 ${activeTab === 'toolbox'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-                }`}
-              onClick={() => setActiveTab('toolbox')}
-            >
-              Toolbox
-            </button>
-            <button
-              className={`rounded-md py-2 px-3 text-center text-sm font-medium transition-all duration-200 ${activeTab === 'inspections'
-                ? 'bg-white text-blue-600 shadow-sm'
-                : 'text-gray-500 hover:text-gray-700'
-                }`}
-              onClick={() => setActiveTab('inspections')}
-            >
-              Inspections
-            </button>
-          </div>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'toolbox' ? (
-          <Toolbox
-            title="Toolbox Talks"
-            auth={auth}
-            projects={projects}
-            all_companies={all_companies}
-            toolboxTopics={toolboxTopics}
-            toolboxTalks={toolboxTalks}
-          />
-        ) : (
+        {(
           <>
             {/* Create New Inspection Modal */}
             {isCreatingNew && (

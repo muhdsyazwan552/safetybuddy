@@ -1,0 +1,58 @@
+SAFETY BUDDY – LANDING PAGE IMAGE PROMPTS
+Save each generated image into: public/images/landing/  using the exact file name shown.
+
+1. hero.jpg  (landscape 2400x1400)
+Photorealistic wide photo of a young Malaysian woman safety inspector in a yellow hard hat and hi-vis vest, holding a tablet and smiling, walking on a construction site with steel frames and scaffolding behind her, golden hour light, subject on the left side with empty space on the right, shallow depth of field, high quality, no text, no logos.
+
+2. voice-1.jpg  (portrait 900x1200)
+Photorealistic selfie-style portrait of a friendly Malaysian woman in a hijab, wearing a white hard hat and hi-vis vest, working as a site safety officer, construction site blurred behind her, soft natural light, no text, no logos.
+
+3. voice-2.jpg  (portrait 900x1200)
+Photorealistic selfie-style portrait of a smiling Malay man in his 30s, wearing a shirt, tie and a yellow safety helmet, project manager on a construction site, soft natural light, shallow depth of field, no text, no logos.
+
+4. voice-3.jpg  (portrait 900x1200)
+Photorealistic selfie-style portrait of a Malaysian man in his 40s holding a tablet, wearing a hi-vis vest and hard hat, site inspector, building under construction in the background, soft natural light, no text, no logos.
+
+5. voice-4.jpg  (portrait 900x1200)
+Photorealistic selfie-style portrait of a Chinese-Malaysian woman in her 30s, wearing a hard hat and safety glasses, HSE coordinator, industrial site blurred behind her, soft natural light, no text, no logos.
+
+6. voice-5.jpg  (portrait 900x1200)
+Photorealistic selfie-style portrait of an Indian-Malaysian man in his 40s, wearing an orange hi-vis vest and hard hat, subcontractor team leader, smiling confidently, construction site background, soft natural light, no text, no logos.
+
+7. about.jpg  (landscape 1600x1200)
+Photorealistic photo of a team of four diverse Malaysian workers in hard hats and hi-vis vests reviewing a checklist on a tablet next to a half-built concrete building, collaborative mood, bright daylight, no text, no logos.
+
+8. serve-inspection.jpg  (portrait 1200x1500)
+Photorealistic close-up of an inspector's hands photographing scaffolding with a smartphone, hi-vis jacket sleeve visible, construction site, shallow depth of field, yellow safety accents, no text, no logos.
+
+9. serve-toolbox.jpg  (portrait 1200x1500)
+Photorealistic photo of a supervisor giving a morning toolbox talk to a group of construction workers in hard hats standing in a circle outdoors, early morning light, Malaysian setting, no text, no logos.
+
+10. serve-incident.jpg  (portrait 1200x1500)
+Photorealistic photo of a safety manager at a desk in a site office reviewing charts and statistics on a laptop, a yellow hard hat on the desk, blueprints in the background, moody professional lighting, no text, no logos.
+
+11. module-wsis.jpg  (landscape 1200x900)
+Photorealistic photo of an inspector using a tablet app while standing on a construction site, hi-vis vest, yellow hard hat, depth of field, no readable text, no logos.
+
+12. module-ps.jpg  (landscape 1200x900)
+Photorealistic photo of a clean showroom of industrial safety products: helmets, harnesses, boots and gloves on shelves, bright and organised, yellow accents, no text, no logos.
+
+13. module-careers.jpg  (landscape 1200x900)
+Photorealistic photo of two professionals in smart-casual clothes shaking hands in a modern site office, safety helmets on the table, warm natural light, no text, no logos.
+
+14. module-news.jpg  (landscape 1200x900)
+Photorealistic photo of a person holding a tablet showing a blurred news feed, standing in a modern office with safety posters on the wall, no readable text, no logos.
+
+15. guide-1.jpg  (landscape 1200x900)
+Photorealistic photo of a worker holding a clipboard checklist while walking through a construction site, hi-vis vest and hard hat, natural light, no text, no logos.
+
+16. guide-2.jpg  (landscape 1200x900)
+Photorealistic photo of a group of workers listening to a safety briefing outdoors at a construction site, hard hats, attentive faces, natural light, no text, no logos.
+
+17. guide-3.jpg  (landscape 1200x900)
+Photorealistic photo of a supervisor and a worker discussing a defective piece of equipment tagged with a red tag, construction site, serious but constructive mood, no text, no logos.
+
+18. cta.jpg  (landscape 2400x1200)
+Photorealistic wide cinematic shot of a completed modern building at sunset with a few workers in hard hats in silhouette, dark moody tones with a warm golden glow, plenty of dark space, no text, no logos.
+
+TIP: after generating, compress each image to under 300 KB (jpg, quality ~80) so the page loads quickly.
