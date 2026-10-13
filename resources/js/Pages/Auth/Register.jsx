@@ -2,6 +2,7 @@ import { useState } from 'react';
 import axios from 'axios';
 import { Head, Link, router } from '@inertiajs/react';
 import { FiUser, FiMail, FiLock, FiBriefcase, FiHome, FiPhone, FiMapPin, FiChevronLeft } from 'react-icons/fi';
+import NetBackground from '@/Components/shared/NetBackground';
 
 const Register = () => {
   const [step, setStep] = useState(1);
@@ -112,8 +113,9 @@ const handleSubmit = async (e) => {
     
     <div className="min-h-screen flex flex-col md:flex-row bg-gray-50">
       {/* Stepper Side */}
-      <div className="hidden md:block md:w-1/3 bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-8 lg:p-12">
-        <div className="h-full flex flex-col items-center">
+      <div className="hidden md:block relative md:w-1/3 overflow-hidden bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-8 lg:p-12">
+        <NetBackground points={70} maxDistance={170} />
+        <div className="relative z-10 h-full flex flex-col items-center">
           <img 
             src="/images/logo.png" 
             alt="Company Logo" 
