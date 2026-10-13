@@ -4,7 +4,8 @@
     "type": "module",
     "scripts": {
         "dev": "vite --host",
-        "build": "vite build"
+        "build": "vite build",
+        "prepare": "git config core.hooksPath .githooks || exit 0"
     },
     "devDependencies": {
         "@headlessui/react": "^2.0.0",

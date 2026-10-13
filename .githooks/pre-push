@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# pre-push: run `npm run build` before anything is sent to GitHub.
+# If the build fails, the push is cancelled so broken frontend code never
+# reaches the repository.
+#
+# Skip once (not recommended):  git push --no-verify
+
+echo ""
+echo "[pre-push] Running 'npm run build' before pushing..."
+
+# run from the repository root, whatever folder the push was started in
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+if ! command -v npm >/dev/null 2>&1; then
+  echo "[pre-push] WARNING: npm was not found in PATH, so the build check was skipped."
+  echo "[pre-push]          Open a terminal where Node.js is available and push from there."
+  exit 0
+fi
+
+if [ ! -d node_modules ]; then
+  echo "[pre-push] node_modules is missing. Run 'npm install' first."
+  exit 1
+fi
+
+if npm run build; then
+  echo "[pre-push] Build succeeded. Pushing..."
+  echo ""
+  exit 0
+fi
+
+echo ""
+echo "[pre-push] Build FAILED - push cancelled."
+echo "[pre-push] Fix the errors above, then push again."
+echo ""
+exit 1
