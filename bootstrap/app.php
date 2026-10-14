@@ -15,7 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
-            \Illuminate\Http\Middleware\AddLinkHeadersForPreloadedAssets::class,
+            // NOTE: AddLinkHeadersForPreloadedAssets was removed on purpose.
+            // It puts one `Link: <asset>; rel=preload` entry per JS chunk into the
+            // RESPONSE HEADERS. On pages with many chunks (e.g. the subcon staff page)
+            // the header exceeds nginx's default fastcgi buffer (4k) and nginx answers
+            // "502 Bad Gateway – upstream sent too big header". The same preload tags
+            // are already in the HTML, so nothing is lost.
         ]);
         
         // Register role middleware alias
