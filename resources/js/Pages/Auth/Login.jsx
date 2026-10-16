@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { FiMail, FiLock } from 'react-icons/fi';
+import { FiMail, FiLock, FiArrowLeft } from 'react-icons/fi';
 import NetBackground from '@/Components/shared/NetBackground';
 
 const Login = () => {
@@ -53,14 +53,14 @@ const Login = () => {
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(11,15,20,0.65)_0%,rgba(11,15,20,0)_60%)]" />
 
         <div className="relative z-10 h-full flex flex-col justify-center items-center p-12 text-white">
-          <div className="relative mb-8">
+          <Link href="/" className="relative mb-8" aria-label="Safety Buddy home">
             <span className="absolute inset-0 rounded-full bg-brand-500/30 blur-2xl animate-pulse" />
             <img
               src="/images/logo.png"
               alt="Company Logo"
-              className="relative h-28 w-28 rounded-full ring-4 ring-brand-500 shadow-2xl"
+              className="relative h-28 w-28 rounded-full ring-4 ring-brand-500 shadow-2xl transition hover:scale-105"
             />
-          </div>
+          </Link>
           <h2 className="text-3xl font-bold mb-4 text-brand-400">Welcome to Safety Buddy</h2>
           <p className="text-xl mb-3 text-center max-w-md text-gray-200">
             Your comprehensive safety management solution
@@ -72,16 +72,25 @@ const Login = () => {
       </div>
 
       {/* Login Form Side */}
-      <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-white">
+      <div className="relative w-full lg:w-1/2 flex items-center justify-center p-8 pt-20 lg:pt-8 bg-white">
+        <Link
+          href="/"
+          className="absolute left-4 top-4 sm:left-6 sm:top-6 inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+        >
+          <FiArrowLeft className="h-4 w-4" /> Back to home
+        </Link>
+
         <div className="w-full max-w-md">
           <Head title="Login" />
           
           <div className="text-center lg:hidden mb-8">
-            <img 
-              src="/images/logo.png" 
-              alt="Company Logo" 
-              className="h-20 w-20 rounded-full mx-auto"
-            />
+            <Link href="/" aria-label="Safety Buddy home" className="inline-block">
+              <img 
+                src="/images/logo.png" 
+                alt="Company Logo" 
+                className="h-20 w-20 rounded-full mx-auto"
+              />
+            </Link>
           </div>
 
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Sign in to your account</h2>
