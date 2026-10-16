@@ -709,6 +709,7 @@ class DashboardController extends Controller
 
         return Inertia::render('Inspector/ShowInspection', [
             'inspection' => $inspection,
+            'can_edit' => $this->canEdit($inspection),
             'user' => $user,
         ]);
         
@@ -794,6 +795,7 @@ class DashboardController extends Controller
     public function editInspection($id)
     {
         $inspection = Inspection::findOrFail($id);
+        $this->authorizeOwnEdit($inspection);
 
         $user = Auth::user();
         $staff = CompanyStaff::where('user_id', $user->id)->first();
@@ -853,6 +855,7 @@ class DashboardController extends Controller
     public function updateInspection(Request $request, $id)
     {
         $inspection = Inspection::findOrFail($id);
+        $this->authorizeOwnEdit($inspection);
 
         $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
@@ -895,6 +898,7 @@ class DashboardController extends Controller
     public function destroyInspection($id)
     {
         $inspection = Inspection::findOrFail($id);
+        $this->authorizeOwnEdit($inspection);
         $inspection->delete();
 
         return redirect()->route('inspector.inspections')->with('success', 'Inspection deleted successfully');
@@ -972,6 +976,7 @@ class DashboardController extends Controller
 
             return Inertia::render('Inspector/ShowToolboxTalk', [
                 'toolboxTalk' => $toolboxTalk,
+                'can_edit' => $this->canEdit($toolboxTalk),
                 'user' => $user,
             ]);
         } catch (\Exception $e) {
@@ -1169,6 +1174,7 @@ class DashboardController extends Controller
     public function editToolboxTalk($id)
     {
         $toolboxTalk = ToolboxTalks::with('topics')->findOrFail($id);
+        $this->authorizeOwnEdit($toolboxTalk);
 
         $user = Auth::user();
         $staff = CompanyStaff::where('user_id', $user->id)->first();
@@ -1199,6 +1205,7 @@ class DashboardController extends Controller
     public function updateToolboxTalk(Request $request, $id)
     {
         $toolboxTalk = ToolboxTalks::findOrFail($id);
+        $this->authorizeOwnEdit($toolboxTalk);
 
         $conducted = (int) $request->input('is_conducted', 1) === 1;
 
@@ -1279,6 +1286,7 @@ class DashboardController extends Controller
     public function destroyToolboxTalk($id)
     {
         $toolboxTalk = ToolboxTalks::findOrFail($id);
+        $this->authorizeOwnEdit($toolboxTalk);
         $toolboxTalk->topics()->detach();
         $toolboxTalk->delete();
 
@@ -1290,16 +1298,63 @@ class DashboardController extends Controller
     /**
      * Get projects list
      */
-    /** The inspector's own site visits: toolbox talk + inspections together, with review status. */
+    /** Site visits on the inspector's projects: toolbox talk + inspections together, with review status. */
     public function visits()
     {
         $user = Auth::user();
         $staff = CompanyStaff::where('user_id', $user->id)->first();
 
+        // every visit on the projects the inspector is assigned to; only their own can be edited
         return Inertia::render('Inspector/Visits', [
-            'visits' => $staff ? \App\Support\VisitFeed::collect($user->company_id, null, $staff->id) : [],
+            'visits' => $staff ? \App\Support\VisitFeed::collect($user->company_id, $this->assignedProjectIds($staff)) : [],
+            'me' => $staff?->id,
             'user' => $user,
         ]);
+    }
+
+    /**
+     * An inspector may change only their own inspections / toolbox talks, and only
+     * while they are still waiting for verification or were returned to them.
+     */
+    private function authorizeOwnEdit($record): void
+    {
+        $staff = CompanyStaff::where('user_id', Auth::id())->first();
+        abort_unless($staff && (int) $record->inspection_by === (int) $staff->id, 403, 'You can only edit your own records.');
+        abort_unless($this->stillEditable($record), 403, 'This record is already verified or approved and can no longer be changed.');
+    }
+
+    private function stillEditable($record): bool
+    {
+        return in_array($record->status ?: Inspection::STATUS_PENDING, [Inspection::STATUS_PENDING, Inspection::STATUS_REJECTED], true);
+    }
+
+    private function canEdit($record): bool
+    {
+        $staffId = CompanyStaff::where('user_id', Auth::id())->value('id');
+
+        return $staffId && (int) $record->inspection_by === (int) $staffId && $this->stillEditable($record);
+    }
+
+    /** A site visit on one of the inspector's projects: toolbox talk, inspections and review progress. */
+    public function showVisit(string $key)
+    {
+        $user = Auth::user();
+        $staff = CompanyStaff::where('user_id', $user->id)->first();
+        abort_unless($staff, 404);
+
+        $visit = \App\Support\VisitFeed::collect($user->company_id, $this->assignedProjectIds($staff))->firstWhere('key', $key);
+        abort_unless($visit, 404);
+
+        return Inertia::render('Inspector/VisitShow', [
+            'visit' => $visit,
+            'me' => $staff->id,
+            'user' => $user,
+        ]);
+    }
+
+    private function assignedProjectIds(CompanyStaff $staff)
+    {
+        return ProjectAssign::where('entity_type', 'staff')->where('entity_id', $staff->id)->pluck('project_id');
     }
 
     /**

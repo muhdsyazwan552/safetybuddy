@@ -6,7 +6,7 @@ import {
     EVAL, EvalBadge, StatusBadge, SectionCard, InfoRow, Sheet, ActionBar, fmtDate, parsePhotos, storageUrl, darkBtn, ghostBtn,
 } from '@/Components/inspector/kit';
 
-export default function ShowInspection({ inspection, user }) {
+export default function ShowInspection({ inspection, user, can_edit = false }) {
     const [expanded, setExpanded] = useState(false);
     const [lightbox, setLightbox] = useState(null);
     const [confirm, setConfirm] = useState(false);
@@ -129,19 +129,23 @@ export default function ShowInspection({ inspection, user }) {
             </div>
 
             <ActionBar>
-                <Link href={`/inspector/inspections/${inspection.id}/edit`} className={darkBtn}>
-                    <Pencil className="h-4 w-4" /> Edit
-                </Link>
+                {can_edit && (
+                    <Link href={`/inspector/inspections/${inspection.id}/edit`} className={darkBtn}>
+                        <Pencil className="h-4 w-4" /> Edit
+                    </Link>
+                )}
                 <button onClick={() => window.print()} className={ghostBtn}>
                     <Printer className="h-4 w-4" /> Print
                 </button>
-                <button
-                    onClick={() => setConfirm(true)}
-                    className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 active:scale-95 transition"
-                    aria-label="Delete"
-                >
-                    <Trash2 className="h-5 w-5" />
-                </button>
+                {can_edit && (
+                    <button
+                        onClick={() => setConfirm(true)}
+                        className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 active:scale-95 transition"
+                        aria-label="Delete"
+                    >
+                        <Trash2 className="h-5 w-5" />
+                    </button>
+                )}
             </ActionBar>
 
             <Sheet

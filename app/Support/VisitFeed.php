@@ -47,6 +47,7 @@ class VisitFeed
 
         return [
             'id' => $i->id,
+            'by_id' => $i->inspection_by,
             'topic' => optional($i->topic)->name,
             'evaluation' => $i->evaluation,
             'status' => $i->status ?: Inspection::STATUS_PENDING,
@@ -106,8 +107,10 @@ class VisitFeed
                 'project' => optional($t->project)->name,
                 'project_id' => $t->project_id,
                 'by' => optional($t->CompanyStaff)->name,
+                'by_id' => $t->inspection_by,
                 'talk' => [
                     'id' => $t->id,
+                    'by_id' => $t->inspection_by,
                     'conducted' => $t->conducted === 'yes',
                     'attended' => (int) $t->total_attended,
                     'attendees' => $t->attendees->pluck('name')->values(),
@@ -157,6 +160,7 @@ class VisitFeed
                     'project' => optional($i->project)->name,
                     'project_id' => $i->project_id,
                     'by' => optional($i->inspector)->name,
+                    'by_id' => $i->inspection_by,
                     'talk' => null,
                     'inspections' => [],
                 ];
@@ -172,6 +176,7 @@ class VisitFeed
                 'project' => optional($i->project)->name,
                 'project_id' => $i->project_id,
                 'by' => optional($i->inspector)->name,
+                'by_id' => $i->inspection_by,
                 'talk' => null,
                 'inspections' => [$row],
             ]);

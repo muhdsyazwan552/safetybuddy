@@ -128,6 +128,121 @@ class ReviewController extends Controller
         ]);
     }
 
+    // ------------------------------------------------------------------ projects
+
+    /** Open NC / CC per project of this company. */
+    private function openCasesByProject($projectIds): array
+    {
+        $open = [];
+        foreach ([\App\Models\NoConformance::class, \App\Models\ClientComplaint::class] as $class) {
+            $table = (new $class)->getTable();
+            $class::where("{$table}.status", '!=', 'closed')
+                ->join('inspections as i', 'i.id', '=', "{$table}.inspection_id")->whereIn('i.project_id', $projectIds)
+                ->selectRaw('i.project_id as pid, count(*) as n')->groupBy('i.project_id')
+                ->pluck('n', 'pid')->each(function ($n, $pid) use (&$open) {
+                    $open[$pid] = ($open[$pid] ?? 0) + $n;
+                });
+        }
+
+        return $open;
+    }
+
+    public function projectsIndex(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        $status = (string) $request->query('status', '');
+
+        $all = \App\Models\Project::where('company_id', $this->companyId())
+            ->withCount(['inspections', 'toolboxTalks'])
+            ->orderByDesc('created_at')->get();
+
+        $statusCounts = $all->countBy(fn ($p) => $p->status ?: 'unknown');
+        $rows = $all
+            ->when($q !== '', fn ($c) => $c->filter(fn ($p) => str_contains(mb_strtolower($p->name . ' ' . $p->location), mb_strtolower($q))))
+            ->when($status !== '', fn ($c) => $c->where('status', $status));
+
+        $ids = $rows->pluck('id');
+        $openCases = $this->openCasesByProject($ids);
+        $subcons = \Illuminate\Support\Facades\DB::table('project_assign')->where('entity_type', 'compsub')->whereIn('project_id', $ids)
+            ->selectRaw('project_id, count(*) as n')->groupBy('project_id')->pluck('n', 'project_id');
+
+        return Inertia::render('Review/Projects', [
+            'filters' => ['q' => $q, 'status' => $status],
+            'statusCounts' => $statusCounts,
+            'projects' => $rows->map(fn ($p) => [
+                'id' => $p->id,
+                'name' => $p->name,
+                'location' => $p->location,
+                'status' => $p->status,
+                'start_date' => $p->start_date,
+                'end_date' => $p->end_date,
+                'inspections' => $p->inspections_count,
+                'talks' => $p->toolbox_talks_count,
+                'subcons' => (int) ($subcons[$p->id] ?? 0),
+                'open_cases' => (int) ($openCases[$p->id] ?? 0),
+            ])->values(),
+        ]);
+    }
+
+    public function projectShow($id)
+    {
+        $project = \App\Models\Project::where('company_id', $this->companyId())->findOrFail($id);
+        $assigns = \Illuminate\Support\Facades\DB::table('project_assign')->where('project_id', $id)->get();
+
+        $staffAssign = $assigns->where('entity_type', 'staff');
+        $team = CompanyStaff::whereIn('id', $staffAssign->pluck('entity_id'))->orderBy('name')->get()
+            ->map(fn ($m) => [
+                'id' => $m->id,
+                'name' => $m->name,
+                'email' => $m->email,
+                'contact' => $m->contact,
+                'role' => optional($staffAssign->firstWhere('entity_id', $m->id))->role_assignment,
+            ])->values();
+
+        $compAssign = $assigns->where('entity_type', 'compsub');
+        $inspections = Inspection::where('project_id', $id)->get(['id', 'evaluation', 'subcon_company_id']);
+        $perSubcon = $inspections->countBy('subcon_company_id');
+        $workersToday = \App\Models\Manhour::where('project_id', $id)->where('work_date', now()->toDateString())
+            ->pluck('worker_count', 'subcon_company_id');
+        $subcons = \App\Models\SubconCompany::whereIn('id', $compAssign->pluck('entity_id'))->withCount('subconStaff')->orderBy('name')->get()
+            ->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'contact' => $c->contact,
+                'status' => $c->status,
+                'scope' => optional($compAssign->firstWhere('entity_id', $c->id))->role_assignment,
+                'staff' => $c->subcon_staff_count,
+                'present_today' => (int) ($workersToday[$c->id] ?? 0),
+                'inspections' => (int) ($perSubcon[$c->id] ?? 0),
+            ])->values();
+
+        $evaluation = [];
+        foreach (['good', 'poor', 'nonconformance', 'clientcomplaint'] as $ev) {
+            $evaluation[$ev] = $inspections->where('evaluation', $ev)->count();
+        }
+
+        $visits = \App\Support\VisitFeed::collect($this->companyId(), [$project->id]);
+        $cases = CaseFeed::collect(fn ($q) => $q->whereHas('inspection', fn ($i) => $i->where('project_id', $project->id)));
+        $manhours = \App\Models\Manhour::where('project_id', $id)
+            ->selectRaw('count(distinct work_date) as days, coalesce(sum(worker_count * working_hours), 0) as total')->first();
+
+        return Inertia::render('Review/ProjectShow', [
+            'project' => $project->only(['id', 'name', 'location', 'status', 'start_date', 'end_date']),
+            'stats' => [
+                'inspections' => $inspections->count(),
+                'visits' => $visits->count(),
+                'open_cases' => $cases->where('state', '!=', 'closed')->count(),
+                'manhours' => round((float) $manhours->total, 2),
+                'work_days' => (int) $manhours->days,
+            ],
+            'evaluation' => $evaluation,
+            'team' => $team,
+            'subcons' => $subcons,
+            'visits' => $visits->take(20)->values(),
+            'cases' => $cases->values(),
+        ]);
+    }
+
     // ------------------------------------------------------------------ subcontractors
 
     /** Subcontractor companies of this company with a quick health summary. */

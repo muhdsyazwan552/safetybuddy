@@ -159,8 +159,6 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                                             <td className="px-5 py-3.5">
                                                 <div className="flex justify-end gap-1.5">
                                                     <Link href={`/inspector/inspections/${i.id}`} className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100" title="View"><Eye className="h-4 w-4" /></Link>
-                                                    <Link href={`/inspector/inspections/${i.id}/edit`} className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100" title="Edit"><Pencil className="h-4 w-4" /></Link>
-                                                    <button onClick={() => setToDelete(i)} className="flex h-9 w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-50" title="Delete"><Trash2 className="h-4 w-4" /></button>
                                                 </div>
                                             </td>
                                         </tr>

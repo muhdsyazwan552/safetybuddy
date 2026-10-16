@@ -6,7 +6,7 @@ import { Link, usePage } from '@inertiajs/react';
 import Toast from '@/Components/Toast';
 import { confirmLogout } from '@/Helpers/logout';
 import {
-    LayoutDashboard, ClipboardCheck, AlertTriangle, LogOut, Settings, Siren, BarChart3, X, Users, ChevronLeft, MoreHorizontal,
+    LayoutDashboard, ClipboardCheck, AlertTriangle, LogOut, Settings, Siren, BarChart3, X, Users, ChevronLeft, MoreHorizontal, FolderKanban,
 } from 'lucide-react';
 
 const TABS = [
@@ -17,13 +17,14 @@ const TABS = [
 ];
 
 const MORE = [
+    { name: 'Projects', href: '/review/projects', icon: FolderKanban },
     { name: 'Reports', href: '/review/reports', icon: BarChart3 },
     { name: 'Subcontractors', href: '/review/subcons', icon: Users },
     { name: 'My profile', href: '/profile', icon: Settings },
 ];
 
 // pages that show the bottom tab bar instead of a back button
-const TOP_LEVEL = ['/review/dashboard', '/review/visits', '/review/cases', '/review/incidents', '/review/reports', '/review/subcons', '/review/performance', '/review/inspections', '/review/toolbox', '/profile'];
+const TOP_LEVEL = ['/review/dashboard', '/review/visits', '/review/cases', '/review/incidents', '/review/reports', '/review/subcons', '/review/projects', '/review/performance', '/review/inspections', '/review/toolbox', '/profile'];
 
 export default function ReviewLayout({ title = 'Review', children }) {
     const { url, props } = usePage();
@@ -118,7 +119,7 @@ export default function ReviewLayout({ title = 'Review', children }) {
                         </button>
                     </div>
 
-                    <nav className="grid grid-cols-3 gap-2 px-4 py-5">
+                    <nav className="grid grid-cols-4 gap-2 px-4 py-5">
                         {MORE.map((item) => {
                             const active = isActive(item.href);
                             return (

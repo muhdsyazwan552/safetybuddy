@@ -21,7 +21,7 @@ export default function Subcons({ companies = [], filters = {} }) {
                         <h1 className="text-xl font-extrabold text-gray-900">Subcontractors</h1>
                         <p className="text-sm text-gray-500">{companies.length} compan{companies.length === 1 ? 'y' : 'ies'}: staff, attendance, NC / CC, induction and machinery</p>
                     </div>
-                    <form onSubmit={search} className="relative sm:w-72">
+                    <form onSubmit={search} className="relative w-full sm:w-72">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                         <input
                             value={q}
@@ -35,31 +35,33 @@ export default function Subcons({ companies = [], filters = {} }) {
                 {companies.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">No subcontractor found.</div>
                 ) : (
-                    <div className="grid gap-3 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         {companies.map((c) => (
                             <Link
                                 key={c.id}
                                 href={`/review/subcons/${c.id}`}
-                                className="group rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-brand-300 hover:shadow"
+                                className="group block min-w-0 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-brand-300 hover:shadow active:scale-[0.99]"
                             >
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-start gap-3">
                                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-lg font-extrabold text-ink-900">
                                         {(c.name || '?').charAt(0).toUpperCase()}
                                     </span>
                                     <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-bold text-gray-900">{c.name}</p>
-                                        <p className="truncate text-xs text-gray-500">{c.contact || c.email || '-'}</p>
+                                        <p className="line-clamp-2 break-words text-sm font-bold leading-snug text-gray-900">{c.name}</p>
+                                        <div className="mt-1 flex min-w-0 items-center gap-2">
+                                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${c.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
+                                                {c.status || 'inactive'}
+                                            </span>
+                                            <span className="truncate text-xs text-gray-500">{c.contact || c.email || ''}</span>
+                                        </div>
                                     </div>
-                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${c.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                                        {c.status || 'inactive'}
-                                    </span>
-                                    <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-500" />
+                                    <ChevronRight className="mt-3 h-4 w-4 shrink-0 text-gray-300 group-hover:text-gray-500" />
                                 </div>
-                                <div className="mt-3 grid grid-cols-4 gap-2 text-center">
+                                <div className="mt-3 grid grid-cols-4 gap-1.5 text-center sm:gap-2">
                                     <Stat icon={Users} label="Staff" value={c.staff} />
                                     <Stat icon={CalendarCheck} label="Today" value={c.present_today} />
-                                    <Stat icon={AlertTriangle} label="Open NC/CC" value={c.open_cases} danger={c.open_cases > 0} />
-                                    <Stat icon={Truck} label="Machinery" value={c.machinery} />
+                                    <Stat icon={AlertTriangle} label="NC/CC" value={c.open_cases} danger={c.open_cases > 0} />
+                                    <Stat icon={Truck} label="Machine" value={c.machinery} />
                                 </div>
                             </Link>
                         ))}
@@ -72,10 +74,10 @@ export default function Subcons({ companies = [], filters = {} }) {
 
 function Stat({ icon: Icon, label, value, danger = false }) {
     return (
-        <div className={`rounded-xl px-1 py-2 ${danger ? 'bg-red-50' : 'bg-gray-50'}`}>
+        <div className={`min-w-0 rounded-xl px-1 py-2 ${danger ? 'bg-red-50' : 'bg-gray-50'}`}>
             <Icon className={`mx-auto h-4 w-4 ${danger ? 'text-red-500' : 'text-gray-400'}`} />
             <p className={`mt-0.5 text-base font-extrabold ${danger ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+            <p className="truncate text-[10px] font-semibold uppercase text-gray-500">{label}</p>
         </div>
     );
 }

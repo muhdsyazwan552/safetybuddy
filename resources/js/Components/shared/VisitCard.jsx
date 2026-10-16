@@ -1,12 +1,13 @@
 // One site visit: the toolbox talk and the inspections done with it, each with its review status.
 import React, { useState } from 'react';
 import { Link } from '@inertiajs/react';
-import { CalendarDays, UserRound, HardHat, ClipboardCheck, ChevronDown, Check, X, MapPin, Pencil } from 'lucide-react';
+import { CalendarDays, UserRound, HardHat, ClipboardCheck, ChevronDown, ChevronRight, Check, X, MapPin, Pencil } from 'lucide-react';
 import { EvalBadge, StatusBadge, cardTone } from '@/Components/inspector/kit';
 
 const fmt = (d) => (d ? new Date(`${d}T00:00:00`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-');
 
-export default function VisitCard({ visit, children, editable = false, defaultOpen = false, detailHref = null }) {
+// href: tapping the card opens that page instead of expanding it in place
+export default function VisitCard({ visit, children, editable = false, defaultOpen = false, detailHref = null, href = null }) {
     const [open, setOpen] = useState(defaultOpen);
     const t = visit.talk;
     const tone = cardTone(visit.status);
@@ -14,7 +15,7 @@ export default function VisitCard({ visit, children, editable = false, defaultOp
 
     return (
         <div className={`overflow-hidden rounded-3xl border shadow-sm ${tone.card}`}>
-            <button type="button" onClick={() => setOpen((o) => !o)} className="w-full p-4 text-left">
+            <Header href={href} onToggle={() => setOpen((o) => !o)}>
                 <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                         <p className="truncate text-[15px] font-bold text-gray-900">{visit.project || '-'}</p>
@@ -44,10 +45,14 @@ export default function VisitCard({ visit, children, editable = false, defaultOp
                 {rejected.length > 0 && (
                     <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">Returned: {rejected[0].review_comment}</p>
                 )}
-                <ChevronDown className={`mx-auto mt-2 h-5 w-5 text-gray-300 transition ${open ? 'rotate-180' : ''}`} />
-            </button>
+                {href ? (
+                    <p className="mt-3 flex items-center justify-end gap-1 text-xs font-bold text-brand-800">View details <ChevronRight className="h-4 w-4" /></p>
+                ) : (
+                    <ChevronDown className={`mx-auto mt-2 h-5 w-5 text-gray-300 transition ${open ? 'rotate-180' : ''}`} />
+                )}
+            </Header>
 
-            {open && (
+            {open && !href && (
                 <div className={`space-y-4 border-t p-4 ${tone.line} ${tone.foot}`}>
                     {t && (
                         <section className="rounded-2xl border border-gray-100 bg-white p-4">
@@ -120,4 +125,11 @@ export default function VisitCard({ visit, children, editable = false, defaultOp
             )}
         </div>
     );
+}
+
+function Header({ href, onToggle, children }) {
+    if (href) {
+        return <Link href={href} className="block w-full p-4 text-left">{children}</Link>;
+    }
+    return <button type="button" onClick={onToggle} className="w-full p-4 text-left">{children}</button>;
 }

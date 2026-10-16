@@ -31,10 +31,9 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
+            // every page embeds this in its HTML (data-page), so only send what the UI reads
             'auth' => [
-                'user' => $request->user()
-                    ? $request->user()->load('company', 'role')
-                    : null,
+                'user' => fn () => $this->authUser($request->user()),
             ],
             'flash' => [
                 'success' => fn() => $request->session()->get('success'),
@@ -42,6 +41,28 @@ class HandleInertiaRequests extends Middleware
                 'warning' => fn() => $request->session()->get('warning'),
                 'info' => fn() => $request->session()->get('info'),
             ],
+        ];
+    }
+
+    private function authUser($user): ?array
+    {
+        if (!$user) {
+            return null;
+        }
+
+        $user->loadMissing('company:id,name', 'role:id,name,display_name');
+
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'company_id' => $user->company_id,
+            'role_id' => $user->role_id,
+            'email_verified_at' => $user->email_verified_at,
+            'created_at' => $user->created_at,
+            'company' => $user->company ? ['id' => $user->company->id, 'name' => $user->company->name] : null,
+            'role' => $user->role ? ['id' => $user->role->id, 'name' => $user->role->name, 'display_name' => $user->role->display_name] : null,
         ];
     }
 }

@@ -264,6 +264,8 @@ Route::middleware(['auth', 'role:3,4'])->prefix('review')->name('review.')->grou
     Route::get('/cases', [$c, 'casesIndex'])->name('cases');
     Route::get('/toolbox', [$c, 'toolboxIndex'])->name('toolbox');
     Route::get('/visits', [$c, 'visitsIndex'])->name('visits');
+    Route::get('/projects', [$c, 'projectsIndex'])->name('projects');
+    Route::get('/projects/{id}', [$c, 'projectShow'])->where('id', '[0-9]+')->name('projects.show');
     Route::get('/subcons', [$c, 'subconsIndex'])->name('subcons');
     Route::get('/subcons/{id}', [$c, 'subconShow'])->where('id', '[0-9]+')->name('subcons.show');
 
@@ -315,6 +317,7 @@ Route::middleware(['auth', 'role:7,8'])->prefix('inspector')->name('inspector.')
     Route::get('/visits', [DashboardController::class, 'visits'])->name('visits');
     Route::get('/visits/create', [DashboardController::class, 'createVisit'])->name('visits.create');
     Route::post('/visits', [DashboardController::class, 'storeVisit'])->name('visits.store');
+    Route::get('/visits/{key}', [DashboardController::class, 'showVisit'])->where('key', '(talk|insp)-[0-9]+')->name('visits.show');
     Route::get('/inspections/create', fn () => redirect()->route('inspector.visits.create'))->name('inspections.create');
 
     Route::post('/inspections', [DashboardController::class, 'storeInspection'])->name('inspections.store');

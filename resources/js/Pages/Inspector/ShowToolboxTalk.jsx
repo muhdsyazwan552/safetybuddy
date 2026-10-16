@@ -5,7 +5,7 @@ import InspectorLayout from '@/Layouts/InspectorLayout';
 import { SectionCard, InfoRow, Sheet, ActionBar, fmtDate, storageUrl, darkBtn, ghostBtn } from '@/Components/inspector/kit';
 import { spPercent } from '@/Components/shared/SpSampling';
 
-export default function ShowToolboxTalk({ toolboxTalk, user }) {
+export default function ShowToolboxTalk({ toolboxTalk, user, can_edit = false }) {
     const [lightbox, setLightbox] = useState(null);
     const [confirm, setConfirm] = useState(false);
 
@@ -122,19 +122,23 @@ export default function ShowToolboxTalk({ toolboxTalk, user }) {
             </div>
 
             <ActionBar>
-                <Link href={`/inspector/toolbox-talks/${toolboxTalk.id}/edit`} className={darkBtn}>
-                    <Pencil className="h-4 w-4" /> Edit
-                </Link>
+                {can_edit && (
+                    <Link href={`/inspector/toolbox-talks/${toolboxTalk.id}/edit`} className={darkBtn}>
+                        <Pencil className="h-4 w-4" /> Edit
+                    </Link>
+                )}
                 <button onClick={() => window.print()} className={ghostBtn}>
                     <Printer className="h-4 w-4" /> Print
                 </button>
-                <button
-                    onClick={() => setConfirm(true)}
-                    className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 active:scale-95 transition"
-                    aria-label="Delete"
-                >
-                    <Trash2 className="h-5 w-5" />
-                </button>
+                {can_edit && (
+                    <button
+                        onClick={() => setConfirm(true)}
+                        className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-red-200 bg-red-50 text-red-600 active:scale-95 transition"
+                        aria-label="Delete"
+                    >
+                        <Trash2 className="h-5 w-5" />
+                    </button>
+                )}
             </ActionBar>
 
             <Sheet

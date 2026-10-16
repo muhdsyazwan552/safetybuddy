@@ -146,27 +146,20 @@ export default function Dashboard({
     const weekTotal = weeklyActivity.reduce((s, d) => s + d.count, 0);
     const openIssues = (insights.open_nc || 0) + (insights.open_cc || 0);
 
-    const quickActions = [
-        { label: 'New Site Visit', href: '/inspector/visits/create', icon: ClipboardList, primary: true },
-        { label: 'Site Visits', href: '/inspector/visits', icon: CalendarDays },
-        { label: 'Projects', href: '/inspector/projects', icon: Building2 },
-        { label: 'Subcons', href: '/inspector/subcon-companies', icon: Users },
-    ];
-
     const kpis = [
         {
             label: 'Today',
             value: insights.today_inspections ?? 0,
             icon: CalendarDays,
             sub: <span className="text-[11px] text-gray-400">inspections done</span>,
-            href: '/inspector/inspections',
+            href: '/inspector/visits',
         },
         {
             label: 'This week',
             value: insights.week_inspections ?? 0,
             icon: ClipboardCheck,
             sub: <Trend current={insights.week_inspections ?? 0} previous={insights.last_week_inspections ?? 0} />,
-            href: '/inspector/inspections',
+            href: '/inspector/visits',
         },
         {
             label: 'Open NC',
@@ -233,22 +226,6 @@ export default function Dashboard({
                                 <Plus className="w-4 h-4" strokeWidth={3} /> New Site Visit
                             </Link>
                         </div>
-                    </motion.section>
-
-                    {/* ───────── Quick actions ───────── */}
-                    <motion.section variants={fade} custom={1} initial="hidden" animate="show" className="grid grid-cols-4 gap-2 sm:gap-4">
-                        {quickActions.map((a) => (
-                            <Link
-                                key={a.label}
-                                href={a.href}
-                                className="flex flex-col items-center gap-2 rounded-2xl bg-white border border-gray-100 shadow-sm py-3 px-1 active:scale-95 transition hover:shadow-md"
-                            >
-                                <span className={`h-11 w-11 rounded-2xl flex items-center justify-center ${a.primary ? 'bg-brand-500 text-ink-900' : 'bg-ink-900 text-brand-400'}`}>
-                                    <a.icon className="w-5 h-5" />
-                                </span>
-                                <span className="text-[11px] sm:text-xs font-semibold text-gray-700 text-center leading-tight">{a.label}</span>
-                            </Link>
-                        ))}
                     </motion.section>
 
                     {/* ───────── KPIs ───────── */}

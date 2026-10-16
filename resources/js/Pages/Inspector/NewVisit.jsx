@@ -45,7 +45,7 @@ function Stepper({ step, withToolbox }) {
 
 export default function NewVisit({
     portal = 'inspector',
-    endpoints = { store: '/inspector/visits', done: '/inspector/inspections', doneToolbox: '/inspector/toolbox-talks' },
+    endpoints = { store: '/inspector/visits', done: '/inspector/visits', doneToolbox: '/inspector/visits' },
     projects = [], categories = [], toolboxCategories = [], staffByProject = {}, evaluations = [], user,
 }) {
     const isAdmin = portal === 'admin';
