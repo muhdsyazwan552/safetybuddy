@@ -1,403 +1,262 @@
 import React, { useState } from 'react';
-import { Head, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
+import { Plus, Pencil, Trash2, Save, X, Loader2, Gauge, Wallet, Percent, Sparkles } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import PerformanceSettingsCard from '@/Components/reports/PerformanceSettingsCard';
 import { showAlert } from '@/Helpers/alert';
 
-const ComplianceMetrics = ({ title, metrics, auth }) => {
-  const { flash } = usePage().props || {};
-  const [editingId, setEditingId] = useState(null);
-  const [isAdding, setIsAdding] = useState(false);
+const inputClass =
+    'w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/20';
+const labelClass = 'mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-500';
 
-  // Form for creating new metrics
-  const { data, setData, post, processing, errors } = useForm({
-    company_id: auth?.user?.company_id || '',
-    title: '',
-    description: '',
-    percent: 0
-  });
+const rm = (v) =>
+    v === null || v === undefined || v === ''
+        ? null
+        : `RM ${Number(v).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  // Form for editing metrics
-  const { data: editData, setData: setEditData, put: putUpdate, processing: updateProcessing, errors: updateErrors, reset: resetEdit } = useForm({
-    id: null,
-    title: '',
-    description: '',
-    percent: 0
-  });
-
-  const { delete: destroy, processing: deleteProcessing } = useForm();
-
-  const handleAddNew = () => {
-    setIsAdding(true);
-    setData({
-      company_id: auth?.user?.company_id || '',
-      title: '',
-      description: '',
-      percent: 0
-    });
-  };
-
-  const handleSaveNew = () => {
-    post(route('compliance-metrics.store'), {
-      onSuccess: () => {
-        setIsAdding(false);
-        setData({
-          company_id: auth?.user?.company_id || '',
-          title: '',
-          description: '',
-          percent: 0
-        });
-      },
-      onError: (errors) => {
-        console.error('Error saving metric:', errors);
-      }
-    });
-  };
-
-  const handleCancelNew = () => {
-    setIsAdding(false);
-    setData({
-      company_id: auth?.user?.company_id || '',
-      title: '',
-      description: '',
-      percent: 0
-    });
-  };
-
-  const handleEdit = (metric) => {
-    setEditingId(metric.id);
-    setEditData({
-      id: metric.id,
-      title: metric.title || '',
-      description: metric.description || '',
-      percent: metric.percent || 0
-    });
-  };
-
-  const handleSaveEdit = () => {
-    putUpdate(route('compliance-metrics.update', editData.id), {
-      onSuccess: () => {
-        setEditingId(null);
-        resetEdit();
-      },
-      onError: (errors) => {
-        console.error('Error updating metric:', errors);
-      }
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-    resetEdit();
-  };
-
-  const handleDelete = async (id) => {
-    const ok = await showAlert.confirmDelete(
-      'This compliance metric and its evaluations will be permanently removed.',
-      'Delete this metric?'
+function Field({ label, error, hint, children }) {
+    return (
+        <div>
+            <label className={labelClass}>{label}</label>
+            {children}
+            {hint && !error && <p className="mt-1 text-[11px] text-gray-400">{hint}</p>}
+            {error && <p className="mt-1 text-xs font-medium text-red-500">{error}</p>}
+        </div>
     );
-    if (ok) {
-      destroy(route('compliance-metrics.destroy', id), {
-        onSuccess: () => {
-          console.log('Metric deleted successfully');
-        },
-        onError: (errors) => {
-          console.error('Error deleting metric:', errors);
-        }
-      });
-    }
-  };
+}
 
-  const handleInputChange = (field, value) => {
-    setData(field, value);
-  };
+/** Add / edit form – same fields for both */
+function SettingForm({ form, onSubmit, onCancel, heading, submitLabel }) {
+    const { data, setData, errors, processing } = form;
+    return (
+        <section className="rounded-3xl border-2 border-brand-500 bg-white p-5 shadow-sm sm:p-6">
+            <h2 className="mb-4 text-base font-extrabold text-gray-900">{heading}</h2>
 
-  const handleEditInputChange = (field, value) => {
-    setEditData(field, value);
-  };
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-6">
+                <div className="md:col-span-4">
+                    <Field label="Title *" error={errors.title}>
+                        <input className={inputClass} value={data.title} onChange={(e) => setData('title', e.target.value)} placeholder="e.g. Target for Overall Compliance Level 'GOOD'" />
+                    </Field>
+                </div>
+                <div className="md:col-span-1">
+                    <Field label="Percent (%)" error={errors.percent} hint="0 – 100, optional">
+                        <input type="number" min="0" max="100" step="0.01" className={inputClass} value={data.percent} onChange={(e) => setData('percent', e.target.value)} placeholder="—" />
+                    </Field>
+                </div>
+                <div className="md:col-span-1">
+                    <Field label="Penalty (RM)" error={errors.value} hint="optional">
+                        <input type="number" min="0" step="0.01" className={inputClass} value={data.value} onChange={(e) => setData('value', e.target.value)} placeholder="—" />
+                    </Field>
+                </div>
+                <div className="md:col-span-6">
+                    <Field label="Description *" error={errors.description}>
+                        <textarea rows={2} className={inputClass} value={data.description} onChange={(e) => setData('description', e.target.value)} placeholder="What does this setting measure or penalise?" />
+                    </Field>
+                </div>
+            </div>
 
-  const handlePercentChange = (value) => {
-    const numValue = parseFloat(value) || 0;
-    setData('percent', Math.min(Math.max(numValue, 0), 100));
-  };
+            <div className="mt-5 flex flex-wrap gap-2">
+                <button onClick={onSubmit} disabled={processing || !data.title.trim() || !data.description.trim()} className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-5 py-2.5 text-sm font-extrabold text-ink-900 shadow-md active:scale-95 transition disabled:opacity-40">
+                    {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} {submitLabel}
+                </button>
+                <button onClick={onCancel} className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700">
+                    <X className="h-4 w-4" /> Cancel
+                </button>
+            </div>
+        </section>
+    );
+}
 
-  const handleEditPercentChange = (value) => {
-    const numValue = parseFloat(value) || 0;
-    setEditData('percent', Math.min(Math.max(numValue, 0), 100));
-  };
+export default function ComplianceMetrics({ title, metrics = [], performance = null }) {
+    const [mode, setMode] = useState(null); // null | 'add' | metric id
+    const [loadingDefaults, setLoadingDefaults] = useState(false);
 
-  const displayMetrics = metrics && metrics.length > 0 ? metrics : [
-    {
-      id: 1,
-      title: "Target Compliance Rate for Safety Passport",
-      description: "Assess the compliance rate of the Safety Passport through a sampling check.",
-      percent: 0,
-    },
-    {
-      id: 2,
-      title: "Target for Overall Compliance Level 'GOOD'",
-      description: "Evaluate the performance for Level 'GOOD' overall compliance.",
-      percent: 0,
-    },
-    {
-      id: 3,
-      title: "Threshold for Overall Compliance Level 'POOR'",
-      description: "Monitor the threshold for Level 'POOR' overall compliance.",
-      percent: 0,
-    },
-    {
-      id: 4,
-      title: "Minimum Requirement for Best Safety Practices Ranking (BSPR) 'GOLD'",
-      description: "BSPR 'GOLD' = Indicates that safety compliance practices meet the highest standards of excellence.",
-      percent: 0,
-    },
-    {
-      id: 5,
-      title: "Minimum Requirement for Best Safety Practices Ranking (BSPR) 'SILVER'",
-      description: "BSPR 'SILVER' = Indicates that safety compliance practices meet average standards",
-      percent: 0,
-    }
-  ];
+    const empty = { title: '', description: '', percent: '', value: '' };
+    const addForm = useForm(empty);
+    const editForm = useForm(empty);
 
-  return (
-    <AppLayout>
-      <Head title={title} />
-      
-      {flash && flash.success && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 mx-6 mt-6">
-          {flash.success}
-        </div>
-      )}
-      {flash && flash.error && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4 mx-6 mt-6">
-          {flash.error}
-        </div>
-      )}
-      {metrics && metrics.length === 0 && (
-        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-yellow-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-yellow-700">
-                <strong>Welcome!</strong> You're viewing example compliance metrics. Click "Add New Metric" to create your own custom metrics.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      <div className="space-y-6 p-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
-          <div className="flex space-x-4">
-            <button 
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-800 transition-colors shadow-sm"
-              onClick={handleAddNew}
-            >
-              Add New Metric
-            </button>
-          </div>
-        </div>
+    const clean = (d) => ({
+        title: d.title,
+        description: d.description,
+        percent: d.percent === '' ? null : d.percent,
+        value: d.value === '' ? null : d.value,
+    });
 
-        {isAdding && (
-          <div className="bg-white rounded-xl shadow shadow-neutral-500 border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Add New Compliance Metric</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Metric Title *
-                </label>
-                <input
-                  type="text"
-                  value={data.title}
-                  onChange={(e) => handleInputChange('title', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Enter metric title"
-                />
-                {errors && errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Percentage *
-                </label>
-                <input
-                  type="number"
-                  value={data.percent}
-                  onChange={(e) => handlePercentChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                  placeholder="0.00"
-                />
-                {errors && errors.percent && <p className="text-red-500 text-xs mt-1">{errors.percent}</p>}
-              </div>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description *
-              </label>
-              <textarea
-                value={data.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-                placeholder="Enter metric description"
-              />
-              {errors && errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
-            </div>
-            
-            <div className="flex space-x-3">
-              <button
-                onClick={handleSaveNew}
-                disabled={processing || !data.title || !data.description}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {processing ? 'Saving...' : 'Save Metric'}
-              </button>
-              <button
-                onClick={handleCancelNew}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
+    const startAdd = () => {
+        addForm.reset();
+        addForm.clearErrors();
+        setMode('add');
+    };
 
-        {editingId && (
-          <div className="bg-white rounded-xl shadow shadow-neutral-500 border border-gray-100 p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4">Edit Compliance Metric</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Metric Title *
-                </label>
-                <input
-                  type="text"
-                  value={editData.title}
-                  onChange={(e) => handleEditInputChange('title', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {updateErrors && updateErrors.title && <p className="text-red-500 text-xs mt-1">{updateErrors.title}</p>}
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Percentage *
-                </label>
-                <input
-                  type="number"
-                  value={editData.percent}
-                  onChange={(e) => handleEditPercentChange(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  min="0"
-                  max="100"
-                  step="0.01"
-                />
-                {updateErrors && updateErrors.percent && <p className="text-red-500 text-xs mt-1">{updateErrors.percent}</p>}
-              </div>
-            </div>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description *
-              </label>
-              <textarea
-                value={editData.description}
-                onChange={(e) => handleEditInputChange('description', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows={3}
-              />
-              {updateErrors && updateErrors.description && <p className="text-red-500 text-xs mt-1">{updateErrors.description}</p>}
-            </div>
-            
-            <div className="flex space-x-3">
-              <button
-                onClick={handleSaveEdit}
-                disabled={updateProcessing || !editData.title || !editData.description}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {updateProcessing ? 'Updating...' : 'Update Metric'}
-              </button>
-              <button
-                onClick={handleCancelEdit}
-                className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        )}
-        
-        <div className="bg-white rounded-xl shadow shadow-neutral-500 border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Compliance Metrics</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Compliance Evaluations</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Percent Setting</th>
-                  <th scope="col" className="relative px-6 py-3"><span className="sr-only">Actions</span></th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {metrics && metrics.length === 0 && (
-                  <tr className="bg-blue-50">
-                    <td colSpan="5" className="px-6 py-3 text-center">
-                      <div className="flex items-center justify-center text-blue-800 text-sm">
-                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                        </svg>
-                        <span>This is example data. Edit these metrics or add new ones to get started.</span>
-                      </div>
-                    </td>
-                  </tr>
+    const startEdit = (m) => {
+        editForm.clearErrors();
+        editForm.setData({
+            title: m.title || '',
+            description: m.description || '',
+            percent: m.percent ?? '',
+            value: m.value ?? '',
+        });
+        setMode(m.id);
+    };
+
+    const cancel = () => setMode(null);
+
+    const saveAdd = () =>
+        addForm.transform(clean).post(route('compliance-metrics.store'), {
+            preserveScroll: true,
+            onSuccess: () => { addForm.reset(); setMode(null); },
+        });
+
+    const saveEdit = () =>
+        editForm.transform(clean).put(route('compliance-metrics.update', mode), {
+            preserveScroll: true,
+            onSuccess: () => setMode(null),
+        });
+
+    const remove = async (m) => {
+        const ok = await showAlert.confirmDelete(
+            `"${m.title}" and its percent and penalty values will be permanently removed.`,
+            'Delete this setting?'
+        );
+        if (ok) router.delete(route('compliance-metrics.destroy', m.id), { preserveScroll: true });
+    };
+
+    const loadDefaults = () => {
+        setLoadingDefaults(true);
+        router.post(route('compliance-metrics.defaults'), {}, { preserveScroll: true, onFinish: () => setLoadingDefaults(false) });
+    };
+
+    const withPercent = metrics.filter((m) => m.percent !== null && m.percent !== undefined).length;
+    const withPenalty = metrics.filter((m) => m.value !== null && m.value !== undefined && Number(m.value) > 0).length;
+
+    return (
+        <AppLayout title={title}>
+            <Head title={title} />
+
+            <div className="mx-auto max-w-6xl space-y-5 pb-10">
+                {performance && <PerformanceSettingsCard settings={performance} />}
+
+                {/* header */}
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-brand-800">Performance settings</p>
+                        <h1 className="text-2xl font-extrabold text-gray-900">Compliance &amp; Penalty Settings</h1>
+                        <p className="mt-1 max-w-2xl text-sm text-gray-500">
+                            One list for each performance factor: its target <b>percent</b> and the <b>penalty value (RM)</b> that applies when it is not met.
+                        </p>
+                    </div>
+                    <button onClick={startAdd} className="sb-create">
+                        <Plus className="h-4 w-4" strokeWidth={3} /> Add setting
+                    </button>
+                </div>
+
+                {/* quick stats */}
+                {metrics.length > 0 && (
+                    <div className="grid grid-cols-3 gap-3">
+                        {[
+                            { l: 'Settings', v: metrics.length, i: Gauge },
+                            { l: 'With percent', v: withPercent, i: Percent },
+                            { l: 'With penalty', v: withPenalty, i: Wallet },
+                        ].map((s) => (
+                            <div key={s.l} className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-900 text-brand-400"><s.i className="h-5 w-5" /></span>
+                                <div>
+                                    <p className="text-xl font-extrabold leading-none text-gray-900">{s.v}</p>
+                                    <p className="mt-1 text-xs text-gray-500">{s.l}</p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
                 )}
-                
-                {displayMetrics.map((item, index) => (
-                  <tr key={item.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{index + 1}</td>
-                    <td className="px-6 py-4 text-sm text-gray-800 font-medium">{item.title}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">{item.description}</td>
-                    <td className="px-16 py-4 whitespace-nowrap text-left">
-                      <span className="px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                        {typeof item.percent === 'number' ? item.percent.toFixed(2) : parseFloat(item.percent || 0).toFixed(2)}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button 
-                        onClick={() => handleEdit(item)}
-                        className="text-blue-600 hover:text-blue-900 mr-4"
-                        disabled={editingId !== null || updateProcessing || deleteProcessing}
-                      >
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(item.id)}
-                        className="text-red-600 hover:text-red-900"
-                        disabled={editingId !== null || updateProcessing || deleteProcessing}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </AppLayout>
-  );
-};
 
-export default ComplianceMetrics;
+                {mode === 'add' && (
+                    <SettingForm form={addForm} onSubmit={saveAdd} onCancel={cancel} heading="Add a setting" submitLabel="Save setting" />
+                )}
+
+                {/* empty state */}
+                {metrics.length === 0 && mode !== 'add' && (
+                    <div className="rounded-3xl border-2 border-dashed border-gray-200 bg-white px-6 py-14 text-center">
+                        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-100 text-brand-800"><Sparkles className="h-7 w-7" /></span>
+                        <p className="mt-4 text-lg font-extrabold text-gray-900">No settings yet</p>
+                        <p className="mx-auto mt-1 max-w-md text-sm text-gray-500">
+                            Start from the recommended list (Safety Passport, Overall Compliance, NC, Client Complaint, BSPR) and then adjust the percent and penalty values.
+                        </p>
+                        <div className="mt-6 flex flex-wrap justify-center gap-3">
+                            <button onClick={loadDefaults} disabled={loadingDefaults} className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-5 py-3 text-sm font-extrabold text-ink-900 shadow-md active:scale-95 transition disabled:opacity-50">
+                                {loadingDefaults ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Load default settings
+                            </button>
+                            <button onClick={startAdd} className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-5 py-3 text-sm font-bold text-gray-700">
+                                <Plus className="h-4 w-4" /> Add my own
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* the one table */}
+                {metrics.length > 0 && (
+                    <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-100 text-sm">
+                                <thead className="bg-gray-50 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                                    <tr>
+                                        <th className="w-12 px-5 py-3">#</th>
+                                        <th className="px-5 py-3">Title</th>
+                                        <th className="px-5 py-3">Description</th>
+                                        <th className="px-5 py-3">Percent setting</th>
+                                        <th className="px-5 py-3">Penalty value (RM)</th>
+                                        <th className="px-5 py-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {metrics.map((m, i) => {
+                                        const editing = mode === m.id;
+                                        return (
+                                            <React.Fragment key={m.id}>
+                                                <tr className={`transition hover:bg-gray-50 ${editing ? 'bg-brand-100/40' : ''}`}>
+                                                    <td className="px-5 py-4 text-gray-400">{i + 1}</td>
+                                                    <td className="px-5 py-4 font-bold text-gray-900">{m.title}</td>
+                                                    <td className="max-w-md px-5 py-4 text-gray-600">{m.description}</td>
+                                                    <td className="whitespace-nowrap px-5 py-4">
+                                                        {m.percent === null || m.percent === undefined ? (
+                                                            <span className="text-gray-300">—</span>
+                                                        ) : (
+                                                            <span className="inline-flex rounded-full bg-brand-100 px-3 py-1 text-xs font-extrabold text-brand-900">{Number(m.percent).toFixed(2)}%</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="whitespace-nowrap px-5 py-4">
+                                                        {rm(m.value) ? (
+                                                            <span className="inline-flex rounded-full bg-ink-900 px-3 py-1 text-xs font-extrabold text-brand-400">{rm(m.value)}</span>
+                                                        ) : (
+                                                            <span className="text-gray-300">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className="whitespace-nowrap px-5 py-4">
+                                                        <div className="flex justify-end gap-1.5">
+                                                            <button onClick={() => (editing ? cancel() : startEdit(m))} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-ink-900 px-3 text-xs font-bold text-brand-400">
+                                                                <Pencil className="h-3.5 w-3.5" /> Edit
+                                                            </button>
+                                                            <button onClick={() => remove(m)} className="flex h-9 w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-50" title="Delete">
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {editing && (
+                                                    <tr>
+                                                        <td colSpan="6" className="bg-gray-50 p-4">
+                                                            <SettingForm form={editForm} onSubmit={saveEdit} onCancel={cancel} heading="Edit setting" submitLabel="Update setting" />
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </div>
+        </AppLayout>
+    );
+}
