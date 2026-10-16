@@ -16,6 +16,7 @@ class ComplianceMetrics extends Model
         'description',
         'company_id',
         'percent',
+        'value',
     ];
 
     /**

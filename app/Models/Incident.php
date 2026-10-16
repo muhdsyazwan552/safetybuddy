@@ -85,6 +85,18 @@ class Incident extends Model
         return $this->belongsTo(CompanyStaff::class, 'responsible_by');
     }
 
+    /** Responses of the Supervisor / Manager, oldest first. */
+    public function responses()
+    {
+        return $this->hasMany(IncidentResponse::class, 'incident_id')->orderBy('id');
+    }
+
+    /** Subcontractor staff involved in the incident. */
+    public function involvedStaff()
+    {
+        return $this->belongsToMany(SubconStaff::class, 'incident_staff', 'incident_id', 'subcon_staff_id')->withTimestamps();
+    }
+
     public function reviewedBy()
     {
         return $this->belongsTo(CompanyStaff::class, 'review_by');

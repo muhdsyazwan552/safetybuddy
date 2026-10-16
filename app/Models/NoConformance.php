@@ -18,11 +18,16 @@ class NoConformance extends Model
         'date_close',
         'review_by', // FK to staff
         'comment',
+        'subcon_response',
+        'responded_at',
+        'responded_by',
+        'return_reason',
     ];
 
     protected $casts = [
         'date_open' => 'date',
         'date_close' => 'date',
+        'responded_at' => 'datetime',
     ];
 
     public function inspection()

@@ -21,6 +21,11 @@ class SubconStaff extends Model
         'status'
     ];
 
+    public function certifications()
+    {
+        return $this->hasMany(SubconStaffCertification::class, 'subcon_staff_id')->orderByDesc('id');
+    }
+
     public function subconCompany()
     {
         return $this->belongsTo(SubconCompany::class, 'company_id', 'id');

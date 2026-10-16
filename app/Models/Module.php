@@ -11,6 +11,9 @@ class Module extends Model
 
     protected $table = 'modules';
 
+    // the modules table has no created_at / updated_at columns
+    public $timestamps = false;
+
     protected $fillable = [
         'code', // Unique code for the module
         'name', // Display name of the module
