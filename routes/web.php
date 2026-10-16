@@ -84,6 +84,22 @@ Route::prefix('subcon')->group(function () {
 
     // Leader-only routes
     Route::put('/{token}/staff/{staffId}', [SubconPublicController::class, 'updateStaff'])->name('subcon.public.staff.update');
+
+    // Safety induction ticks + machinery: leader only (secret leader key is checked)
+    Route::get('/{token}/attendance', [\App\Http\Controllers\SubconPortalController::class, 'attendance'])->name('subcon.public.attendance');
+    Route::get('/{token}/attendance/history', [\App\Http\Controllers\SubconPortalController::class, 'attendanceHistory'])->name('subcon.public.attendance.history');
+    Route::post('/{token}/attendance', [\App\Http\Controllers\SubconPortalController::class, 'saveAttendance'])->name('subcon.public.attendance.save');
+    Route::post('/{token}/cases/{type}/{id}/respond', [\App\Http\Controllers\SubconPortalController::class, 'respondCase'])
+        ->where('type', 'nc|cc')->name('subcon.public.case.respond');
+    Route::post('/{token}/induction/acknowledge-all', [\App\Http\Controllers\SubconPortalController::class, 'acknowledgeAll'])->name('subcon.public.induction.all');
+    Route::post('/{token}/induction/{topicId}', [\App\Http\Controllers\SubconPortalController::class, 'toggleInduction'])->name('subcon.public.induction.toggle');
+    Route::post('/{token}/machinery', [\App\Http\Controllers\SubconPortalController::class, 'storeMachinery'])->name('subcon.public.machinery.store');
+    Route::post('/{token}/machinery/{id}', [\App\Http\Controllers\SubconPortalController::class, 'updateMachinery'])->name('subcon.public.machinery.update');
+    Route::delete('/{token}/machinery/{id}', [\App\Http\Controllers\SubconPortalController::class, 'destroyMachinery'])->name('subcon.public.machinery.destroy');
+
+    // Staff certification records: anyone may upload, only the leader may remove
+    Route::post('/{token}/staff/{staffId}/certifications', [\App\Http\Controllers\SubconPortalController::class, 'storeCertification'])->name('subcon.public.cert.store');
+    Route::delete('/{token}/staff/{staffId}/certifications/{certId}', [\App\Http\Controllers\SubconPortalController::class, 'destroyCertification'])->name('subcon.public.cert.destroy');
     Route::delete('/{token}/staff/{staffId}', [SubconPublicController::class, 'destroyStaff'])->name('subcon.public.staff.destroy');
 });
 
@@ -92,8 +108,20 @@ Route::middleware(['auth', 'role:2'])->group(function () {
 
     Route::get('/compliance-metrics', [ContentController::class, 'compMetrics'])
         ->name('compliance.metrics');
-    Route::get('/penalty-settings', [ContentController::class, 'penalSetting'])
+    // Penalty Settings were merged into Compliance Metrics - keep the old URL working
+    Route::get('/penalty-settings', fn () => redirect()->route('compliance.metrics'))
         ->name('penalty.settings');
+
+    // Performance settings > Safety Induction (Safety Passport Rules, Appendix A defaults)
+    Route::get('/safety-induction', [\App\Http\Controllers\SafetyInductionController::class, 'index'])->name('safety.induction');
+    Route::post('/safety-induction/topics', [\App\Http\Controllers\SafetyInductionController::class, 'store'])->name('safety.induction.store');
+    Route::put('/safety-induction/topics/{id}', [\App\Http\Controllers\SafetyInductionController::class, 'update'])->name('safety.induction.update');
+    Route::patch('/safety-induction/topics/{id}/toggle', [\App\Http\Controllers\SafetyInductionController::class, 'toggle'])->name('safety.induction.toggle');
+    Route::post('/safety-induction/topics/{id}/reset', [\App\Http\Controllers\SafetyInductionController::class, 'reset'])->name('safety.induction.reset');
+    Route::delete('/safety-induction/topics/{id}', [\App\Http\Controllers\SafetyInductionController::class, 'destroy'])->name('safety.induction.destroy');
+    Route::post('/safety-induction/reorder', [\App\Http\Controllers\SafetyInductionController::class, 'reorder'])->name('safety.induction.reorder');
+    Route::post('/safety-induction/restore-missing', [\App\Http\Controllers\SafetyInductionController::class, 'restoreMissing'])->name('safety.induction.restore');
+    Route::post('/safety-induction/reset-all', [\App\Http\Controllers\SafetyInductionController::class, 'resetAll'])->name('safety.induction.reset.all');
 
 
     Route::get('/manage-employee', [ContentController::class, 'manageEmployee'])->name('manage.employee');
@@ -110,6 +138,9 @@ Route::middleware(['auth', 'role:2'])->group(function () {
         ->name('executor');
     Route::get('/inspection', [ContentController::class, 'inspection'])
         ->name('inspection');
+    Route::get('/site-visits/create', [\App\Http\Controllers\Inspector\DashboardController::class, 'createVisit'])->name('site-visits.create');
+    Route::post('/site-visits', [\App\Http\Controllers\Inspector\DashboardController::class, 'storeVisit'])->name('site-visits.store');
+    Route::get('/site-visits/{key}', [ContentController::class, 'visitShow'])->name('site-visits.show');
     Route::get('/non-conformance', [ContentController::class, 'nonConformance'])
         ->name('non.conformance');
     Route::get('/client-complaint', [ContentController::class, 'clientComplaint'])
@@ -122,17 +153,25 @@ Route::middleware(['auth', 'role:2'])->group(function () {
         ->name('man.hour.overall');
     Route::post('/man-hour', [ManhourController::class, 'store'])
         ->name('man.hour.store');
+    Route::get('/man-hour/subcontractors/{subcon}/staff', [ManhourController::class, 'subconStaff'])
+        ->name('man.hour.subcon-staff');
     Route::get('/man-hour/projects/{project}/subcontractors', [ManhourController::class, 'projectSubcontractors'])
         ->name('man.hour.project-subcontractors');
-    Route::get('/daily-reports', [ContentController::class, 'dailyReports'])
-        ->name('daily.reports');
-    Route::get('/monthly-reports', [ContentController::class, 'monthlyReports'])
-        ->name('monthly.reports');
+    // SPGPNC & BSPR performance: daily / monthly inspection reports, settings, explanation
+    Route::get('/daily-reports', [\App\Http\Controllers\PerformanceController::class, 'index'])->name('daily.reports');
+    Route::get('/monthly-reports', [\App\Http\Controllers\PerformanceController::class, 'index'])->name('monthly.reports');
+    Route::get('/daily-reports/{id}', [\App\Http\Controllers\PerformanceController::class, 'dailyShow'])->where('id', '[0-9]+')->name('daily.reports.show');
+    Route::get('/monthly-reports/{id}', [\App\Http\Controllers\PerformanceController::class, 'monthlyShow'])->where('id', '[0-9]+')->name('monthly.reports.show');
+    Route::get('/performance/learn-more', [\App\Http\Controllers\PerformanceController::class, 'learnMore'])->name('performance.learn');
+    Route::put('/performance-settings', [\App\Http\Controllers\PerformanceController::class, 'updateSettings'])->name('performance.settings');
     Route::get('/executors/{id}/staff', [ContentController::class, 'executorStaff'])
         ->name('executor.staff');
-    Route::get('/toolbox-talks', [ContentController::class, 'toolbox'])->name('toolbox');
+    // Toolbox Talks live inside the combined Toolbox & Inspection page (first section)
+    Route::get('/toolbox-talks', fn () => redirect('/inspection#toolbox'))->name('toolbox');
 
     Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
+    Route::put('/staff/{id}', [StaffController::class, 'update'])->name('staff.update');
+    Route::delete('/staff/{id}', [StaffController::class, 'destroy'])->name('staff.destroy');
 
     Route::get('/list-project', [AuthController::class, 'listProject'])->name('admin.listproject');
     Route::get('/dashboard', [AuthController::class, 'index'])->name('admin.dashboard');
@@ -142,9 +181,7 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::put('/compliance-metrics/{id}', [MetricController::class, 'updateMetrics'])->name('compliance-metrics.update');
     Route::delete('/compliance-metrics/{id}', [MetricController::class, 'destroyMetrics'])->name('compliance-metrics.destroy');
 
-    Route::post('/post-penalty-settings', [MetricController::class, 'storePenalty'])->name('penalty-settings.store');
-    Route::put('/penalty-settings/{id}', [MetricController::class, 'updatePenalty'])->name('penalty-settings.update');
-    Route::delete('/penalty-settings/{id}', [MetricController::class, 'destroyPenalty'])->name('penalty-settings.destroy');
+    Route::post('/compliance-metrics/defaults', [MetricController::class, 'loadDefaults'])->name('compliance-metrics.defaults');
 
 
     Route::get('/executors/{id}/project', [ContentController::class, 'executorProjDetails'])->name('executor.project.detail');
@@ -152,6 +189,9 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::put('/assignments/{assignment}', [ProjectController::class, 'updateAssignment'])->name('projects.update-assignment');
     Route::delete('/assignments/{assignment}', [ProjectController::class, 'destroyAssignment'])->name('projects.remove-assignment');
 
+    Route::post('inspections/{inspection}/verify', [InspectionController::class, 'verify'])->name('inspections.verify');
+    Route::post('inspections/{inspection}/approve', [InspectionController::class, 'approve'])->name('inspections.approve');
+    Route::post('inspections/{inspection}/reject', [InspectionController::class, 'reject'])->name('inspections.reject');
     Route::resource('inspections', InspectionController::class);
     Route::post('inspections/multiple', [InspectionController::class, 'storeMultiple'])->name('inspections.multiple');
     Route::delete('inspections/{inspection}/photos', [InspectionController::class, 'removePhotos'])->name('inspections.photos.remove');
@@ -162,7 +202,6 @@ Route::middleware(['auth', 'role:2'])->group(function () {
         ->name('dashboard.inspection');
 
     Route::post('/public/staff', [StaffController::class, 'publicStore'])->name('public.staff.store');
-    Route::get('/public/staff/{company}', [StaffController::class, 'publicForm'])->name('public.staff.form');
 
     Route::patch('non-conformances/{nonConformance}/status', [InspectionController::class, 'updateNonConformanceStatus']);
     Route::patch('client-complaints/{clientComplaint}/status', [InspectionController::class, 'updateClientComplaintStatus']);
@@ -174,6 +213,7 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::get('/incident/create', [IncidentController::class, 'create'])->name('incident.create');
     Route::post('/incident', [IncidentController::class, 'store'])->name('incident.store');
     Route::get('/incident/project-assignments/{projectId}', [IncidentController::class, 'getProjectAssignments']);
+    Route::get('/incident/subcon-staff/{subconId}', [IncidentController::class, 'subconStaff']);
 
     Route::get('/roles', function () {
         return Role::select('id', 'name')->get(); // return only needed fields
@@ -216,7 +256,43 @@ Route::middleware(['auth', 'role:2'])->group(function () {
 
 
 
-Route::middleware(['auth', 'role:4,7,8'])->prefix('inspector')->name('inspector.')->group(function () {
+// Supervisor (4) and Manager (3) review portal: verify / approve inspections, answer NC / CC cases
+Route::middleware(['auth', 'role:3,4'])->prefix('review')->name('review.')->group(function () {
+    $c = \App\Http\Controllers\ReviewController::class;
+    Route::get('/dashboard', [$c, 'dashboard'])->name('dashboard');
+    Route::get('/inspections', [$c, 'inspectionsIndex'])->name('inspections');
+    Route::get('/cases', [$c, 'casesIndex'])->name('cases');
+    Route::get('/toolbox', [$c, 'toolboxIndex'])->name('toolbox');
+    Route::get('/visits', [$c, 'visitsIndex'])->name('visits');
+
+    // performance reports (Supervisor verifies, Manager approves and reviews penalties)
+    Route::get('/reports', [\App\Http\Controllers\PerformanceController::class, 'index'])->name('reports');
+    Route::get('/reports/daily/{id}', [\App\Http\Controllers\PerformanceController::class, 'dailyShow'])->where('id', '[0-9]+')->name('reports.daily');
+    Route::get('/reports/monthly/{id}', [\App\Http\Controllers\PerformanceController::class, 'monthlyShow'])->where('id', '[0-9]+')->name('reports.monthly');
+    Route::post('/reports/daily/{id}/penalty', [\App\Http\Controllers\PerformanceController::class, 'penaltyReview'])->name('reports.penalty');
+    Route::post('/reports/monthly/{id}/verify', [\App\Http\Controllers\PerformanceController::class, 'monthlyVerify'])->name('reports.monthly.verify');
+    Route::post('/reports/monthly/{id}/approve', [\App\Http\Controllers\PerformanceController::class, 'monthlyApprove'])->name('reports.monthly.approve');
+    Route::post('/reports/monthly/{id}/reject', [\App\Http\Controllers\PerformanceController::class, 'monthlyReject'])->name('reports.monthly.reject');
+    Route::get('/performance', [\App\Http\Controllers\PerformanceController::class, 'learnMore'])->name('performance');
+    Route::get('/incidents', [$c, 'incidentsIndex'])->name('incidents');
+    Route::get('/incidents/{id}', [$c, 'incidentShow'])->where('id', '[0-9]+')->name('incidents.show');
+    Route::post('/incidents/{id}/respond', [$c, 'incidentRespond'])->name('incidents.respond');
+    Route::post('/incidents/{id}/close', [$c, 'incidentClose'])->name('incidents.close');
+    Route::post('/incidents/{id}/reopen', [$c, 'incidentReopen'])->name('incidents.reopen');
+    Route::get('/visits/{key}', [$c, 'visitShow'])->where('key', '(talk|insp)-[0-9]+')->name('visits.show');
+    Route::get('/cases/{type}/{id}', [$c, 'caseShow'])->where('type', 'nc|cc')->where('id', '[0-9]+')->name('cases.show');
+    Route::get('/inspections/{id}', [$c, 'inspectionShow'])->where('id', '[0-9]+')->name('inspections.show');
+    Route::post('/visits/{id}/verify', [$c, 'visitVerify'])->name('visits.verify');
+    Route::post('/visits/{id}/approve', [$c, 'visitApprove'])->name('visits.approve');
+    Route::post('/visits/{id}/reject', [$c, 'visitReject'])->name('visits.reject');
+    Route::post('/inspections/{inspection}/verify', [InspectionController::class, 'verify'])->name('inspections.verify');
+    Route::post('/inspections/{inspection}/approve', [InspectionController::class, 'approve'])->name('inspections.approve');
+    Route::post('/inspections/{inspection}/reject', [InspectionController::class, 'reject'])->name('inspections.reject');
+    Route::post('/cases/{type}/{id}/close', [$c, 'closeCase'])->where('type', 'nc|cc')->name('cases.close');
+    Route::post('/cases/{type}/{id}/return', [$c, 'returnCase'])->where('type', 'nc|cc')->name('cases.return');
+});
+
+Route::middleware(['auth', 'role:7,8'])->prefix('inspector')->name('inspector.')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -233,7 +309,12 @@ Route::middleware(['auth', 'role:4,7,8'])->prefix('inspector')->name('inspector.
     // Inspections
     Route::get('/inspections', [DashboardController::class, 'inspections'])->name('inspections');
     Route::get('/inspections/detail/{id}', [DashboardController::class, 'showInspection'])->name('inspector.inspections.show');
-    Route::get('/inspections/create', [DashboardController::class, 'createInspection'])->name('inspections.create');
+    // Inspections always start from the site visit flow (toolbox talk first, can be skipped)
+    Route::get('/visits', [DashboardController::class, 'visits'])->name('visits');
+    Route::get('/visits/create', [DashboardController::class, 'createVisit'])->name('visits.create');
+    Route::post('/visits', [DashboardController::class, 'storeVisit'])->name('visits.store');
+    Route::get('/inspections/create', fn () => redirect()->route('inspector.visits.create'))->name('inspections.create');
+
     Route::post('/inspections', [DashboardController::class, 'storeInspection'])->name('inspections.store');
     Route::get('/inspections/{id}', [DashboardController::class, 'showInspection'])->name('inspections.show');
     Route::get('/inspections/{id}/edit', [DashboardController::class, 'editInspection'])->name('inspections.edit');
@@ -245,6 +326,14 @@ Route::middleware(['auth', 'role:4,7,8'])->prefix('inspector')->name('inspector.
     // Projects
     Route::get('/projects', [DashboardController::class, 'projects'])->name('projects');
     Route::get('/projects/{id}', [DashboardController::class, 'showProject'])->name('projects.show');
+
+    // Report incident (same form as the admin) + daily attendance viewer
+    Route::get('/incidents', [IncidentController::class, 'inspectorIndex'])->name('incidents');
+    Route::get('/incidents/create', [IncidentController::class, 'create'])->name('incident.create');
+    Route::post('/incidents', [IncidentController::class, 'store'])->name('incident.store');
+    Route::get('/incidents/project-assignments/{projectId}', [IncidentController::class, 'getProjectAssignments']);
+    Route::get('/incidents/subcon-staff/{subconId}', [IncidentController::class, 'subconStaff']);
+    Route::get('/attendance', [DashboardController::class, 'attendance'])->name('attendance');
 
     // Subcon Companies
     Route::get('/subcon-companies', [DashboardController::class, 'subconCompanies'])->name('subcon-companies');

@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import AdminLayout from '@/Pages/WSIS/Layout';
+import ReviewLayout from '@/Layouts/ReviewLayout';
+import { confirmLogout } from '@/Helpers/logout';
 
 const INSPECTOR_ROLES = [4, 7, 8];
 
@@ -192,9 +194,12 @@ function PasswordForm() {
 export default function Edit({ account = {}, mustVerifyEmail, status }) {
     const { auth } = usePage().props;
     const user = auth.user;
-    const isInspector = INSPECTOR_ROLES.includes(Number(user.role_id));
-    const Layout = isInspector ? InspectorLayout : AdminLayout;
-    const layoutProps = isInspector ? { user } : { title: 'Settings' };
+    // every role gets the shell of its own portal: Manager / Supervisor -> review, Inspector -> inspector, others -> admin
+    const roleId = Number(user.role_id);
+    const isReviewer = [3, 4].includes(roleId);
+    const isInspector = !isReviewer && INSPECTOR_ROLES.includes(roleId);
+    const Layout = isReviewer ? ReviewLayout : isInspector ? InspectorLayout : AdminLayout;
+    const layoutProps = isReviewer ? { title: 'My profile' } : isInspector ? { user } : { title: 'Settings' };
 
     const initial = (user.name || '?').charAt(0).toUpperCase();
 
@@ -266,7 +271,7 @@ export default function Edit({ account = {}, mustVerifyEmail, status }) {
                         <p className="text-xs text-gray-500">End your session on this device.</p>
                     </div>
                     <button
-                        onClick={() => router.post('/logout')}
+                        onClick={() => confirmLogout()}
                         className="inline-flex items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-2.5 text-sm font-extrabold text-red-600 active:scale-95 transition"
                     >
                         <LogOut className="h-4 w-4" /> Log out

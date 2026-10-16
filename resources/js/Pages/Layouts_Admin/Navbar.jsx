@@ -2,6 +2,7 @@ import { FaBars, FaUserCircle, FaChevronDown, FaSignOutAlt, FaHome, FaUser, FaBu
 import { useState, useRef, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import { FiAlignLeft } from 'react-icons/fi';
+import { confirmLogout } from '@/Helpers/logout';
 
 export default function Navbar({ 
   collapsed, 
@@ -43,7 +44,7 @@ export default function Navbar({
 
   const handleLogout = (e) => {
     e.preventDefault();
-    router.post('/logout');
+    confirmLogout();
   };
 
   return (

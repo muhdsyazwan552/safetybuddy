@@ -17,6 +17,7 @@ import {
   FaExclamationTriangle,
   FaChartLine
 } from 'react-icons/fa';
+import { confirmLogout } from '@/Helpers/logout';
 
 const iconMap = {
     'SB360-WSIS': '📊',
@@ -203,7 +204,7 @@ const Module = () => {
 
     const handleLogout = (e) => {
         e.preventDefault();
-        router.post('/logout');
+        confirmLogout();
     };
 
     const handleModuleChange = (modulePath) => {

@@ -71,8 +71,8 @@ table { max-width: 100%; }
    (p-1 / p-2) and menu items are left alone.
 ------------------------------------------------------------------- */
 @media (max-width: 639px) {
-  button[class*="rounded"][class*="px-"],
-  a[class*="rounded"][class*="px-"][class*="py-"],
+  button[class*="rounded"][class*="px-"]:not(.sb-create):not([class*="bg-brand-500"]):not([class*="bg-blue-600"]),
+  a[class*="rounded"][class*="px-"][class*="py-"]:not(.sb-create):not([class*="bg-brand-500"]):not([class*="bg-blue-600"]),
   input[type="submit"][class*="px-"],
   input[type="button"][class*="px-"] {
     padding-left: 0.75rem !important;
@@ -227,3 +227,130 @@ table { max-width: 100%; }
 }
 .font-geist { font-family: 'Geist', 'Figtree', ui-sans-serif, system-ui, sans-serif; }
 html { scroll-behavior: smooth; }
+
+/* ==================================================================
+   Unified Safety Buddy design system  (yellow + glossy black)
+   One look for Admin, Inspector, Supervisor, Manager and Subcon:
+   fonts, radius, buttons, tables, inputs and dark surfaces.
+=================================================================== */
+:root {
+  --sb-yellow-1: #FDE047;
+  --sb-yellow-2: #F7D31A;
+  --sb-yellow-3: #E3B90A;
+  /* glossy black: diagonal base + a soft glass sheen along the top edge */
+  --sb-glossy:
+    linear-gradient(180deg, rgba(255,255,255,.17) 0, rgba(255,255,255,.06) 26px, rgba(255,255,255,0) 27px),
+    linear-gradient(135deg, #3a4250 0%, #1b212a 38%, #0c0f14 100%);
+  --sb-glossy-th: linear-gradient(180deg, #2c3441 0%, #171c24 55%, #0d1015 100%);
+  --sb-glossy-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.55);
+  --sb-radius: .75rem;
+}
+
+/* ---- fonts: one family everywhere ---------------------------------- */
+html, body, button, input, select, textarea, table { font-family: 'Figtree', Helvetica, ui-sans-serif, system-ui, sans-serif; }
+.font-geist { font-family: inherit; }
+body { letter-spacing: -0.005em; }
+h1, h2, h3 { letter-spacing: -0.015em; }
+
+/* ---- radius: soft and equal across every portal -------------------- */
+.rounded, .rounded-md, .rounded-lg { border-radius: var(--sb-radius); }
+.rounded-xl { border-radius: 1rem; }
+
+/* ---- glossy black surfaces (sidebars, headers, hero cards, dark buttons) */
+.bg-ink-900:not([class*="bg-opacity"]), .bg-ink-950:not([class*="bg-opacity"]), .bg-ink-800:not([class*="bg-opacity"]),
+.bg-slate-800:not([class*="bg-opacity"]), .bg-slate-900:not([class*="bg-opacity"]),
+.bg-gray-800:not([class*="bg-opacity"]), .bg-gray-900:not([class*="bg-opacity"]) {
+  background-color: #12171E;
+  background-image: var(--sb-glossy);
+  box-shadow: var(--sb-glossy-shadow);
+}
+[class*="from-ink-9"] { background-image: var(--sb-glossy) !important; box-shadow: var(--sb-glossy-shadow); }
+/* the dark text on glossy black should stay readable */
+.bg-ink-900 .text-ink-300, .bg-ink-950 .text-ink-300 { color: #AEB7C4; }
+/* keep icon chips / badges that sit on a dark bar flat so the gloss does not stack */
+.bg-ink-900 .bg-ink-900, .bg-ink-950 .bg-ink-900, [class*="from-ink-9"] .bg-ink-900 { box-shadow: none; }
+.sb-glossy { background-color: #12171E; background-image: var(--sb-glossy); box-shadow: var(--sb-glossy-shadow); color: #fff; }
+
+/* ---- yellow buttons / chips: glossy gold ---------------------------- */
+.bg-brand-500, .bg-brand-600, .bg-blue-500, .bg-blue-600, .bg-indigo-500, .bg-indigo-600 {
+  background-color: var(--sb-yellow-2);
+  background-image: linear-gradient(180deg, var(--sb-yellow-1) 0%, var(--sb-yellow-2) 52%, var(--sb-yellow-3) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -1px 0 rgba(0,0,0,.12);
+  color: #12171E;
+}
+.hover\:bg-brand-400:hover, .hover\:bg-brand-600:hover, .hover\:bg-blue-600:hover, .hover\:bg-blue-700:hover,
+.hover\:bg-indigo-600:hover, .hover\:bg-indigo-700:hover {
+  background-image: linear-gradient(180deg, #FEE96B 0%, #FBD926 52%, #E8BD0A 100%);
+}
+button.bg-brand-500, a.bg-brand-500, button.bg-blue-600, a.bg-blue-600 { font-weight: 800; }
+button:disabled.bg-brand-500, button:disabled.bg-blue-600 { filter: grayscale(.25); }
+
+/* ---- tables: glossy black header, yellow type, clean rows -------------- */
+table { border-collapse: collapse; font-size: .875rem; }
+table thead th, table thead td {
+  background-color: #12171E !important;
+  background-image: var(--sb-glossy-th) !important;
+  color: var(--sb-yellow-2) !important;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  border-color: rgba(255,255,255,.07) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12);
+}
+table thead tr:first-child th:first-child { border-top-left-radius: .75rem; }
+table thead tr:first-child th:last-child { border-top-right-radius: .75rem; }
+table tbody tr { transition: background-color .12s ease; }
+table tbody tr:hover { background-color: #FFFBEB; }
+table tbody td { vertical-align: middle; }
+table tfoot td, table tfoot th { background-color: #FEF6C3 !important; color: #12171E !important; font-weight: 800; }
+/* a "table" built out of bg-gray-50 header bars in reports etc. */
+.divide-y > tr:first-child { }
+
+/* ---- inputs: same border, radius and yellow focus ------------------ */
+input[type='text'], input[type='email'], input[type='password'], input[type='number'], input[type='search'],
+input[type='tel'], input[type='url'], input[type='date'], input[type='datetime-local'], input[type='time'], select, textarea {
+  border-radius: var(--sb-radius);
+  border-color: #D1D5DB;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: #EAB308 !important;
+  box-shadow: 0 0 0 3px rgba(247, 211, 26, .35) !important;
+  outline: none;
+}
+
+/* ---- cards: a consistent hairline + soft shadow ------------------------ */
+.shadow-sm { box-shadow: 0 1px 2px rgba(18,23,30,.06), 0 1px 3px rgba(18,23,30,.05); }
+
+/* ---- links ----------------------------------------------------------- */
+a:focus-visible, button:focus-visible { outline: 2px solid #EAB308; outline-offset: 2px; }
+::selection { background: rgba(247, 211, 26, .5); }
+
+/* ---- the one "create / add / save" button -------------------------------
+   Same height, radius, weight and gloss everywhere. Use class `sb-create`
+   or any filled yellow button (bg-brand-500 / bg-blue-600 ...). */
+.sb-create,
+:is(button, a, input[type='submit']):is(.bg-brand-500, .bg-brand-600, .bg-blue-500, .bg-blue-600, .bg-indigo-600):not([class*='text-xs']):not([class*='px-2']):not([class*='px-3']):not([class*='rounded-full']):not([class*='h-9']):not([class*='h-10']):not([class*='w-10']):not([class*='w-12']):not([class*='border-l-4']):not([class*='text-left']):not([class*='justify-between']) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  min-height: 2.75rem;
+  padding: .6rem 1.25rem;
+  border-radius: .875rem;
+  font-size: .875rem;
+  line-height: 1.25rem;
+  font-weight: 800;
+  color: #12171E;
+  white-space: nowrap;
+  background-color: var(--sb-yellow-2);
+  background-image: linear-gradient(180deg, var(--sb-yellow-1) 0%, var(--sb-yellow-2) 52%, var(--sb-yellow-3) 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), inset 0 -1px 0 rgba(0,0,0,.12), 0 6px 14px -8px rgba(202,138,4,.7);
+  border: 0;
+  cursor: pointer;
+  transition: transform .12s ease, filter .12s ease;
+}
+.sb-create:hover, :is(button, a, input[type='submit']):is(.bg-brand-500, .bg-blue-600):hover { filter: brightness(1.05); }
+.sb-create:active { transform: scale(.97); }
+.sb-create:disabled { opacity: .55; cursor: not-allowed; }
+.sb-create svg { width: 1.05rem; height: 1.05rem; flex-shrink: 0; }

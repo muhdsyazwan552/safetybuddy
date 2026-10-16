@@ -2,7 +2,7 @@
 import { Link, usePage } from '@inertiajs/react'; // Fixed import
 import { useEffect } from 'react';
 import {
-  FaTimes, FaAngleDoubleLeft, FaAngleDoubleRight, FaCogs, FaExclamationCircle, FaWrench,
+  FaBookOpen, FaTimes, FaAngleDoubleLeft, FaAngleDoubleRight, FaCogs, FaExclamationCircle, FaWrench,
   FaHardHat, FaSearch, FaBan, FaFlag,
   FaHome, FaHourglass, FaBiohazard,
   FaRegBuilding,
@@ -27,23 +27,22 @@ const NAVIGATION = [  // Changed to uppercase constant
   {
     category: 'Performance Metric Setting',
     items: [
-      { name: 'Compliance Metrics', href: '/compliance-metrics', icon: FaCogs },
-      { name: 'Penalty Settings', href: '/penalty-settings', icon: FaExclamationCircle },
+      { name: 'Safety Induction', href: '/safety-induction', icon: FaBookOpen },
+      { name: 'Compliance & Penalty', href: '/compliance-metrics', icon: FaCogs },
     ],
   },
   {
     category: 'Project Setting',
     items: [
-      { name: 'Project', href: '/manage-project', icon: FaHardHat },
       { name: 'Employee', href: '/manage-employee', icon: FaUser },
       { name: 'Executor', href: '/executor-project', icon: FaPeopleCarry },
+      { name: 'Project', href: '/manage-project', icon: FaHardHat },
     ],
   },
   {
     category: 'Inspection',
     items: [
-      { name: 'Inspections', href: '/inspection', icon: FaSearch },
-      { name: 'Toolbox Talks', href: '/toolbox-talks', icon: FaHardHat },
+      { name: 'Toolbox & Inspection', href: '/inspection', icon: FaSearch },
       // { name: 'Dashboard', href: '/dashboard-inspection', icon: FaChartLine },
     ],
   },
@@ -65,7 +64,7 @@ const NAVIGATION = [  // Changed to uppercase constant
     category: 'MAN-HOUR',
     items: [
       { name: 'Company Manhours', href: '/man-hour', icon: FaHourglass },
-      { name: 'Overall Manhours', href: '/man-hour/overall', icon: FaChartLine },
+      // { name: 'Overall Manhours', href: '/man-hour/overall', icon: FaChartLine },
      
     ],
   },
@@ -77,13 +76,13 @@ const NAVIGATION = [  // Changed to uppercase constant
      
     ],
   },
-  {
-    category: 'FEEDBACK',
-    items: [
-      { name: 'Feedback', href: '/e', icon: FaBan },
+  // {
+  //   category: 'FEEDBACK',
+  //   items: [
+  //     { name: 'Feedback', href: '/e', icon: FaBan },
      
-    ],
-  },
+  //   ],
+  // },
 ];
 
 export default function Sidebar({
