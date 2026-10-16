@@ -4,6 +4,57 @@ import AppLayout from '@/Pages/WSIS/Layout';
 import axios from 'axios';
 import { showAlert } from '@/Helpers/alert';
 
+// The three working tiers from the system document (Section 2).
+// Role ids come from the `roles` table: 3 = Manager, 4 = Supervisor, 7 = Inspector.
+const TIERS = {
+  3: {
+    tier: '1st Tier',
+    name: 'Manager',
+    action: 'Approves',
+    detail: 'Company, projects and settings; contractor approval; final inspection, NC/CC and monthly approvals.',
+    badge: 'bg-ink-900 text-brand-400',
+  },
+  4: {
+    tier: '2nd Tier',
+    name: 'Supervisor',
+    action: 'Verifies',
+    detail: 'Verifies inspections, NC/CC responses and monthly reports before they reach the Manager.',
+    badge: 'bg-brand-500 text-ink-900',
+  },
+  7: {
+    tier: '3rd Tier',
+    name: 'Inspector',
+    action: 'Creates',
+    detail: 'Creates inspections and toolbox talks, collects evidence and issues NC/CC.',
+    badge: 'bg-brand-100 text-brand-900',
+  },
+};
+
+// dropdowns show the plain role name (no tier prefix)
+const tierLabel = (id, fallback) => (TIERS[id] ? TIERS[id].name : fallback);
+
+function TierBadge({ roleId, fallback }) {
+  const t = TIERS[roleId];
+  if (!t) {
+    return (
+      <span className="inline-flex flex-col">
+        <span className="inline-flex w-fit items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-800">
+          {fallback || 'No role'}
+        </span>
+        {roleId ? <span className="mt-1 text-[11px] text-amber-700">Role not recognised – please choose one</span> : null}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex flex-col">
+      <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${t.badge}`}>
+        {t.name}
+      </span>
+      <span className="mt-1 text-[11px] text-gray-500">{t.action} inspections &amp; reports</span>
+    </span>
+  );
+}
+
 const StaffManagement = ({ title }) => {
   // Get all props from Inertia
   const { props } = usePage();
@@ -46,12 +97,17 @@ const StaffManagement = ({ title }) => {
     setEditValues({
       name: staff.name,
       email: staff.email,
-      role_id: staff.role_id,
+      // a role that is not Manager / Supervisor / Inspector must be re-assigned
+      role_id: TIERS[Number(staff.role_id)] ? staff.role_id : '',
       contact: staff.contact || ''  // Changed from 'phone' to 'contact'
     });
   };
 
   const handleSaveEdit = async (id) => {
+    if (!editValues.role_id) {
+      showAlert.warning('Choose the role for this staff member first (Manager, Supervisor or Inspector).', 'Role required');
+      return;
+    }
     try {
       const response = await axios.put(`/staff/${id}`, {
         name: editValues.name,
@@ -63,7 +119,9 @@ const StaffManagement = ({ title }) => {
       
       if (response.data.success) {
         setStaffMembers(staffMembers.map(item => 
-          item.id === id ? { ...item, ...editValues } : item
+          item.id === id
+            ? { ...item, ...editValues, role: roles?.find((r) => String(r.id) === String(editValues.role_id)) || item.role }
+            : item
         ));
         setEditingId(null);
         showAlert.success('Staff member updated successfully!');
@@ -86,7 +144,7 @@ const StaffManagement = ({ title }) => {
         showAlert.success('Staff member deleted successfully!');
       } catch (error) {
         console.error('Error deleting staff:', error);
-        showAlert.error('Failed to delete staff member. Please try again.');
+        showAlert.error(error.response?.data?.message || 'Failed to delete staff member. Please try again.', 'Cannot delete');
       }
     }
   };
@@ -157,11 +215,24 @@ const StaffManagement = ({ title }) => {
         <div className="flex justify-between items-center mb-5">
           <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
           <button 
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-800 transition-colors shadow-sm"
+            className="sb-create"
             onClick={() => setIsAdding(true)}
           >
             Add New Staff
           </button>
+        </div>
+
+        {/* Who does what */}
+        <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+          {[3, 4, 7].map((id) => (
+            <div key={id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TIERS[id].badge}`}>{TIERS[id].tier} · {TIERS[id].name}</span>
+                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">{TIERS[id].action}</span>
+              </div>
+              <p className="mt-2 text-sm text-gray-600">{TIERS[id].detail}</p>
+            </div>
+          ))}
         </div>
 
         <div className='bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden'>
@@ -258,15 +329,15 @@ const StaffManagement = ({ title }) => {
                             value={editValues.role_id}
                             onChange={(e) => setEditValues({...editValues, role_id: e.target.value})}
                           >
-                            <option value="">Select Role</option>
+                            <option value="">Select role</option>
                             {roles?.map(role => (
                               <option key={role.id} value={role.id}>
-                                {role.display_name}
+                                {tierLabel(role.id, role.display_name)}
                               </option>
                             ))}
                           </select>
                         ) : (
-                          staff.role?.display_name || 'No Role'
+                          <TierBadge roleId={Number(staff.role_id)} fallback={staff.role?.display_name} />
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -437,10 +508,10 @@ const StaffManagement = ({ title }) => {
                       onChange={handleInputChange}
                       required
                     >
-                      <option value="">Select Role</option>
+                      <option value="">Select role</option>
                       {roles?.map(role => (
                         <option key={role.id} value={role.id}>
-                          {role.display_name}
+                          {tierLabel(role.id, role.display_name)}
                         </option>
                       ))}
                     </select>

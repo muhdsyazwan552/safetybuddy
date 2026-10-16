@@ -3,12 +3,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import {
     Search, X, UserPlus, LayoutGrid, Rows3, Users, BadgeCheck, AlertTriangle, UserCheck, UserX, SlidersHorizontal,
-    Mail, Phone, MapPin, ShieldCheck, Eye, ArrowDownAZ, RotateCcw, Pencil, Info, Crown,
+    Mail, Phone, MapPin, ShieldCheck, Eye, ArrowDownAZ, RotateCcw, Pencil, Info, Crown, Tractor, ClipboardCheck,
 } from 'lucide-react';
 import { showAlert } from '@/Helpers/alert';
+import Toast from '@/Components/Toast';
 import StaffList from './Components/StaffList';
 import StaffDrawer from './Components/StaffDrawer';
 import AddStaffModal from './Components/AddStaffModal';
+import InductionPanel from './Components/InductionPanel';
+import MachineryPanel from './Components/MachineryPanel';
+import CasesPanel from './Components/CasesPanel';
+import AttendancePanel from './Components/AttendancePanel';
 import { completeness, isNewThisWeek, isActiveStatus } from './Components/staffUtils';
 
 const SORTS = [
@@ -44,12 +49,17 @@ function SummaryCard({ icon: Icon, label, value, tone, active, onClick, hint }) 
     );
 }
 
-export default function CompanyDetails({ company, staffs = [], public_token, leader_key = null, access_level, role }) {
+export default function CompanyDetails({
+    company, staffs = [], public_token, leader_key = null, access_level, role,
+    induction = { topics: [], total: 0, done: 0, complete: true }, machinery = [], cases = [], attendance_projects = [], hours_per_worker = 8, performance = null,
+}) {
     const isLeader = access_level === 'full';
     const canEdit = isLeader;
     const canDelete = isLeader;
 
     // ---- UI state
+    // the leader's daily jobs come first: reply to open cases, otherwise tick attendance
+    const [tab, setTab] = useState(() => (isLeader ? (cases.some((c) => c.state === 'open' || c.state === 'returned') ? 'cases' : 'attendance') : 'staff'));
     const [showModal, setShowModal] = useState(false);
     const [editingStaff, setEditingStaff] = useState(null);
     const [selected, setSelected] = useState(null);
@@ -229,129 +239,186 @@ export default function CompanyDetails({ company, staffs = [], public_token, lea
         setSort('newest');
     };
 
+    const openCases = cases.filter((c) => c.state !== 'closed').length;
+    const needsReply = cases.filter((c) => c.state === 'open' || c.state === 'returned').length;
+    const tabs = [
+        ...(isLeader ? [
+            { key: 'attendance', label: 'Daily attendance', short: 'Attendance', Icon: ClipboardCheck, count: '', warn: false },
+            { key: 'cases', label: 'NC / CC cases', short: 'Cases', Icon: AlertTriangle, count: needsReply || openCases, warn: needsReply > 0 },
+        ] : []),
+        { key: 'staff', label: 'Staff', short: 'Staff', Icon: Users, count: staffs.length, warn: false },
+        { key: 'induction', label: 'Safety induction', short: 'Induction', Icon: ShieldCheck, count: `${induction.done}/${induction.total}`, warn: !induction.complete },
+        { key: 'machinery', label: 'Machinery', short: 'Machinery', Icon: Tractor, count: machinery.length, warn: false },
+    ];
+
+    const TAB_HELP = {
+        attendance: ['Daily attendance', 'Choose the project and date, then tick the staff who worked. Hours are calculated for you.'],
+        cases: ['Cases to answer', 'Inspectors raised these against your company. Write what happened and what you did about it.'],
+        staff: ['Your staff', isLeader ? 'Tap a person to see details, edit, or remove them.' : 'Tap a person to see details. Ask your leader to edit or remove.'],
+        induction: ['Safety induction', isLeader ? 'Tick every topic after your team has been briefed. The company becomes Active when all are ticked.' : 'The leader ticks each topic after the team is briefed.'],
+        machinery: ['Machinery', 'Machines your company uses on site, with their certificate and operator.'],
+    };
+
     const pillBtn = (activeNow) =>
         `rounded-xl border px-3 py-2 text-xs font-bold transition ${activeNow ? 'border-ink-900 bg-ink-900 text-brand-400' : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'}`;
 
     return (
         <>
             <Head title={`${company.name} – Staff registration`} />
+            <Toast />
 
             <div className="min-h-screen bg-gray-100 pb-28">
                 {/* Top bar */}
-                <header className={isLeader ? 'bg-brand-500 text-ink-900' : 'bg-ink-900 text-white'}>
-                    <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
-                        <img src="/images/logo.png" alt="Safety Buddy" className={`h-10 w-10 rounded-full ring-2 ${isLeader ? 'ring-ink-900' : 'ring-brand-500'}`} />
+                <header className="sticky top-0 z-40 bg-ink-900 text-white shadow-md">
+                    <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
+                        <img src="/images/logo.png" alt="Safety Buddy" className="h-10 w-10 shrink-0 rounded-full ring-2 ring-brand-500" />
                         <div className="min-w-0 flex-1 leading-tight">
-                            <p className="truncate text-sm font-extrabold">Safety Buddy</p>
-                            <p className={`text-[10px] font-bold uppercase tracking-wider ${isLeader ? 'text-ink-900/70' : 'text-brand-400'}`}>
-                                {isLeader ? 'Leader console' : 'Subcontractor staff portal'}
+                            <p className="truncate text-[15px] font-extrabold">{company.name}</p>
+                            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-brand-400">
+                                {isLeader ? <Crown className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                                {isLeader ? 'Team leader' : 'Staff (view & register)'}
                             </p>
                         </div>
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-extrabold ${isLeader ? 'bg-ink-900 text-brand-400' : 'bg-white/10 text-gray-200'}`}>
-                            {isLeader ? <Crown className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                            {isLeader ? 'Leader · edit & delete' : 'Staff · view & register'}
+                        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-extrabold uppercase ${isActiveStatus(company.status) ? 'bg-emerald-500 text-white' : 'bg-amber-400 text-ink-900'}`}>
+                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
+                            {isActiveStatus(company.status) ? 'Active' : 'Inactive'}
                         </span>
                     </div>
                 </header>
 
-                <main className="mx-auto max-w-7xl space-y-5 px-4 py-5 sm:px-6 lg:px-8">
-                    {/* Company card */}
-                    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg sm:p-6">
-                        <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-brand-500/20 blur-2xl" />
-                        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex min-w-0 items-center gap-4">
-                                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-500 text-2xl font-extrabold text-ink-900">
-                                    {(company.name || '?').charAt(0).toUpperCase()}
-                                </span>
-                                <div className="min-w-0">
-                                    <h1 className="truncate text-xl font-extrabold sm:text-2xl">{company.name}</h1>
-                                    <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-300">
-                                        {company.email && <span className="flex items-center gap-1.5"><Mail className="h-3.5 w-3.5 text-brand-400" />{company.email}</span>}
-                                        {company.contact && <span className="flex items-center gap-1.5"><Phone className="h-3.5 w-3.5 text-brand-400" />{company.contact}</span>}
-                                        {company.address && <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5 text-brand-400" />{company.address}</span>}
-                                    </div>
-                                </div>
+                <main className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 lg:px-8">
+                    {/* Company contact - collapsed to keep the page short */}
+                    {(company.email || company.contact || company.address) && (
+                        <details className="group rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
+                            <summary className="flex cursor-pointer list-none items-center justify-between font-bold text-gray-700">
+                                Company details
+                                <span className="text-xs font-semibold text-gray-400 group-open:hidden">Show</span>
+                                <span className="hidden text-xs font-semibold text-gray-400 group-open:inline">Hide</span>
+                            </summary>
+                            <div className="mt-3 space-y-2 text-gray-600">
+                                {company.email && <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-gray-400" />{company.email}</p>}
+                                {company.contact && <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-gray-400" />{company.contact}</p>}
+                                {company.address && <p className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />{company.address}</p>}
                             </div>
+                        </details>
+                    )}
 
-                            {/* overall completeness */}
-                            <div className="w-full shrink-0 rounded-2xl bg-white/10 p-4 sm:w-60">
-                                <div className="flex items-baseline justify-between">
-                                    <span className="text-xs font-bold text-gray-300">Staff info complete</span>
-                                    <span className="text-lg font-extrabold text-brand-400">{stats.pct}%</span>
-                                </div>
-                                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15">
-                                    <div className="h-full rounded-full bg-brand-500 transition-all duration-500" style={{ width: `${stats.pct}%` }} />
-                                </div>
-                                <p className="mt-2 text-[11px] text-gray-400">
-                                    {stats.incomplete === 0 ? 'Everyone has complete details.' : `${stats.incomplete} of ${stats.total} still need details.`}
-                                </p>
-                            </div>
-                        </div>
-                    </section>
+                    {/* Inactive banner */}
+                    {!induction.complete && tab !== 'induction' && (
+                        <button
+                            type="button"
+                            onClick={() => setTab('induction')}
+                            className="flex w-full items-center gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-left transition hover:bg-amber-100"
+                        >
+                            <AlertTriangle className="h-6 w-6 shrink-0 text-amber-600" />
+                            <span className="text-sm text-amber-900">
+                                <b>This company is INACTIVE.</b> Safety induction is {induction.done}/{induction.total} ticked
+                                {isLeader ? ' — tap to complete it.' : ' — the company leader must tick every topic.'}
+                            </span>
+                        </button>
+                    )}
 
-                    {/* Role panel – clearly different for leader and staff */}
-                    {isLeader ? (
-                        <section className="overflow-hidden rounded-3xl border-2 border-brand-500 bg-white shadow-sm">
-                            <div className="flex flex-col gap-3 bg-brand-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex items-start gap-3">
-                                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink-900 text-brand-400">
-                                        <Crown className="h-5 w-5" />
+                    {/* Latest performance (leader) */}
+                    {isLeader && performance && (performance.daily.length > 0 || performance.monthly) && (
+                        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+                            <div className="flex items-center justify-between bg-ink-900 px-4 py-2.5 text-white">
+                                <h3 className="text-sm font-extrabold uppercase tracking-wide">Safety performance (SPGPNC)</h3>
+                                {performance.monthly && (
+                                    <span className="text-xs font-bold">
+                                        {performance.monthly.period}: {Number(performance.monthly.spgpnc ?? 0).toFixed(2)}% {performance.monthly.rank || ''}
                                     </span>
-                                    <div>
-                                        <p className="text-sm font-extrabold text-ink-900">You are the team leader</p>
-                                        <p className="text-xs text-ink-700">You can register, <b>edit</b>, activate / deactivate and <b>delete</b> staff of {company.name}.</p>
-                                    </div>
-                                </div>
-                                <button onClick={openAdd} className="inline-flex items-center justify-center gap-2 rounded-2xl bg-ink-900 px-4 py-2.5 text-sm font-bold text-brand-400 active:scale-95 transition">
-                                    <UserPlus className="h-4 w-4" /> Register staff
-                                </button>
+                                )}
                             </div>
-
-                            {stats.incomplete > 0 && (
-                                <div className="px-5 py-4">
-                                    <p className="mb-3 flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-amber-700">
-                                        <AlertTriangle className="h-4 w-4" /> Needs your attention ({stats.incomplete})
-                                    </p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {enriched.filter((s) => !s._info.isComplete).slice(0, 8).map((s) => (
-                                            <button
-                                                key={s.id}
-                                                onClick={() => openEdit(s)}
-                                                className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs font-bold text-amber-800 transition hover:bg-amber-100 active:scale-95"
-                                            >
-                                                <Pencil className="h-3.5 w-3.5" />
-                                                {s.name}
-                                                <span className="font-semibold text-amber-600">· {s._info.missing.map((m) => m.label).join(', ')}</span>
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-                        </section>
-                    ) : (
-                        <section className="flex items-start gap-3 rounded-3xl border border-sky-100 bg-sky-50 p-4 text-sky-900">
-                            <Info className="mt-0.5 h-5 w-5 shrink-0 text-sky-500" />
-                            <p className="text-sm">
-                                <b>Staff view.</b> You can see everyone in {company.name} and register new colleagues.
-                                To change or remove a record, please ask your <b>team leader</b>.
-                            </p>
+                            <ul className="divide-y divide-gray-100">
+                                {performance.daily.map((d) => (
+                                    <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                                        <span className="min-w-0">
+                                            <span className="block font-bold text-gray-900">{d.date}</span>
+                                            <span className="block truncate text-xs text-gray-500">{d.project}</span>
+                                        </span>
+                                        <span className="flex items-center gap-3 text-right">
+                                            <span className="font-extrabold text-ink-900">{d.spgpnc !== null ? `${Number(d.spgpnc).toFixed(2)}%` : 'Incomplete'}</span>
+                                            {d.rank && <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold text-white ${d.rank === 'GOLD' ? 'bg-amber-500' : d.rank === 'SILVER' ? 'bg-slate-400' : 'bg-orange-600'}`}>{d.rank}</span>}
+                                            <span className="text-xs font-semibold text-gray-600">RM{Number(d.penalty).toLocaleString()}</span>
+                                        </span>
+                                    </li>
+                                ))}
+                            </ul>
                         </section>
                     )}
 
-                    {/* Summary / quick filters */}
-                    <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-                        <SummaryCard icon={Users} label="Registered staff" value={stats.total} tone="neutral"
-                            active={info === 'all' && status === 'all'} onClick={() => { setInfo('all'); setStatus('all'); }}
-                            hint={stats.fresh ? `${stats.fresh} new this week` : 'All registered'} />
-                        <SummaryCard icon={BadgeCheck} label="Complete" value={stats.complete} tone="green"
-                            active={info === 'complete'} onClick={() => setInfo(info === 'complete' ? 'all' : 'complete')} hint="All details filled" />
-                        <SummaryCard icon={AlertTriangle} label="Incomplete" value={stats.incomplete} tone="amber"
-                            active={info === 'incomplete'} onClick={() => setInfo(info === 'incomplete' ? 'all' : 'incomplete')} hint="Missing phone / role" />
-                        <SummaryCard icon={UserCheck} label="Active" value={stats.active} tone="green"
-                            active={status === 'active'} onClick={() => setStatus(status === 'active' ? 'all' : 'active')} />
-                        <SummaryCard icon={UserX} label="Inactive" value={stats.inactive} tone="gray"
-                            active={status === 'inactive'} onClick={() => setStatus(status === 'inactive' ? 'all' : 'inactive')} />
-                    </section>
+                    {/* Desktop tabs (phones use the bottom bar) */}
+                    <div className="hidden gap-2 overflow-x-auto rounded-2xl bg-gray-200/70 p-1 lg:flex">
+                        {tabs.map(({ key, label, Icon, count, warn }) => (
+                            <button
+                                key={key}
+                                onClick={() => setTab(key)}
+                                className={`flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-bold transition ${tab === key ? 'bg-white text-ink-900 shadow' : 'text-gray-500'}`}
+                            >
+                                <Icon className="h-4 w-4" /> {label}
+                                {count !== '' && count !== null && (
+                                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold ${warn ? 'bg-amber-400 text-ink-900' : 'bg-gray-100 text-gray-600'}`}>{count}</span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* What this screen is for, in one line */}
+                    <div>
+                        <h2 className="text-lg font-extrabold text-gray-900">{TAB_HELP[tab]?.[0]}</h2>
+                        <p className="text-sm text-gray-500">{TAB_HELP[tab]?.[1]}</p>
+                    </div>
+
+                    {tab === 'induction' && (
+                        <InductionPanel
+                            induction={induction}
+                            isLeader={isLeader}
+                            publicToken={public_token}
+                            leaderKey={leader_key}
+                            companyName={company.name}
+                        />
+                    )}
+
+                    {tab === 'attendance' && (
+                        <AttendancePanel
+                            projects={attendance_projects}
+                            staffs={staffs}
+                            hours={hours_per_worker}
+                            isLeader={isLeader}
+                            publicToken={public_token}
+                            leaderKey={leader_key}
+                        />
+                    )}
+
+                    {tab === 'cases' && (
+                        <CasesPanel cases={cases} isLeader={isLeader} publicToken={public_token} leaderKey={leader_key} />
+                    )}
+
+                    {tab === 'machinery' && (
+                        <MachineryPanel
+                            machinery={machinery}
+                            staffs={staffs}
+                            isLeader={isLeader}
+                            publicToken={public_token}
+                            leaderKey={leader_key}
+                        />
+                    )}
+
+                    {tab === 'staff' && (
+                    <>
+                    {/* Quick filters */}
+                    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+                        {[
+                            ['all', `All ${stats.total}`, info === 'all' && status === 'all', () => { setInfo('all'); setStatus('all'); }],
+                            ['incomplete', `Need details ${stats.incomplete}`, info === 'incomplete', () => setInfo(info === 'incomplete' ? 'all' : 'incomplete')],
+                            ['active', `Active ${stats.active}`, status === 'active', () => setStatus(status === 'active' ? 'all' : 'active')],
+                            ['inactive', `Inactive ${stats.inactive}`, status === 'inactive', () => setStatus(status === 'inactive' ? 'all' : 'inactive')],
+                        ].map(([k, label, on, fn]) => (
+                            <button key={k} onClick={fn} className={`shrink-0 rounded-full border-2 px-4 py-2 text-sm font-bold transition ${on ? 'border-ink-900 bg-ink-900 text-brand-400' : 'border-gray-200 bg-white text-gray-700'}`}>
+                                {label}
+                            </button>
+                        ))}
+                    </div>
 
                     {/* Toolbar */}
                     <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -386,7 +453,7 @@ export default function CompanyDetails({ company, staffs = [], public_token, lea
                                     <button onClick={() => setViewMode('cards')} className={`rounded-xl p-2 ${viewMode === 'cards' ? 'bg-white shadow text-ink-900' : 'text-gray-400'}`} title="Cards"><LayoutGrid className="h-5 w-5" /></button>
                                     <button onClick={() => setViewMode('table')} className={`rounded-xl p-2 ${viewMode === 'table' ? 'bg-white shadow text-ink-900' : 'text-gray-400'}`} title="Table"><Rows3 className="h-5 w-5" /></button>
                                 </div>
-                                <button onClick={openAdd} className="hidden items-center gap-2 rounded-2xl bg-brand-500 px-4 py-3 text-sm font-extrabold text-ink-900 shadow-md active:scale-95 transition sm:inline-flex">
+                                <button onClick={openAdd} className="sb-create !hidden sm:!inline-flex">
                                     <UserPlus className="h-4 w-4" /> Register staff
                                 </button>
                             </div>
@@ -453,7 +520,7 @@ export default function CompanyDetails({ company, staffs = [], public_token, lea
                             <Users className="mx-auto h-12 w-12 text-gray-300" />
                             <p className="mt-3 text-base font-extrabold text-gray-700">No staff registered yet</p>
                             <p className="mt-1 text-sm text-gray-400">Be the first — register your team so they can be assigned to projects.</p>
-                            <button onClick={openAdd} className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-5 py-3 text-sm font-extrabold text-ink-900">
+                            <button onClick={openAdd} className="sb-create mt-5">
                                 <UserPlus className="h-4 w-4" /> Register staff
                             </button>
                         </div>
@@ -478,15 +545,37 @@ export default function CompanyDetails({ company, staffs = [], public_token, lea
                             onToggleStatus={toggleStatus}
                         />
                     )}
+                    </>
+                    )}
                 </main>
 
                 {/* Floating register button – phones */}
+                {tab === 'staff' && (
                 <button
                     onClick={openAdd}
-                    className="fixed bottom-5 right-5 z-30 flex h-14 items-center gap-2 rounded-full bg-brand-500 px-5 text-sm font-extrabold text-ink-900 shadow-xl shadow-black/30 active:scale-95 transition sm:hidden"
+                    className="fixed bottom-24 right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-brand-500 px-5 text-sm font-extrabold text-ink-900 shadow-xl shadow-black/30 active:scale-95 transition sm:hidden"
                 >
                     <UserPlus className="h-5 w-5" /> Register
                 </button>
+                )}
+
+                {/* Bottom navigation - phones & tablets */}
+                <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink-900 lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                    <div className="mx-auto grid max-w-3xl" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+                        {tabs.map(({ key, short, Icon, count, warn }) => (
+                            <button
+                                key={key}
+                                onClick={() => { setTab(key); window.scrollTo({ top: 0 }); }}
+                                className={`relative flex flex-col items-center gap-1 py-2.5 text-[11px] font-bold ${tab === key ? 'text-brand-400' : 'text-gray-400'}`}
+                            >
+                                <Icon className="h-6 w-6" />
+                                {short}
+                                {warn && count !== '' && <span className="absolute right-1/2 top-1 -mr-5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-400 px-1 text-[10px] font-extrabold text-ink-900">{count}</span>}
+                                {tab === key && <span className="absolute inset-x-5 top-0 h-0.5 rounded-full bg-brand-500" />}
+                            </button>
+                        ))}
+                    </div>
+                </nav>
             </div>
 
             <StaffDrawer
@@ -496,6 +585,9 @@ export default function CompanyDetails({ company, staffs = [], public_token, lea
                 onDelete={handleDelete}
                 canEdit={canEdit}
                 canDelete={canDelete}
+                isLeader={isLeader}
+                publicToken={public_token}
+                leaderKey={leader_key}
             />
 
             <AddStaffModal

@@ -3,8 +3,9 @@
 import React, { useEffect } from 'react';
 import { X, Check, Minus, Pencil, Trash2, Phone, Mail, CalendarDays, Clock, BadgeCheck } from 'lucide-react';
 import { REQUIRED_FIELDS, completeness, formatDate, timeAgo, initials, isActiveStatus } from './staffUtils';
+import CertificationsSection from './CertificationsSection';
 
-export default function StaffDrawer({ staff, onClose, onEdit, onDelete, canEdit, canDelete }) {
+export default function StaffDrawer({ staff, onClose, onEdit, onDelete, canEdit, canDelete, isLeader = false, publicToken, leaderKey }) {
     useEffect(() => {
         if (!staff) return undefined;
         const onKey = (e) => e.key === 'Escape' && onClose();
@@ -102,6 +103,9 @@ export default function StaffDrawer({ staff, onClose, onEdit, onDelete, canEdit,
                             </p>
                         </div>
                     </div>
+
+                    {/* certification records */}
+                    <CertificationsSection staff={staff} publicToken={publicToken} leaderKey={leaderKey} isLeader={isLeader} />
 
                     {/* quick contact */}
                     <div className="flex gap-2">

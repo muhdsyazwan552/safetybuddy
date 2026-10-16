@@ -128,6 +128,7 @@ export default function StaffList({ staffs, onOpen, onEdit, onDelete, canEdit, c
                                 <div className="mb-2 flex items-center justify-between">
                                     <CompleteBadge info={info} />
                                     <span className="text-[11px] text-gray-400" title={formatDate(s.created_at, true)}>
+                                        {(s.certifications || []).length > 0 && <b className="mr-2 rounded bg-brand-100 px-1.5 py-0.5 text-brand-900">{s.certifications.length} cert</b>}
                                         Registered {timeAgo(s.created_at)}
                                     </span>
                                 </div>
