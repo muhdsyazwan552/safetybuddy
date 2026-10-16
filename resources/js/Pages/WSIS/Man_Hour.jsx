@@ -22,9 +22,13 @@ const MONTHS = [
 
 const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [detail, setDetail] = useState(null); // entry whose staff list is open
   const [step, setStep] = useState(1);
   const [subcontractors, setSubcontractors] = useState([]);
   const [loadingSubcontractors, setLoadingSubcontractors] = useState(false);
+  const [staffList, setStaffList] = useState([]);
+  const [loadingStaff, setLoadingStaff] = useState(false);
+  const HOURS_PER_WORKER = 8;
   const [search, setSearch] = useState('');
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('');
@@ -36,8 +40,7 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
     project_id: '',
     subcon_company_id: '',
     work_date: today,
-    worker_count: '',
-    working_hours: '8',
+    staff_ids: [],
   });
 
   useEffect(() => {
@@ -56,6 +59,22 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
       .catch(() => setSubcontractors([]))
       .finally(() => setLoadingSubcontractors(false));
   }, [data.project_id]);
+
+  // staff of the chosen subcontractor (with those already ticked for that day)
+  useEffect(() => {
+    if (!data.project_id || !data.subcon_company_id || step < 3) return;
+    setLoadingStaff(true);
+    fetch(`/man-hour/subcontractors/${data.subcon_company_id}/staff?project_id=${data.project_id}&date=${data.work_date}`, { headers: { Accept: 'application/json' } })
+      .then((response) => response.ok ? response.json() : Promise.reject(response))
+      .then((json) => {
+        setStaffList(json.staff || []);
+        setData('staff_ids', json.ticked || []);
+      })
+      .catch(() => setStaffList([]))
+      .finally(() => setLoadingStaff(false));
+  }, [data.subcon_company_id, data.work_date, step]);
+
+  const toggleStaff = (id) => setData('staff_ids', data.staff_ids.includes(id) ? data.staff_ids.filter((x) => x !== id) : [...data.staff_ids, id]);
 
   const filteredEntries = useMemo(() => entries.filter((entry) => {
     const text = `${entry.project_name || ''} ${entry.subcontractor_name || ''} ${entry.work_date}`.toLowerCase();
@@ -182,9 +201,7 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
             <h1 className="mt-1 text-2xl font-bold text-slate-800">{title}</h1>
             <p className="mt-1 text-sm text-slate-500">Select one subcontractor company and a date period to review its workforce and manhours.</p>
           </div>
-          <button onClick={openModal} className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700">
-            <span className="text-lg leading-none">+</span> Add daily manhour
-          </button>
+          <button onClick={openModal} className="sb-create"><span className="text-lg leading-none">+</span> Add daily manhour</button>
         </div>
 
         <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
@@ -224,7 +241,7 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                <tr><th className="px-4 py-3 w-12">#</th><th className="px-4 py-3">Work date</th><th className="px-4 py-3">Project</th><th className="px-4 py-3">Subcontractor</th><th className="px-4 py-3 text-right">Workers</th><th className="px-4 py-3 text-right">Hours / worker</th><th className="px-4 py-3 text-right">Total manhours</th></tr>
+                <tr><th className="px-4 py-3 w-12">#</th><th className="px-4 py-3">Work date</th><th className="px-4 py-3">Project</th><th className="px-4 py-3">Subcontractor</th><th className="px-4 py-3 text-right">Workers</th><th className="px-4 py-3 text-right">Hours / worker</th><th className="px-4 py-3 text-right">Total manhours</th><th className="px-4 py-3 text-right">Detail</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {visibleEntries.map((entry, rowNo) => (
@@ -235,9 +252,10 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
                     <td className="px-4 py-3 text-right">{number(entry.worker_count)}</td>
                     <td className="px-4 py-3 text-right">{number(entry.working_hours)} hrs</td>
                     <td className="px-4 py-3 text-right font-bold text-slate-800">{number(entry.manhours)} hrs</td>
+                    <td className="px-4 py-3 text-right"><button type="button" onClick={() => setDetail(entry)} className="font-semibold text-blue-600 hover:text-blue-800">View staff</button></td>
                   </tr>
                 ))}
-                {!filteredEntries.length && <tr><td colSpan="7" className="px-4 py-12 text-center text-slate-500">No manhour records match these filters. Add your first daily record to begin.</td></tr>}
+                {!filteredEntries.length && <tr><td colSpan="8" className="px-4 py-12 text-center text-slate-500">No manhour records match these filters. Add your first daily record to begin.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -274,6 +292,41 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
 
       </div>
 
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onMouseDown={() => setDetail(null)}>
+          <div onMouseDown={(e) => e.stopPropagation()} className="flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800">Attendance detail</h2>
+                <p className="mt-1 text-sm text-slate-500">{formatDate(detail.work_date)} · {detail.project_name || '-'}</p>
+                <p className="text-sm font-semibold text-slate-700">{detail.subcontractor_name || '-'}</p>
+              </div>
+              <button type="button" onClick={() => setDetail(null)} className="text-xl leading-none text-slate-400 hover:text-slate-700" aria-label="Close">×</button>
+            </div>
+            <div className="grid grid-cols-3 gap-3 border-b border-slate-100 bg-slate-50 px-6 py-4 text-center">
+              <div><p className="text-xl font-bold text-slate-800">{number(detail.worker_count)}</p><p className="text-xs text-slate-500">Workers</p></div>
+              <div><p className="text-xl font-bold text-slate-800">{number(detail.working_hours)} h</p><p className="text-xs text-slate-500">Hours / worker</p></div>
+              <div><p className="text-xl font-bold text-blue-700">{number(detail.manhours)} h</p><p className="text-xs text-slate-500">Total manhours</p></div>
+            </div>
+            <div className="overflow-y-auto px-6 py-4">
+              {detail.staff?.length ? (
+                <ol className="divide-y divide-slate-100">
+                  {detail.staff.map((p, i) => (
+                    <li key={p.id} className="flex items-center gap-3 py-2.5 text-sm">
+                      <span className="w-6 text-right text-slate-400">{i + 1}</span>
+                      <span className="font-medium text-slate-800">{p.name}</span>
+                      {p.role && <span className="ml-auto text-xs text-slate-500">{p.role}</span>}
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="py-6 text-center text-sm text-slate-500">This record only has a headcount (entered before staff were ticked), so there is no name list.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4" onMouseDown={closeModal}>
           <form onSubmit={save} onMouseDown={(event) => event.stopPropagation()} className="w-full max-w-xl overflow-hidden rounded-xl bg-white shadow-2xl">
@@ -285,9 +338,42 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
             <div className="min-h-52 px-6 py-6">
               {step === 1 && <div><label className="mb-2 block text-sm font-semibold text-slate-700">Which project?</label><select value={data.project_id} onChange={(e) => setData('project_id', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600"><option value="">Select a project</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select>{errors.project_id && <p className="mt-2 text-xs text-red-600">{errors.project_id}</p>}</div>}
               {step === 2 && <div><label className="mb-2 block text-sm font-semibold text-slate-700">Assigned subcontractor company</label>{loadingSubcontractors ? <p className="text-sm text-slate-500">Loading assigned companies…</p> : <><select value={data.subcon_company_id} onChange={(e) => setData('subcon_company_id', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600"><option value="">Select a subcontractor company</option>{subcontractors.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select>{!subcontractors.length && <p className="mt-2 text-xs text-amber-600">No subcontractor companies are assigned to this project.</p>}</>}{errors.subcon_company_id && <p className="mt-2 text-xs text-red-600">{errors.subcon_company_id}</p>}</div>}
-              {step === 3 && <div className="grid gap-4 sm:grid-cols-2"><div className="sm:col-span-2"><label className="mb-2 block text-sm font-semibold text-slate-700">Work date</label><input type="date" value={data.work_date} onChange={(e) => setData('work_date', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />{errors.work_date && <p className="mt-2 text-xs text-red-600">{errors.work_date}</p>}</div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Total workers</label><input type="number" min="0" value={data.worker_count} onChange={(e) => setData('worker_count', e.target.value)} placeholder="e.g. 25" className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />{errors.worker_count && <p className="mt-2 text-xs text-red-600">{errors.worker_count}</p>}</div><div><label className="mb-2 block text-sm font-semibold text-slate-700">Working hours</label><input type="number" min="0" max="24" step="0.5" value={data.working_hours} onChange={(e) => setData('working_hours', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />{errors.working_hours && <p className="mt-2 text-xs text-red-600">{errors.working_hours}</p>}</div><div className="sm:col-span-2 rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">Daily manhours: <strong>{number(Number(data.worker_count) * Number(data.working_hours))} hrs</strong></div></div>}
+              {step === 3 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">Work date</label>
+                    <input type="date" value={data.work_date} onChange={(e) => setData('work_date', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />
+                    {errors.work_date && <p className="mt-2 text-xs text-red-600">{errors.work_date}</p>}
+                  </div>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="text-sm font-semibold text-slate-700">Subcontractor staff who worked</label>
+                      {staffList.length > 0 && (
+                        <button type="button" className="text-xs font-semibold text-blue-600" onClick={() => setData('staff_ids', data.staff_ids.length === staffList.length ? [] : staffList.map((s) => s.id))}>
+                          {data.staff_ids.length === staffList.length ? 'Clear all' : 'Select all'}
+                        </button>
+                      )}
+                    </div>
+                    <div className="max-h-56 overflow-y-auto rounded-md border border-slate-200 divide-y divide-slate-100">
+                      {loadingStaff ? <p className="p-4 text-sm text-slate-500">Loading staff…</p>
+                        : !staffList.length ? <p className="p-4 text-sm text-amber-600">This subcontractor has no staff registered yet.</p>
+                        : staffList.map((person) => (
+                          <label key={person.id} className="flex cursor-pointer items-center gap-3 px-3 py-2.5 hover:bg-slate-50">
+                            <input type="checkbox" checked={data.staff_ids.includes(person.id)} onChange={() => toggleStaff(person.id)} className="h-4 w-4 rounded border-slate-300 text-blue-600" />
+                            <span className="text-sm text-slate-800">{person.name}</span>
+                            {person.role && <span className="text-xs text-slate-400">{person.role}</span>}
+                          </label>
+                        ))}
+                    </div>
+                    {(errors.staff_ids || errors['staff_ids.0']) && <p className="mt-2 text-xs text-red-600">{errors.staff_ids || errors['staff_ids.0']}</p>}
+                  </div>
+                  <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    {data.staff_ids.length} worker(s) × {HOURS_PER_WORKER} hrs = <strong>{number(data.staff_ids.length * HOURS_PER_WORKER)} manhours</strong>
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="flex justify-between border-t border-slate-200 bg-slate-50 px-6 py-4"><button type="button" onClick={() => setStep((current) => Math.max(1, current - 1))} className={`rounded-md px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 ${step === 1 ? 'invisible' : ''}`}>Back</button>{step < 3 ? <button type="button" onClick={next} disabled={(step === 1 && !data.project_id) || (step === 2 && (!data.subcon_company_id || loadingSubcontractors))} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">Next</button> : <button type="submit" disabled={processing} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{processing ? 'Saving…' : 'Save manhour'}</button>}</div>
+            <div className="flex justify-between border-t border-slate-200 bg-slate-50 px-6 py-4"><button type="button" onClick={() => setStep((current) => Math.max(1, current - 1))} className={`rounded-md px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 ${step === 1 ? 'invisible' : ''}`}>Back</button>{step < 3 ? <button type="button" onClick={next} disabled={(step === 1 && !data.project_id) || (step === 2 && (!data.subcon_company_id || loadingSubcontractors))} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50">Next</button> : <button type="submit" disabled={processing || !data.staff_ids.length} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{processing ? 'Saving…' : 'Save manhour'}</button>}</div>
           </form>
         </div>
       )}

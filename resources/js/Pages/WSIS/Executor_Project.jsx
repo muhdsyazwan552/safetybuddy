@@ -104,7 +104,7 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
           <h1 className="text-2xl font-bold text-gray-800">Executor Companies</h1>
           <button
             onClick={() => setShowAddExecutorModal(true)}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-800 transition-colors shadow-sm"
+            className="sb-create"
           >
             Add New Executor
           </button>

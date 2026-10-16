@@ -79,8 +79,13 @@ class AuthController extends Controller
             return '/dashboard';
         }
 
-        // Roles 4, 7, 8 go to inspector dashboard
-        if (in_array($role_id, [4, 7, 8])) {
+        // Manager (3) and Supervisor (4) use the review portal
+        if (in_array($role_id, [3, 4])) {
+            return '/review/dashboard';
+        }
+
+        // Roles 7, 8 go to inspector dashboard
+        if (in_array($role_id, [7, 8])) {
             return '/inspector/dashboard';
         }
 

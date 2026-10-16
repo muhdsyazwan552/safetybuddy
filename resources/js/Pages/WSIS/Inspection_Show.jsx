@@ -6,7 +6,7 @@ import {
     AlertTriangle, MessageSquareWarning, CheckCircle2, RotateCcw, Loader2, X, ChevronRight, ClipboardList,
 } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
-import { EVAL, EvalBadge, SectionCard, InfoRow, fmtDate, storageUrl } from '@/Components/inspector/kit';
+import { EVAL, EvalBadge, StatusBadge, SectionCard, InfoRow, fmtDate, storageUrl } from '@/Components/inspector/kit';
 
 function StatusPanel({ record, type, reviewer }) {
     const [comment, setComment] = useState('');
@@ -84,7 +84,63 @@ function StatusPanel({ record, type, reviewer }) {
     );
 }
 
-export default function Inspection_Show({ inspection, photos = [], ncReviewer, ccReviewer, related = [] }) {
+function ReviewPanel({ inspection, can }) {
+    const [busy, setBusy] = useState(false);
+    const [comment, setComment] = useState('');
+    const [error, setError] = useState('');
+    const base = `/inspections/${inspection.id}`;
+
+    const act = (action, data = {}) => {
+        setBusy(true);
+        setError('');
+        router.post(`${base}/${action}`, data, {
+            preserveScroll: true,
+            onError: (e) => setError(e.comment || 'Could not update the inspection.'),
+            onFinish: () => setBusy(false),
+        });
+    };
+
+    const done = (name, at) => (name ? `${name}${at ? ` · ${fmtDate(at)}` : ''}` : null);
+
+    return (
+        <SectionCard title="Verification & approval" icon={CheckCircle2}>
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <InfoRow label="Verified by (Supervisor)">{done(inspection.verifier?.name, inspection.verified_at) || 'Awaiting verification'}</InfoRow>
+                <InfoRow label="Approved by (Manager)">{done(inspection.approver?.name, inspection.approved_at) || 'Awaiting approval'}</InfoRow>
+            </div>
+            {inspection.status === 'rejected' && inspection.review_comment && (
+                <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">Returned: {inspection.review_comment}</p>
+            )}
+            {(can.verify || can.approve || can.reject) && (
+                <div className="mt-5 space-y-3">
+                    {can.reject && (
+                        <textarea
+                            rows={2}
+                            value={comment}
+                            onChange={(e) => setComment(e.target.value)}
+                            placeholder="Reason (required only when returning to the inspector)"
+                            className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+                        />
+                    )}
+                    {error && <p className="text-xs font-medium text-red-500">{error}</p>}
+                    <div className="flex flex-wrap gap-2">
+                        {can.verify && (
+                            <button disabled={busy} onClick={() => act('verify')} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Verify</button>
+                        )}
+                        {can.approve && (
+                            <button disabled={busy} onClick={() => act('approve')} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">Approve</button>
+                        )}
+                        {can.reject && (
+                            <button disabled={busy || !comment.trim()} onClick={() => act('reject', { comment })} className="rounded-xl border border-red-300 px-4 py-2 text-sm font-bold text-red-600 disabled:opacity-40">Return to inspector</button>
+                        )}
+                    </div>
+                </div>
+            )}
+        </SectionCard>
+    );
+}
+
+export default function Inspection_Show({ inspection, photos = [], ncReviewer, ccReviewer, related = [], can = {} }) {
     const [lightbox, setLightbox] = useState(null);
     const [expanded, setExpanded] = useState(false);
 
@@ -132,7 +188,10 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
                                 <span className="flex items-center gap-1.5"><Tag className="h-4 w-4 text-brand-400" />{inspection.topic?.name || '-'}</span>
                             </div>
                         </div>
-                        <EvalBadge value={inspection.evaluation} className="shrink-0 self-start !border-transparent bg-white !px-4 !py-2 !text-xs" />
+                        <div className="flex shrink-0 flex-col items-end gap-2 self-start">
+                            <EvalBadge value={inspection.evaluation} className="!border-transparent bg-white !px-4 !py-2 !text-xs" />
+                            <StatusBadge value={inspection.status} className="bg-white" />
+                        </div>
                     </div>
                 </div>
 
@@ -153,6 +212,8 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
                                 <InfoRow label="Date">{fmtDate(inspection.inspection_date, { day: 'numeric', month: 'long', year: 'numeric' })}</InfoRow>
                             </div>
                         </SectionCard>
+
+                        <ReviewPanel inspection={inspection} can={can} />
 
                         {desc && (
                             <SectionCard title="Notes / observations" icon={ClipboardList}>

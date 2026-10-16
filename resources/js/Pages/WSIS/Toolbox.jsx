@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react'; // Add usePage here
 import AppLayout from '@/Pages/WSIS/Layout';
 import { showAlert } from '@/Helpers/alert';
+import AttendeePicker from '@/Components/shared/AttendeePicker';
+import SpPerSubcon, { spGroups } from '@/Components/shared/SpPerSubcon';
 
-const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromLaravel, stafftoolbox }) => {
+const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromLaravel, stafftoolbox, projectStaff = {}, embedded = false }) => {
 
   // Get auth user from page props
   const { auth } = usePage().props;
@@ -24,8 +26,9 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
     inspection_date: '',
     inspection_by: auth?.user?.id ?? '',
     conducted: 'yes',
-    attendance: '',
-    topics: [],
+    attendee_ids: [], // ticked subcontractor staff - attendance is their count
+    sp: {}, // { subcon company id: workers not registered }
+    categories: [], // toolbox categories (not the inspection topics)
     attendance_photo: null,
     group_photo: null
   });
@@ -78,7 +81,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
   }, [successMessage]);
 
   const handleTopicSelection = (topicId) => {
-    const currentTopics = [...data.topics];
+    const currentTopics = [...data.categories];
     const topicIndex = currentTopics.indexOf(topicId);
 
     if (topicIndex === -1) {
@@ -87,16 +90,16 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
       currentTopics.splice(topicIndex, 1);
     }
 
-    setData('topics', currentTopics);
+    setData('categories', currentTopics);
   };
 
   const selectAllTopics = () => {
     const allTopicIds = toolboxTopics.map(topic => topic.id);
-    setData('topics', allTopicIds);
+    setData('categories', allTopicIds);
   };
 
   const clearAllTopics = () => {
-    setData('topics', []);
+    setData('categories', []);
   };
 
   // Filter toolbox talks
@@ -117,8 +120,19 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    if (data.conducted === 'yes' && data.topics.length === 0) {
-      showAlert.warning('Select at least one safety topic that was discussed.', 'Topic required');
+    if (data.conducted === 'yes' && data.categories.length === 0) {
+      showAlert.warning('Select at least one toolbox category for this talk.', 'Category required');
+      return;
+    }
+
+    if (data.conducted === 'yes' && data.attendee_ids.length === 0) {
+      showAlert.warning('Tick at least one staff member who attended.', 'Attendance required');
+      return;
+    }
+
+    const spOver = spGroups(projectStaff[data.project_id] || [], data.attendee_ids).some((g) => Number(data.sp[g.id] || 0) > g.sampled);
+    if (spOver) {
+      showAlert.warning('Workers not registered cannot be more than the workers sampled for a company.', 'Safety Passport sampling');
       return;
     }
 
@@ -131,33 +145,17 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
       name: auth?.user?.name ?? 'Unknown',
       date: data.inspection_date,
       project: projects.find(p => p.id == data.project_id)?.name || 'N/A',
-      topics: toolboxTopics.filter(topic => data.topics.includes(topic.id)).map(t => t.name),
-      attendance: data.attendance,
+      topics: toolboxTopics.filter(topic => data.categories.includes(topic.id)).map(t => t.name),
+      attendance: data.attendee_ids.length,
       status: data.conducted,
       isOptimistic: true // flag for temporary item
     };
 
     setToolboxTalks(prev => [newToolboxTalk, ...prev]);
 
-    const formData = new FormData();
-    formData.append('project_id', data.project_id);
-    formData.append('inspection_date', data.inspection_date);
-    formData.append('inspection_by', data.inspection_by);
-    formData.append('conducted', data.conducted);
-    formData.append('attendance', data.attendance || 0);
-
-    data.topics.forEach(topicId => {
-      formData.append('topics[]', topicId);
-    });
-
-    if (data.attendance_photo) {
-      formData.append('attendance_photo', data.attendance_photo);
-    }
-    if (data.group_photo) {
-      formData.append('group_photo', data.group_photo);
-    }
-
-    post(route('toolbox.store'), formData, {
+    post(route('toolbox.store'), {
+      forceFormData: true,
+      preserveScroll: true,
       onSuccess: (page) => {
         setIsCreatingNew(false);
         reset();
@@ -173,21 +171,27 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
         }
       },
       onError: (errors) => {
-        console.log('Errors:', errors);
+        // the optimistic row was wrong - remove it again
+        setToolboxTalks(prev => prev.filter(item => item.id !== tempId));
+        showAlert.errors(errors, 'Could not save the toolbox talk');
       }
     });
   };
 
+  // `embedded`: rendered as a section inside another page (no layout / head of its own)
+  const Shell = embedded ? React.Fragment : AppLayout;
+  const shellProps = embedded ? {} : { user: auth?.user, title };
+
   return (
-    <AppLayout user={auth?.user} title={title}>
-      <Head title={title} />
+    <Shell {...shellProps}>
+      {!embedded && <Head title={title} />}
 
     <div className="p-0">
       <div className="flex justify-between items-center mb-5">
         <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
         <div className="flex space-x-3">
           <button
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-800 transition-colors shadow-sm"
+            className="sb-create"
             onClick={() => setIsCreatingNew(true)}
           >
             Create New Toolbox Talk
@@ -236,7 +240,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                       <label className="block text-sm font-medium text-gray-700 mb-2">Select Project</label>
                       <select
                         value={data.project_id}
-                        onChange={(e) => setData('project_id', e.target.value)}
+                        onChange={(e) => setData((prev) => ({ ...prev, project_id: e.target.value, attendee_ids: [] }))}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
                         required
                       >
@@ -315,7 +319,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                         {/* Multi-select topic dropdown */}
                         <div className="col-span-2">
                           <div ref={dropdownRef} className="relative">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Topics</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
 
                             {/* Dropdown trigger */}
                             <button
@@ -324,9 +328,9 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                               onClick={() => setIsTopicDropdownOpen(!isTopicDropdownOpen)}
                             >
                               <span>
-                                {data.topics.length === 0
-                                  ? 'Select topics'
-                                  : `${data.topics.length} topic${data.topics.length !== 1 ? 's' : ''} selected`
+                                {data.categories.length === 0
+                                  ? 'Select categories'
+                                  : `${data.categories.length} categor${data.categories.length !== 1 ? 'ies' : 'y'} selected`
                                 }
                               </span>
                               <svg
@@ -364,7 +368,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                                     <label key={index} className="flex items-center p-2 hover:bg-gray-50 rounded cursor-pointer">
                                       <input
                                         type="checkbox"
-                                        checked={data.topics.includes(topicObj.id)} // Check by ID
+                                        checked={data.categories.includes(topicObj.id)} // Check by ID
                                         onChange={() => handleTopicSelection(topicObj.id)} // Pass ID
                                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                                       />
@@ -378,16 +382,16 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
 
                             {/* Selected topics preview */}
 
-                            {data.topics.length > 0 && (
+                            {data.categories.length > 0 && (
                               <div className="mt-2 flex flex-wrap gap-2">
-                                {data.topics.map((topicId, index) => {
+                                {data.categories.map((topicId, index) => {
                                   const topic = toolboxTopics.find(t => t.id === topicId);
                                   return (
                                     <span
                                       key={index}
                                       className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
                                     >
-                                      {topic ? topic.name : 'Unknown Topic'} {/* Show name */}
+                                      {topic ? topic.name : 'Unknown category'} {/* Show name */}
                                       <button
                                         type="button"
                                         onClick={() => handleTopicSelection(topicId)}
@@ -405,16 +409,6 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                           </div>
                         </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Total Attendance</label>
-                          <input
-                            type="number"
-                            value={data.attendance}
-                            onChange={(e) => setData('attendance', e.target.value)}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            placeholder="Number of attendees"
-                          />
-                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -459,14 +453,33 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                     </>
                   )}
 
+                  {/* Attendance (always) + Safety Passport sampling (only when NOT conducted) */}
+                  <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+                    <AttendeePicker
+                      staff={projectStaff[data.project_id] || []}
+                      value={data.attendee_ids}
+                      onChange={(ids) => setData('attendee_ids', ids)}
+                      projectSelected={!!data.project_id}
+                      error={errors.attendee_ids}
+                    />
+                    {/* Safety Passport sampling per subcontractor (every talk) */}
+                    <SpPerSubcon
+                      staff={projectStaff[data.project_id] || []}
+                      attendees={data.attendee_ids}
+                      value={data.sp}
+                      onChange={(value) => setData('sp', value)}
+                      error={errors.sp}
+                    />
+                  </div>
+
                   {data.conducted === 'no' && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                       <div className="flex items-center">
                         <svg className="w-5 h-5 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                         <p className="text-yellow-800 text-sm">
-                          No additional information required for non-conducted toolbox talks.
+                          Category and photos are not required for a talk that was not conducted. Tick the staff present and enter the Safety Passport sampling above.
                         </p>
                       </div>
                     </div>
@@ -574,7 +587,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                   INSPECTION NAME
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Topic
+                  Category
                 </th>
                 <th scope="col" className="px-0 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   TOTAL ATTENDED
@@ -604,6 +617,9 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                   </td>
                   <td className="px-12 py-4 text-sm text-gray-800">
                     {talk.attendance || '-'}
+                    {talk.sp_compliance !== null && talk.sp_compliance !== undefined && (
+                      <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600" title="Safety Passport compliance">SP {Number(talk.sp_compliance).toFixed(0)}%</span>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs rounded-full ${talk.status === 'yes'
@@ -654,7 +670,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
         </div>
       </div>
     </div>
-    </AppLayout>
+    </Shell>
   );
 };
 

@@ -117,6 +117,7 @@ class InspectionController extends Controller
             'projects' => $projects,
             'all_companies' => $all_companies,
             'topics' => $topics,
+            'inspection_categories' => \App\Models\InspectionCategory::orderBy('sort_order')->get(['id', 'code', 'name']),
             'executor_chart_data' => $executorChartData, // Add this
             'project_chart_data' => $projectChartData,
             'findings_summary' => $findingsSummary,
@@ -148,7 +149,6 @@ class InspectionController extends Controller
                 'short_name'      => $company->short_name ?? $company->name,
                 'count'           => $companyInspections->count(),
                 'good'            => $companyInspections->where('evaluation', 'good')->count(),
-                'moderate'        => $companyInspections->where('evaluation', 'moderate')->count(),
                 'poor'            => $companyInspections->where('evaluation', 'poor')->count(),
                 'nonconformance'  => $companyInspections->where('evaluation', 'nonconformance')->count(),
                 'clientcomplaint' => $companyInspections->where('evaluation', 'clientcomplaint')->count(),
@@ -171,7 +171,6 @@ class InspectionController extends Controller
             // Count evaluations by type (including zeros)
             $evaluations = [
                 'good' => $projectInspections->where('evaluation', 'good')->count(),
-                'moderate' => $projectInspections->where('evaluation', 'moderate')->count(),
                 'poor' => $projectInspections->where('evaluation', 'poor')->count(),
                 'nonconformance' => $projectInspections->where('evaluation', 'nonconformance')->count(),
                 'clientcomplaint' => $projectInspections->where('evaluation', 'clientcomplaint')->count(),
@@ -190,7 +189,7 @@ class InspectionController extends Controller
 
     private function getFindingsSummary($inspections, $projects)
     {
-        $evaluations = ['good', 'moderate', 'poor', 'nonconformance', 'clientcomplaint'];
+        $evaluations = ['good', 'poor', 'nonconformance', 'clientcomplaint'];
         $result = [];
 
         // "all" — no percent, just count per evaluation across all inspections
@@ -238,7 +237,6 @@ class InspectionController extends Controller
                 'name' => $topic->name,
                 'total' => $topicInspections->count(),
                 'good' => $topicInspections->where('evaluation', 'good')->count(),
-                'moderate' => $topicInspections->where('evaluation', 'moderate')->count(),
                 'poor' => $topicInspections->where('evaluation', 'poor')->count(),
                 'nonconformance' => $topicInspections->where('evaluation', 'nonconformance')->count(),
                 'clientcomplaint' => $topicInspections->where('evaluation', 'clientcomplaint')->count(),
@@ -249,6 +247,22 @@ class InspectionController extends Controller
         return $data;
     }
 
+
+    // The admin has no stand-alone inspection list / form: everything lives on the Inspection page.
+    public function index()
+    {
+        return redirect('/inspection');
+    }
+
+    public function create()
+    {
+        return redirect('/inspection');
+    }
+
+    public function edit(Inspection $inspection)
+    {
+        return redirect()->route('inspections.show', $inspection);
+    }
 
     /**
      * Store multiple inspection items
@@ -265,7 +279,7 @@ class InspectionController extends Controller
                 'inspection_items.*.subcon_company_id' => 'required|exists:subcon_company,id',
                 'inspection_items.*.location'          => 'required|string|max:255',
                 'inspection_items.*.topic_id'          => 'required|exists:toolbox_topic,id',
-                'inspection_items.*.evaluation'        => 'required|in:good,moderate,poor,nonconformance,clientcomplaint',
+                'inspection_items.*.evaluation'        => 'required|in:good,poor,nonconformance,clientcomplaint',
                 'inspection_items.*.description'       => 'required|string',
             ]);
 
@@ -383,14 +397,86 @@ class InspectionController extends Controller
                 'inspection_date' => $i->inspection_date ? $i->inspection_date->format('Y-m-d') : null,
             ])->values();
 
+        $roleId = (int) Auth::user()->role_id;
+        $inspection->load(['verifier:id,name', 'approver:id,name']);
+
         return Inertia::render('WSIS/Inspection_Show', [
             'title' => 'Inspection Details',
             'inspection' => $inspection,
+            'can' => [
+                'verify'  => in_array($roleId, self::VERIFIER_ROLES, true) && $inspection->status === Inspection::STATUS_PENDING,
+                'approve' => in_array($roleId, self::APPROVER_ROLES, true) && $inspection->status === Inspection::STATUS_VERIFIED,
+                'reject'  => in_array($roleId, self::VERIFIER_ROLES, true)
+                    && in_array($inspection->status, [Inspection::STATUS_PENDING, Inspection::STATUS_VERIFIED], true),
+            ],
             'photos' => array_values($photos),
             'ncReviewer' => $reviewerName($inspection->non_conformance),
             'ccReviewer' => $reviewerName($inspection->client_complaint),
             'related' => $related,
         ]);
+    }
+
+    // Role ids: 2 Admin Company, 3 Manager, 4 Supervisor, 8 Project Manager
+    private const VERIFIER_ROLES = [2, 3, 4, 8];
+    private const APPROVER_ROLES = [2, 3, 8];
+
+    private function reviewer(array $roles, Inspection $inspection)
+    {
+        $user = Auth::user();
+        abort_unless(in_array((int) $user->role_id, $roles, true), 403);
+        if ($user->company_id && optional($inspection->project)->company_id != $user->company_id) {
+            abort(404);
+        }
+
+        return CompanyStaff::where('user_id', $user->id)->first();
+    }
+
+    /** Supervisor verifies a submitted inspection. */
+    public function verify(Inspection $inspection)
+    {
+        $staff = $this->reviewer(self::VERIFIER_ROLES, $inspection);
+        abort_unless($inspection->status === Inspection::STATUS_PENDING, 422, 'Inspection is not awaiting verification.');
+
+        $inspection->update([
+            'status' => Inspection::STATUS_VERIFIED,
+            'verified_by' => $staff?->id,
+            'verified_at' => now(),
+            'review_comment' => null,
+        ]);
+
+        return back()->with('success', 'Inspection verified.');
+    }
+
+    /** Manager gives final approval to a verified inspection. */
+    public function approve(Inspection $inspection)
+    {
+        $staff = $this->reviewer(self::APPROVER_ROLES, $inspection);
+        abort_unless($inspection->status === Inspection::STATUS_VERIFIED, 422, 'Inspection must be verified first.');
+
+        $inspection->update([
+            'status' => Inspection::STATUS_APPROVED,
+            'approved_by' => $staff?->id,
+            'approved_at' => now(),
+        ]);
+
+        return back()->with('success', 'Inspection approved.');
+    }
+
+    /** Send an inspection back to the inspector with a reason. */
+    public function reject(Request $request, Inspection $inspection)
+    {
+        $this->reviewer(self::VERIFIER_ROLES, $inspection);
+        abort_unless(in_array($inspection->status, [Inspection::STATUS_PENDING, Inspection::STATUS_VERIFIED], true), 422);
+        $data = $request->validate(['comment' => 'required|string|max:1000']);
+
+        $inspection->update([
+            'status' => Inspection::STATUS_REJECTED,
+            'review_comment' => $data['comment'],
+            'verified_by' => null,
+            'verified_at' => null,
+        ]);
+
+        return back()->with('success', 'Inspection returned to the inspector.');
     }
 
     /**
@@ -525,9 +611,11 @@ class InspectionController extends Controller
             'inspection_by'    => 'required|exists:company_staff,id',
             'inspection_date'  => 'required|date',
             'conducted'        => 'required|in:yes,no',
-            'attendance'       => 'nullable|integer|min:0',
-            'topics'           => 'nullable|array',
-            'topics.*'         => 'integer',
+            'attendee_ids'     => 'nullable|array',
+            'attendee_ids.*'   => 'integer',
+            'sp_not_registered' => 'nullable|integer|min:0|max:100000',
+            'categories'       => 'nullable|array',
+            'categories.*'     => 'integer|exists:toolbox_categories,id',
             'attendance_photo' => 'nullable|image|max:2048',
             'group_photo'      => 'nullable|image|max:2048',
         ]);
@@ -535,9 +623,21 @@ class InspectionController extends Controller
         // Additional validation if conducted is 'yes'
         if ($validated['conducted'] === 'yes') {
             $request->validate([
-                'attendance' => 'required|integer|min:1',
-                'topics'     => 'required|array|min:1',
+                'attendee_ids' => 'required|array|min:1',
+                'categories'   => 'required|array|min:1',
+            ], [
+                'attendee_ids.required' => 'Select at least one staff member who attended.',
+                'categories.required'   => 'Select at least one toolbox category.',
             ]);
+        }
+
+        // Attendance = the ticked subcontractor staff (only staff that belong to this project)
+        $attendeeIds = !empty($validated['attendee_ids'])
+            ? \App\Support\ToolboxAttendees::validIds((int) $validated['project_id'], $validated['attendee_ids'], Auth::user()->company_id)
+            : [];
+
+        if ($validated['conducted'] === 'yes' && count($attendeeIds) === 0) {
+            return back()->withErrors(['attendee_ids' => 'The selected staff do not belong to this project.']);
         }
 
         // Handle file uploads
@@ -552,21 +652,43 @@ class InspectionController extends Controller
             $groupPhotoPath = $request->file('group_photo')->store('toolbox-group', 'public');
         }
 
+        $spSampled = null;
+        $spNotRegistered = null;
+        if ($validated['conducted'] === 'no' && count($attendeeIds) > 0) {
+            $spSampled = count($attendeeIds);
+            $spNotRegistered = (int) ($validated['sp_not_registered'] ?? 0);
+
+            if ($spNotRegistered > $spSampled) {
+                return back()->withErrors(['sp_not_registered' => "Cannot be more than the {$spSampled} worker(s) sampled."]);
+            }
+        }
+
+        $spPlan = \App\Support\ToolboxSp::plan($attendeeIds, $request->input('sp'), $request->filled('sp_not_registered') ? (int) $request->input('sp_not_registered') : null);
+
         // Create the toolbox talk
         $toolboxTalk = ToolboxTalks::create([
             'project_id'      => $validated['project_id'],
             'inspection_by'   => $staffID->id,
             'inspection_date' => $validated['inspection_date'],
             'conducted'       => $validated['conducted'],
-            'total_attended'  => $validated['attendance'] ?? 0,
+            'total_attended'  => count($attendeeIds),
+            // Safety Passport sampling only applies to a talk that was NOT conducted;
+            // workers sampled = the staff ticked as present.
+            'sp_sampled'      => $spSampled,
+            'sp_not_registered' => $spNotRegistered,
             'img_attendance'  => $attendancePhotoPath,
             'img_group'       => $groupPhotoPath,
         ]);
 
-        // Attach topics if conducted and topics provided
-        if ($validated['conducted'] === 'yes' && !empty($validated['topics'])) {
-            $toolboxTalk->topics()->attach($validated['topics']);
+        // Attach the selected categories (only when the talk was conducted)
+        if ($validated['conducted'] === 'yes' && !empty($validated['categories'])) {
+            $toolboxTalk->categories()->sync($validated['categories']);
         }
+
+        if ($attendeeIds) {
+            \App\Support\ToolboxAttendees::sync($toolboxTalk, $attendeeIds);
+        }
+        \App\Support\ToolboxSp::persist($toolboxTalk, $spPlan);
 
         return redirect()->back()->with('success', 'Toolbox talk created successfully!');
     }

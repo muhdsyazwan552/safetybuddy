@@ -10,9 +10,8 @@ use Illuminate\Validation\ValidationException;
 
 use App\Models\Project;
 use App\Models\ExecutorStaff;
-use App\Models\Executor;
+use App\Models\SubconCompany as Executor; // executors are SubconCompany records
 use App\Models\User;
-use App\Models\ExecutorProjectAssign;
 use App\Models\ProjectAssign;
 use App\Models\SubconStaff;
 use Illuminate\Http\Request;
@@ -154,9 +153,9 @@ class ProjectController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
-            'location' => 'required|string|max:255',
-            'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:start_date',
+            'location' => 'nullable|string|max:255',
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
             'status' => 'required|in:pending,in_progress,completed,cancelled',
         ]);
 
@@ -201,13 +200,13 @@ class ProjectController extends Controller
             'address' => 'required|string'
         ]);
 
+        // a new executor stays Inactive until its leader completes the safety induction
         Executor::create([
             'name' => $validated['name'],
-            'short_name' => Executor::generateShortName($validated['name']), // Explicit call
             'email' => $validated['email'],
             'contact' => $validated['contact'],
             'address' => $validated['address'],
-            'status' => 'active',
+            'status' => 'Inactive',
             'company_id' => $user->company_id,
         ]);
 
@@ -335,17 +334,30 @@ class ProjectController extends Controller
     }
 
 
+    /** Assignment rows of the logged-in company's projects only. */
+    private function ownAssignment($id)
+    {
+        $row = DB::table('project_assign')
+            ->join('projects', 'projects.id', '=', 'project_assign.project_id')
+            ->where('project_assign.id', $id)
+            ->where('projects.company_id', Auth::user()->company_id)
+            ->select('project_assign.id')
+            ->first();
+
+        abort_unless($row, 404);
+
+        return DB::table('project_assign')->where('id', $row->id);
+    }
+
     public function updateAssignment(Request $request, $id)
     {
         $validated = $request->validate([
             'role_assignment' => 'required|string|max:255',
         ]);
 
-        $assignment = ExecutorProjectAssign::where('id', $id)
-            ->firstOrFail();
-
-        $assignment->update([
-            'role_assignment' => $validated['role_assignment']
+        $this->ownAssignment($id)->update([
+            'role_assignment' => $validated['role_assignment'],
+            'updated_at' => now(),
         ]);
 
         return back()->with('success', 'Assignment updated successfully.');
@@ -353,11 +365,7 @@ class ProjectController extends Controller
 
     public function destroyAssignment($id)
     {
-        $assignment = ExecutorProjectAssign::where('id', $id)
-            ->where('company_id', Auth::user()->company_id)
-            ->firstOrFail();
-
-        $assignment->delete();
+        $this->ownAssignment($id)->delete();
 
         return back()->with('success', 'Assignment deleted successfully.');
     }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import InspectorLayout from '@/Layouts/InspectorLayout';
 
 // ─── Reusable field components ─────────────────────────────────────────────
 
@@ -79,6 +80,9 @@ const steps = [
 
 const IncidentCreate = ({
   title = 'Report Incident',
+  portal = 'admin',
+  selfStaffId = null,
+  endpoints = { store: '/incident', assignments: '/incident/project-assignments/', staff: '/incident/subcon-staff/', back: '/incident-statistic' },
   userCompanyId,
   projects = [],
   companies = [],
@@ -92,6 +96,10 @@ const IncidentCreate = ({
   const [filteredSubconCompanies, setFilteredSubconCompanies] = useState([]);
   const [filteredStaffList, setFilteredStaffList] = useState([]);
   const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
+  const [subconStaff, setSubconStaff] = useState([]);
+  const [isLoadingStaff, setIsLoadingStaff] = useState(false);
+  const isInspector = portal === 'inspector';
+  const Layout = isInspector ? InspectorLayout : AppLayout;
 
   const { data, setData, post, processing, errors, reset } = useForm({
     // Basic Information
@@ -125,13 +133,16 @@ const IncidentCreate = ({
 
     // Impact & Recording
     manhours_lost: '',
+
+    // Subcontractor staff involved
+    staff_ids: [],
   });
 
   // Fetch project assignments when project changes
   useEffect(() => {
     if (data.project_id) {
       setIsLoadingAssignments(true);
-      const url = `/incident/project-assignments/${data.project_id}`;
+      const url = `${endpoints.assignments}${data.project_id}`;
       console.log('[Incident] Fetching:', url);
 
       fetch(url)
@@ -149,7 +160,7 @@ const IncidentCreate = ({
           setFilteredSubconCompanies(json.subconCompanies);
           setFilteredStaffList(json.assignedStaff);
           setData('subcon_company_id', '');
-          setData('responsible_by', '');
+          setData('responsible_by', selfStaffId ? String(selfStaffId) : '');
           setData('review_by', '');
           setIsLoadingAssignments(false);
         })
@@ -163,11 +174,29 @@ const IncidentCreate = ({
     }
   }, [data.project_id]);
 
+  // Staff of the chosen subcontractor can be ticked as involved in the incident
+  useEffect(() => {
+    setData('staff_ids', []);
+    if (!data.subcon_company_id) {
+      setSubconStaff([]);
+      return;
+    }
+    setIsLoadingStaff(true);
+    fetch(`${endpoints.staff}${data.subcon_company_id}`, { headers: { Accept: 'application/json' } })
+      .then(res => (res.ok ? res.json() : Promise.reject(res)))
+      .then(json => setSubconStaff(json.staff || []))
+      .catch(() => setSubconStaff([]))
+      .finally(() => setIsLoadingStaff(false));
+  }, [data.subcon_company_id]);
+
+  const toggleInvolved = (id) =>
+    setData('staff_ids', data.staff_ids.includes(id) ? data.staff_ids.filter(x => x !== id) : [...data.staff_ids, id]);
+
   const selectedType = incidentTypes.find(t => String(t.id) === String(data.incident_id));
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    post(route('incident.store'), {
+    post(endpoints.store, {
       forceFormData: true,
       onSuccess: () => reset(),
     });
@@ -251,10 +280,10 @@ const IncidentCreate = ({
   ];
 
   return (
-    <AppLayout>
+    <Layout>
       <Head title={title} />
 
-      <div className="px-12 max-w-7xl mx-auto space-y-8">
+      <div className={isInspector ? 'px-4 pt-5 pb-28 max-w-3xl mx-auto space-y-6' : 'px-12 max-w-7xl mx-auto space-y-8'}>
 
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -266,10 +295,10 @@ const IncidentCreate = ({
           </div>
           <button
             type="button"
-            onClick={() => router.visit(route('incident.statistic'))}
+            onClick={() => router.visit(endpoints.back)}
             className="inline-flex items-center text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors uppercase tracking-widest bg-slate-100 px-3 py-2 rounded-md"
           >
-            Back to Statistics
+            {isInspector ? 'Back' : 'Back to Statistics'}
           </button>
         </div>
 
@@ -371,7 +400,7 @@ const IncidentCreate = ({
                   value={data.responsible_by}
                   onChange={e => setData('responsible_by', e.target.value)}
                   error={errors.responsible_by}
-                  disabled={isLoadingAssignments || !data.project_id}
+                  disabled={isLoadingAssignments || !data.project_id || !!selfStaffId}
                 >
                   <option value="">Select Person</option>
                   {filteredStaffList.map(s => (
@@ -436,45 +465,6 @@ const IncidentCreate = ({
                   ))}
                 </Select>
               </div>
-
-              {/* LTI fields */}
-              <div className="mt-8 p-6 bg-amber-50/50 border border-amber-100 rounded-xl">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                  <p className="text-[11px] font-bold text-amber-800 uppercase tracking-wider">
-                    LTI Details <span className="font-medium normal-case text-amber-600/80 ml-2">(Mandatory for Lost Time Injury incidents)</span>
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <Input
-                    label="Workers Involved"
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={data.lti_worker_count}
-                    onChange={e => setData('lti_worker_count', e.target.value)}
-                    error={errors.lti_worker_count}
-                  />
-                  <Input
-                    label="Work Days Lost"
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={data.lti_days_lost}
-                    onChange={e => setData('lti_days_lost', e.target.value)}
-                    error={errors.lti_days_lost}
-                  />
-                  <Input
-                    label="Man-Hours Lost"
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={data.lti_man_hours_lost}
-                    onChange={e => setData('lti_man_hours_lost', e.target.value)}
-                    error={errors.lti_man_hours_lost}
-                  />
-                </div>
-              </div>
             </Section>
           )}
 
@@ -482,6 +472,39 @@ const IncidentCreate = ({
           {currentStep === 2 && (
             <Section title="Case Details">
               <div className="space-y-6">
+                {/* Subcontractor staff involved */}
+                <div>
+                  <Label>Subcontractor staff involved</Label>
+                  {!data.subcon_company_id ? (
+                    <p className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-sm text-slate-500">
+                      Choose the contractor / subcontractor in Basic Info to list its staff.
+                    </p>
+                  ) : isLoadingStaff ? (
+                    <p className="text-sm text-slate-500">Loading staff…</p>
+                  ) : subconStaff.length === 0 ? (
+                    <p className="text-sm text-amber-600">This subcontractor has no staff registered.</p>
+                  ) : (
+                    <div className="max-h-60 overflow-y-auto rounded-md border border-slate-200 divide-y divide-slate-100 bg-white">
+                      {subconStaff.map(person => (
+                        <label key={person.id} className="flex cursor-pointer items-center gap-3 px-3 py-3 hover:bg-slate-50">
+                          <input
+                            type="checkbox"
+                            checked={data.staff_ids.includes(person.id)}
+                            onChange={() => toggleInvolved(person.id)}
+                            className="h-5 w-5 rounded border-slate-300 text-blue-600"
+                          />
+                          <span className="text-sm font-medium text-slate-800">{person.name}</span>
+                          {person.role && <span className="text-xs text-slate-400">{person.role}</span>}
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                  {data.staff_ids.length > 0 && (
+                    <p className="mt-1.5 text-xs font-semibold text-blue-700">{data.staff_ids.length} staff selected</p>
+                  )}
+                  <Error msg={errors.staff_ids} />
+                </div>
+
                 <Textarea
                   label="Incident Description"
                   required
@@ -597,7 +620,6 @@ const IncidentCreate = ({
                     { label: 'Site Location', val: data.location },
                     { label: 'Classification', val: selectedType?.name ?? data.incident_id },
                     { label: 'Filing Status', val: data.status || 'Draft / Open' },
-                    { label: 'Manhours Lost', val: data.lti_man_hours_lost || '0' },
                   ].map(f => (
                     <div key={f.label} className="border-l border-slate-700 pl-4">
                       <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1">{f.label}</p>
@@ -630,7 +652,7 @@ const IncidentCreate = ({
               <button
                 type="button"
                 onClick={goNext}
-                className="w-full sm:w-auto px-8 py-2.5 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-800 transition-all shadow-md uppercase tracking-wider"
+                className="w-full sm:w-auto px-8 py-2.5 bg-ink-900 text-brand-400 rounded-lg text-sm font-bold hover:bg-ink-800 transition-all shadow-md uppercase tracking-wider"
               >
                 Continue
               </button>
@@ -654,7 +676,7 @@ const IncidentCreate = ({
           </div>
         </form>
       </div>
-    </AppLayout>
+    </Layout>
   );
 };
 

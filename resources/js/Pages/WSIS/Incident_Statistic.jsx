@@ -46,6 +46,7 @@ const statusBadge = (status) => {
   const map = {
     open: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500', label: 'Open' },
     'in progress': { bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500', label: 'In Progress' },
+    inprogress: { bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500', label: 'In Progress' },
     closed: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500', label: 'Closed' },
   };
   const s = map[(status ?? '').toLowerCase()] ?? { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400', label: status ?? '—' };
@@ -1000,25 +1001,31 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
                 </div>
               </section> */}
 
-              {(viewingIncident.lti > 0 || viewingIncident.lti_worker_count) && (
-                <section>
-                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">LTI Details</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <Field label="Workers Involved" value={viewingIncident.lti_worker_count} />
-                    <Field label="Work Days Lost" value={viewingIncident.lti_days_lost} />
-                    <Field label="Man-Hours Lost" value={viewingIncident.lti_man_hours_lost} />
-                  </div>
-                </section>
-              )}
-
               <section>
                 <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">Case Details</h3>
                 <div className="space-y-3">
+                  {viewingIncident.involved_staff?.length > 0 && (
+                    <Field label="Subcontractor staff involved" value={viewingIncident.involved_staff.map(x => x.name).join(', ')} />
+                  )}
                   <Field label="Incident Description" value={viewingIncident.incident_description} />
                   <Field label="Immediate Cause" value={viewingIncident.immediate_cause} />
                   <Field label="Underlying Cause" value={viewingIncident.underlying_cause} />
                 </div>
               </section>
+
+              {viewingIncident.responses?.length > 0 && (
+                <section>
+                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">Supervisor / Manager responses</h3>
+                  <ul className="space-y-2">
+                    {viewingIncident.responses.map((r) => (
+                      <li key={r.id} className={`rounded-lg px-3 py-2 text-sm ${r.type === 'closed' ? 'bg-green-50 text-green-900' : r.type === 'reopened' ? 'bg-yellow-50 text-yellow-900' : 'bg-blue-50 text-blue-900'}`}>
+                        <p className="text-xs font-bold uppercase opacity-70">{r.type === 'closed' ? 'Closed' : r.type === 'reopened' ? 'Reopened' : 'Response'} · {r.by}{r.role ? ` (${r.role})` : ''} · {r.at}</p>
+                        {r.message && <p className="mt-0.5 whitespace-pre-wrap">{r.message}</p>}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
 
               <section>
                 <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">Follow-up & Actions</h3>

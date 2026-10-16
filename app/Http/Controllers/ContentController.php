@@ -12,7 +12,6 @@ use App\Models\Project;
 use App\Models\ProjectAssign;
 use App\Models\User;
 use App\Models\ComplianceMetrics;
-use App\Models\PenaltySettings;
 use App\Models\ToolboxTopic;
 use App\Models\ToolboxTalks;
 use App\Models\Inspection;
@@ -23,6 +22,7 @@ use App\Models\Manhour;
 
 
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use illuminate\Http\Request;
 
 class ContentController extends Controller
@@ -30,29 +30,14 @@ class ContentController extends Controller
     public function compMetrics()
     {
         $companyId = Auth::user()->company_id;
-        $metrics = ComplianceMetrics::where('company_id', $companyId)->get();
+        $metrics = ComplianceMetrics::where('company_id', $companyId)
+            ->orderBy('id')
+            ->get(['id', 'title', 'description', 'percent', 'value']);
 
         return Inertia::render('WSIS/Compliance_Metrics', [
-            'title' => 'Compliance Metrics',
-            'metrics' => $metrics
-        ]);
-    }
-
-    public function penalSetting()
-    {
-        $companyId = Auth::user()->company_id;
-
-        // Get penalty settings from database for the current company
-        $penaltySettings = PenaltySettings::where('company_id', $companyId)->get();
-
-        return Inertia::render('WSIS/Penalty_Settings', [
-            'title' => 'Penalty Settings',
-            'metrics' => $penaltySettings, // Pass actual penalty settings data
-            'auth' => [
-                'user' => [
-                    'company_id' => Auth::user()->company_id
-                ]
-            ]
+            'title' => 'Compliance & Penalty Settings',
+            'metrics' => $metrics,
+            'performance' => \App\Models\PerformanceSetting::forCompany($companyId)->snapshot(),
         ]);
     }
 
@@ -65,8 +50,10 @@ class ContentController extends Controller
             ->where('company_id', $companyId)
             ->get();
 
-        // Get all roles (not filtered by company)
-        $roles = Role::whereIn('id', [4, 7, 8])
+        // The three working tiers: 1st Manager (3), 2nd Supervisor (4), 3rd Inspector (7).
+        // "Project Manager" (8) is no longer offered - it is not one of the tiers.
+        $roles = Role::whereIn('id', [3, 4, 7])
+            ->orderByRaw('FIELD(id, 3, 4, 7)')
             ->select('id', 'display_name')->get();
 
         return Inertia::render('WSIS/Employee', [
@@ -378,28 +365,8 @@ class ContentController extends Controller
                 ];
             });
 
-        // dd($inspections);
-
-        return Inertia::render('WSIS/Inspection', [
-            'title' => 'Inspection',
-            'projects' => $projects,
-            'auth_inspector' => $authInspector, // Add inspectors to props
-            'all_companies' => $all_companies,
-            'topics' => $topics,
-            'inspections' => $inspections,
-        ]);
-    }
-
-
-    public function toolbox()
-    {
-        $topics = ToolboxTopic::all()->map(fn ($topic) => [
-            'id'          => $topic->id,
-            'name'        => $topic->name,
-            'description' => $topic->description,
-        ]);
-
-        $talks = ToolboxTalks::with(['project', 'topics', 'CompanyStaff'])
+        // Toolbox talks (first section of the combined page)
+        $toolboxTalks = ToolboxTalks::with(['project', 'topics', 'categories', 'CompanyStaff'])
             ->orderBy('inspection_date', 'desc')
             ->get()
             ->map(fn ($talk) => [
@@ -407,18 +374,43 @@ class ContentController extends Controller
                 'name'           => $talk->CompanyStaff ? $talk->CompanyStaff->name : 'N/A',
                 'date'           => $talk->inspection_date,
                 'project'        => $talk->project ? $talk->project->name : 'N/A',
-                'topics'         => $talk->topics->pluck('name')->toArray(),
+                // categories (new); old talks fall back to their legacy topics
+                'topics'         => ($talk->categories->count() ? $talk->categories : $talk->topics)->pluck('name')->values()->toArray(),
                 'attendance'     => $talk->total_attended,
                 'status'         => $talk->conducted,
                 'staffinpection' => $talk->CompanyStaff ? $talk->CompanyStaff->name : 'N/A',
+                'sp_compliance'  => $talk->sp_compliance,
             ]);
 
-        return Inertia::render('WSIS/Toolbox', [
-            'title'         => 'Toolbox Talks',
+        // dd($inspections);
+
+        return Inertia::render('WSIS/Inspection', [
+            'visits' => \App\Support\VisitFeed::collect($user->company_id, null, null, true),
+            'title' => 'Inspection',
+            'projects' => $projects,
+            'auth_inspector' => $authInspector, // Add inspectors to props
+            'all_companies' => $all_companies,
+            'topics' => $topics,
+            'categories' => \App\Models\InspectionCategory::catalogue(),
+            'inspections' => $inspections,
             'toolboxTopics' => $topics,
-            'toolboxTalks'  => $talks,
-            'projects'      => Project::all(['id', 'name']),
+            // toolbox talks pick from their own category list (not the inspection topics)
+            'toolboxCategories' => \App\Models\ToolboxCategory::options(),
+            'toolboxTalks' => $toolboxTalks,
+            // project_id => subcontractor staff that can be ticked as attendees
+            'projectStaff' => \App\Support\ToolboxAttendees::byProject($projects->pluck('id'), $user->company_id),
         ]);
+    }
+
+
+    /** One site visit - toolbox talk first, then its inspections. */
+    public function visitShow(string $key)
+    {
+        $companyId = Auth::user()->company_id;
+        $visit = \App\Support\VisitFeed::collect($companyId, null, null, true)->firstWhere('key', $key);
+        abort_unless($visit, 404);
+
+        return Inertia::render('WSIS/Visit_Show', ['visit' => $visit]);
     }
 
     public function nonConformance()
@@ -478,6 +470,8 @@ class ContentController extends Controller
                 'reportedBy.role:id,name',
                 'responsibleBy:id,name,role_id',
                 'responsibleBy.role:id,name',
+                'involvedStaff:id,name,role',
+                'responses',
             ])
             ->when($request->year,  fn($q) => $q->whereYear('incident_date',  $request->year))
             ->when($request->month, fn($q) => $q->whereMonth('incident_date', $request->month));
@@ -521,6 +515,8 @@ class ContentController extends Controller
                     'reported_by'            => optional($inc->reportedBy)->name,
                     'reporter_position'      => optional(optional($inc->reportedBy)->role)->name,
 
+                    'involved_staff'         => $inc->involvedStaff->map(fn ($x) => ['id' => $x->id, 'name' => $x->name, 'role' => $x->role])->values(),
+
                     // ── LTI Details ────────────────────────────────────────────
                     'lti_worker_count'       => $inc->lti_worker_count,
                     'lti_days_lost'          => $inc->lti_days_lost,
@@ -543,6 +539,10 @@ class ContentController extends Controller
 
                     // ── Status ─────────────────────────────────────────────────
                     'status'                 => $inc->status, // 'open' | 'in progress' | 'closed'
+                    'responses'              => $inc->responses->map(fn ($r) => [
+                        'id' => $r->id, 'type' => $r->type, 'message' => $r->message, 'by' => $r->staff_name,
+                        'role' => $r->role_label, 'at' => optional($r->created_at)->format('Y-m-d H:i'),
+                    ])->values(),
                 ];
             });
 
@@ -580,6 +580,15 @@ class ContentController extends Controller
 
     private function manhourEntries($companyId)
     {
+        // who was ticked present, per project / subcontractor / day
+        $staffByDay = DB::table('manhour_attendances as a')
+            ->join('subcon_staff as s', 's.id', '=', 'a.subcon_staff_id')
+            ->whereIn('a.project_id', Project::where('company_id', $companyId)->pluck('id'))
+            ->orderBy('s.name')
+            ->get(['a.project_id', 'a.subcon_company_id', 'a.work_date', 's.id', 's.name', 's.role'])
+            ->groupBy(fn ($r) => $r->project_id . '|' . $r->subcon_company_id . '|' . substr((string) $r->work_date, 0, 10))
+            ->map(fn ($rows) => $rows->map(fn ($r) => ['id' => $r->id, 'name' => $r->name, 'role' => $r->role])->values());
+
         return Manhour::with([
                 'project:id,name',
                 'subcontractor:id,name',
@@ -590,6 +599,7 @@ class ContentController extends Controller
             ->latest('id')
             ->get()
             ->map(fn (Manhour $entry) => [
+                'staff' => $staffByDay->get($entry->project_id . '|' . $entry->subcon_company_id . '|' . $entry->work_date->format('Y-m-d'), collect()),
                 'id' => $entry->id,
                 'work_date' => $entry->work_date->format('Y-m-d'),
                 'created_at' => $entry->created_at?->format('Y-m-d H:i:s'),

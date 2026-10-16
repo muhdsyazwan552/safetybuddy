@@ -24,6 +24,7 @@ const Dashboard_Inspection = ({
   projects = [],
   all_companies = [],
   topics = [],
+  inspection_categories = [],
   project_chart_data = [],
   executor_chart_data = [],
   findings_summary = {},
@@ -87,17 +88,15 @@ const Dashboard_Inspection = ({
 
         const total = companyInspections.length;
         const good = companyInspections.filter(i => i.evaluation === "good").length;
-        const moderate = companyInspections.filter(i => i.evaluation === "moderate").length;
         const poor = companyInspections.filter(i => i.evaluation === "poor").length;
         const nonConformance = companyInspections.filter(i => i.evaluation === "nonconformance").length;
         const clientComplaints = companyInspections.filter(i => i.evaluation === "clientcomplaint").length;
-        const compliantCount = good + moderate + poor + nonConformance + clientComplaints;
+        const compliantCount = good + poor + nonConformance + clientComplaints;
 
         return {
           ...company,
           total,
           good,
-          moderate,
           poor,
           nonConformance,
           clientComplaints,
@@ -117,71 +116,51 @@ const Dashboard_Inspection = ({
 
     const totalInspections = filteredInspections.length;
     const goodInspections = filteredInspections.filter(i => i.evaluation === "good").length;
-    const moderateInspections = filteredInspections.filter(i => i.evaluation === "moderate").length;
     const poorInspections = filteredInspections.filter(i => i.evaluation === "poor").length;
     const nonConformance = filteredInspections.filter(i => i.evaluation === "nonconformance").length;
     const clientComplaints = filteredInspections.filter(i => i.evaluation === "clientcomplaint").length;
 
     const evaluationDistribution = [
       { name: "Good", value: goodInspections },
-      { name: "Moderate", value: moderateInspections },
       { name: "Poor", value: poorInspections },
       { name: "Non-conformance", value: nonConformance },
       { name: "Client Complaint", value: clientComplaints },
     ].filter((item) => item.value > 0);
 
+    // one bar per inspection category (C01-C10), not per item - there are 160 items
     const topicChartData = [];
-    const topicsMap = {};
-
-    // Initialize topics map with all topics
-    topics.forEach(topic => {
-      topicsMap[topic.id] = {
-        name: topic.name,
-        good: 0,
-        moderate: 0,
-        poor: 0,
-        nonconformance: 0,
-        clientcomplaint: 0,
-        total: 0
-      };
+    const blank = (name) => ({ name, good: 0, poor: 0, nonconformance: 0, clientcomplaint: 0, total: 0 });
+    const categoryMap = {};
+    inspection_categories.forEach((c) => {
+      categoryMap[c.id] = blank(c.name);
     });
+    const otherKey = 'other';
 
-    // Count evaluations by topic
-    filteredInspections.forEach(inspection => {
-      if (inspection.topic && inspection.topic.id && topicsMap[inspection.topic.id]) {
-        const evaluation = inspection.evaluation;
-        if (evaluation && topicsMap[inspection.topic.id][evaluation] !== undefined) {
-          topicsMap[inspection.topic.id][evaluation] += 1;
-          topicsMap[inspection.topic.id].total += 1;
-        }
+    filteredInspections.forEach((inspection) => {
+      const catId = inspection.topic?.inspection_category_id;
+      const key = catId && categoryMap[catId] ? catId : otherKey;
+      if (key === otherKey && !categoryMap[otherKey]) {
+        categoryMap[otherKey] = blank('Other (older topics)');
+      }
+      const evaluation = inspection.evaluation;
+      if (evaluation && categoryMap[key][evaluation] !== undefined) {
+        categoryMap[key][evaluation] += 1;
+        categoryMap[key].total += 1;
       }
     });
 
-    // Convert to array (include ALL topics)
-    Object.values(topicsMap).forEach(topic => {
-      topicChartData.push({
-        name: topic.name,
-        good: topic.good,
-        moderate: topic.moderate,
-        poor: topic.poor,
-        nonconformance: topic.nonconformance,
-        clientcomplaint: topic.clientcomplaint,
-        total: topic.total
-      });
-    });
-
+    Object.values(categoryMap).forEach((c) => topicChartData.push(c));
 
     return {
       stats: {
         total: totalInspections,
         good: goodInspections,
-        moderate: moderateInspections,
         poor: poorInspections,
         nonConformance,
         clientComplaints,
         complianceRate:
           totalInspections > 0
-            ? Math.round(((goodInspections + moderateInspections) / totalInspections) * 100)
+            ? Math.round((goodInspections / totalInspections) * 100)
             : 0,
       },
       chartData: displayData,
@@ -210,7 +189,6 @@ const Dashboard_Inspection = ({
     Array.from(allTopics).forEach(topic => {
       topicMatrix[topic] = {
         good: 0,
-        moderate: 0,
         poor: 0,
         nonconformance: 0,
         clientcomplaint: 0,
@@ -262,7 +240,7 @@ const Dashboard_Inspection = ({
 
     const topicMatrix = {};
     allTopics.forEach(topic => {
-      topicMatrix[topic] = { good: 0, moderate: 0, poor: 0, nonconformance: 0, clientcomplaint: 0 };
+      topicMatrix[topic] = { good: 0, poor: 0, nonconformance: 0, clientcomplaint: 0 };
     });
 
     filteredForFindings.forEach(inspection => {
@@ -274,7 +252,7 @@ const Dashboard_Inspection = ({
     });
 
     // Recalculate summary counts from filteredForFindings (not PHP counts)
-    const evaluations = ['good', 'moderate', 'poor', 'nonconformance', 'clientcomplaint'];
+    const evaluations = ['good', 'poor', 'nonconformance', 'clientcomplaint'];
     const liveSummary = {};
     evaluations.forEach(ev => {
       liveSummary[ev] = {
@@ -393,7 +371,6 @@ const Dashboard_Inspection = ({
             >
               <option value="all">All Evaluations</option>
               <option value="good">Good</option>
-              <option value="moderate">Moderate</option>
               <option value="poor">Poor</option>
               <option value="nonconformance">Non-conformance</option>
               <option value="clientcomplaint">Client Complaint</option>
@@ -475,7 +452,6 @@ const Dashboard_Inspection = ({
                   formatter={(value, name, props) => {
                     const evaluationNames = {
                       good: "Good",
-                      moderate: "Moderate",
                       poor: "Poor",
                       nonconformance: "Non-conformance",
                       clientcomplaint: "Client Complaint",
@@ -520,7 +496,6 @@ const Dashboard_Inspection = ({
                 {chartType === "compliance" ? (
                   <>
                     <Bar dataKey="good" fill="#10b981" stroke="#fff" strokeWidth={1} radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="moderate" fill="#f59e0b" stroke="#fff" strokeWidth={1} radius={[6, 6, 0, 0]} />
                     <Bar dataKey="poor" fill="#ef4444" stroke="#fff" strokeWidth={1} radius={[6, 6, 0, 0]} />
                     <Bar dataKey="nonconformance" fill="#6b7280" stroke="#fff" strokeWidth={1} radius={[6, 6, 0, 0]} />
                     <Bar dataKey="clientcomplaint" fill="#8b5cf6" stroke="#fff" strokeWidth={1} radius={[6, 6, 0, 0]} />
@@ -528,7 +503,6 @@ const Dashboard_Inspection = ({
                 ) : (
                   <>
                     <Bar dataKey="good" fill="#10b981" stroke="#fff" strokeWidth={1} radius={[6, 6, 0, 0]} />
-                    <Bar dataKey="moderate" fill="#f59e0b" stroke="#fff" strokeWidth={1} radius={[6, 6, 0, 0]} />
                     <Bar dataKey="poor" fill="#ef4444" stroke="#fff" strokeWidth={1} radius={[6, 6, 0, 0]} />
                     <Bar dataKey="nonconformance" fill="#6b7280" stroke="#fff" strokeWidth={1} radius={[6, 6, 0, 0]} />
                     <Bar dataKey="clientcomplaint" fill="#8b5cf6" stroke="#fff" strokeWidth={1} radius={[6, 6, 0, 0]} />
@@ -544,10 +518,6 @@ const Dashboard_Inspection = ({
                 <div className="flex items-center whitespace-nowrap">
                   <div className="w-3 h-3 bg-emerald-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Good</span>
-                </div>
-                <div className="flex items-center whitespace-nowrap">
-                  <div className="w-3 h-3 bg-amber-500 mr-2 shrink-0 rounded-sm"></div>
-                  <span>Moderate</span>
                 </div>
                 <div className="flex items-center whitespace-nowrap">
                   <div className="w-3 h-3 bg-red-500 mr-2 shrink-0 rounded-sm"></div>
@@ -589,9 +559,7 @@ const Dashboard_Inspection = ({
                       fill={
                         entry.name === "Good"
                           ? "#22c55e" // Green
-                          : entry.name === "Moderate"
-                            ? "#f59e0b" // Yellow
-                            : entry.name === "Poor"
+                          : entry.name === "Poor"
                               ? "#ef4444" // Orange
                               : entry.name === "Non-conformance"
                                 ? "#6b7280" // Red
@@ -626,10 +594,6 @@ const Dashboard_Inspection = ({
                 <span>Good</span>
               </div>
               <div className="flex items-center whitespace-nowrap">
-                <div className="w-3 h-3 bg-amber-500 mr-2 shrink-0 rounded-sm"></div>
-                <span>Moderate</span>
-              </div>
-              <div className="flex items-center whitespace-nowrap">
                 <div className="w-3 h-3 bg-red-500 mr-2 shrink-0 rounded-sm"></div>
                 <span>Poor</span>
               </div>
@@ -649,7 +613,7 @@ const Dashboard_Inspection = ({
         {/* NEW TOPIC CHART - Modified to show stacked bars by evaluation type */}
         {/* <div className="bg-white rounded-xl shadow p-3 sm:p-6 border">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">
-            Inspection Results by Topic
+            Inspection Results by Category
           </h2>
           <ResponsiveContainer width="100%" height={400}>
             <BarChart
@@ -664,7 +628,7 @@ const Dashboard_Inspection = ({
                 tick={{ fill: "#6b7280", fontSize: 10 }}
                 angle={-45}
                 textAnchor="end"
-                height={60}
+                height={110}
                 interval={0}
               />
               <YAxis
@@ -676,7 +640,6 @@ const Dashboard_Inspection = ({
                 formatter={(value, name) => {
                   const evaluationNames = {
                     good: "Good",
-                    moderate: "Moderate",
                     poor: "Poor",
                     nonconformance: "Non-conformance",
                     clientcomplaint: "Client Complaint"
@@ -694,7 +657,6 @@ const Dashboard_Inspection = ({
                 formatter={(value) => {
                   const evaluationNames = {
                     good: "Good",
-                    moderate: "Moderate",
                     poor: "Poor",
                     nonconformance: "Non-conformance",
                     clientcomplaint: "Client Complaint"
@@ -703,7 +665,6 @@ const Dashboard_Inspection = ({
                 }}
               />
               <Bar dataKey="good" stackId="a" fill="#10b981" name="good" />
-              <Bar dataKey="moderate" stackId="a" fill="#f59e0b" name="moderate" />
               <Bar dataKey="poor" stackId="a" fill="#ef4444" name="poor" />
               <Bar dataKey="nonconformance" stackId="a" fill="#6b7280" name="nonconformance" />
               <Bar dataKey="clientcomplaint" stackId="a" fill="#8b5cf6" name="clientcomplaint" />
@@ -713,10 +674,6 @@ const Dashboard_Inspection = ({
             <div className="flex items-center whitespace-nowrap">
               <div className="w-3 h-3 bg-emerald-500 mr-2 shrink-0 rounded-sm"></div>
               <span>Good</span>
-            </div>
-            <div className="flex items-center whitespace-nowrap">
-              <div className="w-3 h-3 bg-amber-500 mr-2 shrink-0 rounded-sm"></div>
-              <span>Moderate</span>
             </div>
             <div className="flex items-center whitespace-nowrap">
               <div className="w-3 h-3 bg-red-500 mr-2 shrink-0 rounded-sm"></div>
@@ -736,7 +693,7 @@ const Dashboard_Inspection = ({
         {/* Topic Chart */}
         <div className="bg-white rounded-xl shadow p-3 sm:p-6 border">
           <h2 className="text-lg font-semibold text-gray-800 mb-4">
-            Inspection Results by Topic
+            Inspection Results by Category
           </h2>
           {topicChartData.length > 0 ? (
             <>
@@ -754,7 +711,7 @@ const Dashboard_Inspection = ({
                     tick={{ fill: "#6b7280", fontSize: 10 }}
                     angle={-45}
                     textAnchor="end"
-                    height={60}
+                    height={110}
                     interval={0}
                   />
                   <YAxis
@@ -765,7 +722,6 @@ const Dashboard_Inspection = ({
                     formatter={(value, name) => {
                       const evaluationNames = {
                         good: "Good",
-                        moderate: "Moderate",
                         poor: "Poor",
                         nonconformance: "Non-conformance",
                         clientcomplaint: "Client Complaint"
@@ -779,7 +735,6 @@ const Dashboard_Inspection = ({
             formatter={(value) => {
               const evaluationNames = {
                 good: "Good",
-                moderate: "Moderate",
                 poor: "Poor",
                 nonconformance: "Non-conformance",
                 clientcomplaint: "Client Complaint"
@@ -788,7 +743,6 @@ const Dashboard_Inspection = ({
             }}
           /> */}
                   <Bar dataKey="good" stackId="a" fill="#10b981" name="good" />
-                  <Bar dataKey="moderate" stackId="a" fill="#f59e0b" name="moderate" />
                   <Bar dataKey="poor" stackId="a" fill="#ef4444" name="poor" />
                   <Bar dataKey="nonconformance" stackId="a" fill="#6b7280" name="nonconformance" />
                   <Bar dataKey="clientcomplaint" stackId="a" fill="#8b5cf6" name="clientcomplaint" />
@@ -799,10 +753,6 @@ const Dashboard_Inspection = ({
                 <div className="flex items-center whitespace-nowrap">
                   <div className="w-3 h-3 bg-emerald-500 mr-2 shrink-0 rounded-sm"></div>
                   <span>Good</span>
-                </div>
-                <div className="flex items-center whitespace-nowrap">
-                  <div className="w-3 h-3 bg-amber-500 mr-2 shrink-0 rounded-sm"></div>
-                  <span>Moderate</span>
                 </div>
                 <div className="flex items-center whitespace-nowrap">
                   <div className="w-3 h-3 bg-red-500 mr-2 shrink-0 rounded-sm"></div>
@@ -836,7 +786,6 @@ const Dashboard_Inspection = ({
                   <tr className="bg-gray-100 text-center font-semibold"><th className="border px-4 py-2 w-12">#</th>
                     <th className="border px-4 py-2">Topic</th>
                     <th className="border px-4 py-2">GOOD</th>
-                    <th className="border px-4 py-2">MODERATE</th>
                     <th className="border px-4 py-2">POOR</th>
                     <th className="border px-4 py-2">NONCONFORMANCE</th>
                     <th className="border px-4 py-2">CLIENT COMPLAINT</th>
@@ -847,7 +796,6 @@ const Dashboard_Inspection = ({
                     <tr key={topic} className="text-center"><td className="border px-4 py-2 text-gray-500">{topicIdx + 1}</td>
                       <td className="border px-4 py-2 font-medium">{topic}</td>
                       <td className="border px-4 py-2">{findingsData.topicMatrix[topic]?.good || 0}</td>
-                      <td className="border px-4 py-2">{findingsData.topicMatrix[topic]?.moderate || 0}</td>
                       <td className="border px-4 py-2">{findingsData.topicMatrix[topic]?.poor || 0}</td>
                       <td className="border px-4 py-2">{findingsData.topicMatrix[topic]?.nonconformance || 0}</td>
                       <td className="border px-4 py-2">{findingsData.topicMatrix[topic]?.clientcomplaint || 0}</td>
@@ -858,13 +806,12 @@ const Dashboard_Inspection = ({
                   <tr className="bg-gray-50 text-center font-semibold">
                     <td className="border px-4 py-2"></td><td className="border px-4 py-2">Total</td>
                     <td className="border px-4 py-2">{findingsData.summary.good.count}</td>
-                    <td className="border px-4 py-2">{findingsData.summary.moderate.count}</td>
                     <td className="border px-4 py-2">{findingsData.summary.poor.count}</td>
                     <td className="border px-4 py-2">{findingsData.summary.nonconformance.count}</td>
                     <td className="border px-4 py-2">{findingsData.summary.clientcomplaint.count}</td>
                   </tr>
                   <tr className="bg-blue-50 text-blue-800 font-bold text-center">
-                    <td colSpan="6" className="border px-4 py-2">Total Findings</td>
+                    <td colSpan="5" className="border px-4 py-2 text-right">Total Findings</td>
                     <td className="border px-4 py-2">{findingsData.total}</td>
                   </tr>
                 </tfoot>

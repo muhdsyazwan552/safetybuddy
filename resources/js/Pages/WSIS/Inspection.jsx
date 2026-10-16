@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import Toolbox from './Toolbox';
 import { showAlert } from '@/Helpers/alert';
 
 const Inspection = ({
@@ -10,12 +11,33 @@ const Inspection = ({
   auth_inspector = null,
   all_companies = [],
   topics = [],
+  categories = [],
   inspections: initialInspections = [],
   toolboxTopics = [],
-  toolboxTalks = []
+  toolboxCategories = [],
+  toolboxTalks = [],
+  projectStaff = {},
+  visits = []
 
 }) => {
   const [availableCompanies, setAvailableCompanies] = useState([]);
+  const [visitStatus, setVisitStatus] = useState('All');
+  const [visitToolbox, setVisitToolbox] = useState('All');
+  const [visitSearch, setVisitSearch] = useState('');
+  const [visitPage, setVisitPage] = useState(1);
+  const visitPageSize = 15;
+
+  const filteredVisits = visits.filter((v) => {
+    const text = `${v.project || ''} ${v.by || ''}`.toLowerCase();
+    const toolboxOk =
+      visitToolbox === 'All' ||
+      (visitToolbox === 'none' && !v.talk) ||
+      (visitToolbox === 'yes' && v.talk && v.talk.conducted) ||
+      (visitToolbox === 'no' && v.talk && !v.talk.conducted);
+    return text.includes(visitSearch.toLowerCase()) && (visitStatus === 'All' || v.status === visitStatus) && toolboxOk;
+  });
+  const visitPages = Math.max(1, Math.ceil(filteredVisits.length / visitPageSize));
+  const pagedVisits = filteredVisits.slice((visitPage - 1) * visitPageSize, visitPage * visitPageSize);
   const [inspections, setInspections] = useState(initialInspections);
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesToShow, setEntriesToShow] = useState(10);
@@ -66,6 +88,7 @@ const Inspection = ({
       location: '',
       evaluation: '',
       description: '',
+      category_id: '',
       topic_id: '',
       photos: []
     };
@@ -79,7 +102,7 @@ const Inspection = ({
   };
 
   const updateInspectionItem = (id, field, value) => {
-    setInspectionItems(inspectionItems.map(item =>
+    setInspectionItems(prev => prev.map(item =>
       item.id === id ? { ...item, [field]: value } : item
     ));
   };
@@ -164,8 +187,11 @@ const Inspection = ({
       if (!item.location) {
         validationErrors.push(`Item ${index + 1}: Location is required`);
       }
+      if (!item.category_id) {
+        validationErrors.push(`Item ${index + 1}: Category is required`);
+      }
       if (!item.topic_id) {
-        validationErrors.push(`Item ${index + 1}: Topic is required`);
+        validationErrors.push(`Item ${index + 1}: Sub topic is required`);
       }
       if (!item.evaluation) {
         validationErrors.push(`Item ${index + 1}: Evaluation is required`);
@@ -242,7 +268,6 @@ const Inspection = ({
   const getEvaluationBadge = (evaluation) => {
     const evaluationClasses = {
       good: 'bg-green-100 text-green-800',
-      moderate: 'bg-yellow-100 text-yellow-800',
       poor: 'bg-orange-100 text-orange-800',
       nonconformance: 'bg-red-100 text-red-800',
       clientcomplaint: 'bg-purple-100 text-purple-800'
@@ -260,6 +285,136 @@ const Inspection = ({
       <Head title={title} />
 
       <div className="p-6">
+        {/* Site visits - toolbox talks and inspections in ONE table (older records included) */}
+        <section id="visits" className="scroll-mt-20">
+          <div className="mb-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Toolbox talks &amp; inspections</h1>
+                <p className="text-sm text-gray-500">One row per site visit. Open a row to see the toolbox talk first, then its inspections.</p>
+              </div>
+              <Link href="/site-visits/create" className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-800">
+                + New site visit
+              </Link>
+            </div>
+          </div>
+
+          <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-gray-200 p-4 md:flex-row md:items-center md:justify-between">
+              <div className="flex flex-wrap items-center gap-3">
+                <select className="rounded border border-gray-300 px-3 py-1 text-sm" value={visitStatus} onChange={(e) => { setVisitStatus(e.target.value); setVisitPage(1); }}>
+                  <option value="All">All status</option>
+                  <option value="pending_verification">Pending verification</option>
+                  <option value="verified">Verified</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Returned</option>
+                </select>
+                <select className="rounded border border-gray-300 px-3 py-1 text-sm" value={visitToolbox} onChange={(e) => { setVisitToolbox(e.target.value); setVisitPage(1); }}>
+                  <option value="All">Toolbox: all</option>
+                  <option value="yes">Conducted</option>
+                  <option value="no">Not conducted</option>
+                  <option value="none">No toolbox record</option>
+                </select>
+              </div>
+              <input
+                type="text"
+                placeholder="Search project or inspector..."
+                className="w-full rounded border border-gray-300 px-4 py-1 text-sm md:w-64"
+                value={visitSearch}
+                onChange={(e) => { setVisitSearch(e.target.value); setVisitPage(1); }}
+              />
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200 text-sm">
+                <thead className="bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <tr>
+                    <th className="px-4 py-3 w-12">#</th>
+                    <th className="px-4 py-3">Date</th>
+                    <th className="px-4 py-3">Project</th>
+                    <th className="px-4 py-3">Recorded by</th>
+                    <th className="px-4 py-3">Toolbox talk</th>
+                    <th className="px-4 py-3">Inspections</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {pagedVisits.length === 0 && (
+                    <tr><td colSpan="8" className="px-4 py-10 text-center text-gray-500">No site visits found</td></tr>
+                  )}
+                  {pagedVisits.map((v, n) => {
+                    const counts = {};
+                    v.inspections.forEach((i) => { counts[i.evaluation] = (counts[i.evaluation] || 0) + 1; });
+                    return (
+                      <tr key={v.key} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-gray-500">{(visitPage - 1) * visitPageSize + n + 1}</td>
+                        <td className="whitespace-nowrap px-4 py-3">{v.date ? new Date(`${v.date}T00:00:00`).toLocaleDateString() : '-'}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{v.project || '-'}</td>
+                        <td className="px-4 py-3">{v.by || '-'}</td>
+                        <td className="px-4 py-3">
+                          {v.talk ? (
+                            <span className={`rounded-full px-2 py-1 text-xs font-semibold ${v.talk.conducted ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                              {v.talk.conducted ? 'Conducted' : 'Not conducted'}
+                            </span>
+                          ) : <span className="text-gray-400">-</span>}
+                          {v.talk && <span className="ml-2 text-xs text-gray-500">{v.talk.attended} present</span>}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-semibold text-gray-800">{v.inspections.length}</span>
+                            {Object.entries(counts).map(([ev, c]) => (
+                              <span key={ev} title={ev}>{getEvaluationBadge(ev)}<span className="ml-0.5 text-xs text-gray-500">×{c}</span></span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                            { pending_verification: 'bg-amber-100 text-amber-800', verified: 'bg-blue-100 text-blue-800', approved: 'bg-emerald-100 text-emerald-800', rejected: 'bg-red-100 text-red-800' }[v.status] || 'bg-gray-100 text-gray-700'
+                          }`}>
+                            {{ pending_verification: 'Pending verification', verified: 'Verified', approved: 'Approved', rejected: 'Returned' }[v.status] || v.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Link href={`/site-visits/${v.key}`} className="font-semibold text-blue-600 hover:text-blue-800">View</Link>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+              <span>{filteredVisits.length} site visit(s)</span>
+              <div className="flex items-center gap-2">
+                <button className="rounded border border-gray-300 bg-white px-3 py-1 disabled:opacity-50" disabled={visitPage === 1} onClick={() => setVisitPage((p) => Math.max(1, p - 1))}>Previous</button>
+                <span className="text-xs">Page {visitPage} of {visitPages}</span>
+                <button className="rounded border border-gray-300 bg-white px-3 py-1 disabled:opacity-50" disabled={visitPage === visitPages} onClick={() => setVisitPage((p) => Math.min(visitPages, p + 1))}>Next</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <details className="mt-10 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <summary className="cursor-pointer text-sm font-bold text-gray-700">Create or manage individual toolbox talks and inspections</summary>
+          <div className="mt-6">
+        {/* 1 · Toolbox Talks (first) */}
+        <section id="toolbox" className="scroll-mt-20">
+          <Toolbox
+            embedded
+            title="Toolbox Talks"
+            projects={projects}
+            toolboxTopics={toolboxCategories}
+            toolboxTalks={toolboxTalks}
+            projectStaff={projectStaff}
+          />
+        </section>
+
+        <hr className="my-10 border-t-2 border-gray-200" />
+
+        {/* 2 · Inspections */}
+        <section id="inspections" className="scroll-mt-20">
         {(
           <>
             {/* Create New Inspection Modal */}
@@ -429,22 +584,41 @@ const Inspection = ({
                               </div>
                               <div>
                                 <label className={`block text-sm font-medium text-gray-700 mb-2 ${requiredFieldStyle}`}>
-                                  Topic
+                                  Category
                                 </label>
                                 <select
-                                  value={item.topic_id}
-                                  onChange={(e) => updateInspectionItem(item.id, 'topic_id', e.target.value)}
+                                  value={item.category_id || ''}
+                                  onChange={(e) => {
+                                    updateInspectionItem(item.id, 'category_id', e.target.value);
+                                    updateInspectionItem(item.id, 'topic_id', '');
+                                  }}
                                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                                   required
                                 >
-                                  <option value="">Select a topic</option>
-                                  {topics.map(topic => (
-                                    <option key={topic.id} value={topic.id}>
-                                      {topic.name}
-                                    </option>
+                                  <option value="">Select a category</option>
+                                  {categories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>{cat.code} · {cat.name}</option>
                                   ))}
                                 </select>
                               </div>
+                              {item.category_id && (
+                                <div>
+                                  <label className={`block text-sm font-medium text-gray-700 mb-2 ${requiredFieldStyle}`}>
+                                    Sub topic
+                                  </label>
+                                  <select
+                                    value={item.topic_id}
+                                    onChange={(e) => updateInspectionItem(item.id, 'topic_id', e.target.value)}
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                                    required
+                                  >
+                                    <option value="">Select a sub topic</option>
+                                    {(categories.find(cat => String(cat.id) === String(item.category_id))?.items || []).map(t => (
+                                      <option key={t.id} value={t.id}>{t.code} · {t.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              )}
                               <div>
                                 <label className={`block text-sm font-medium text-gray-700 mb-2 ${requiredFieldStyle}`}>
                                   Evaluation
@@ -457,7 +631,6 @@ const Inspection = ({
                                 >
                                   <option value="">Select evaluation</option>
                                   <option value="good">Good</option>
-                                  <option value="moderate">Moderate</option>
                                   <option value="poor">Poor</option>
                                   <option value="nonconformance">Nonconformance</option>
                                   <option value="clientcomplaint">Client Complaint</option>
@@ -537,7 +710,7 @@ const Inspection = ({
             <div className="flex justify-between items-center mb-5">
               <h1 className="text-2xl font-bold text-gray-800">Inspections</h1>
               <button
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-800 transition-colors shadow-sm"
+                className="sb-create"
                 onClick={() => setIsCreatingNew(true)}
               >
                 Create New Inspection
@@ -575,7 +748,6 @@ const Inspection = ({
                     >
                       <option value="All">All</option>
                       <option value="good">Good</option>
-                      <option value="moderate">Moderate</option>
                       <option value="poor">Poor</option>
                       <option value="nonconformance">Nonconformance</option>
                       <option value="clientcomplaint">Client Complaint</option>
@@ -709,6 +881,9 @@ const Inspection = ({
             </div>
           </>
         )}
+        </section>
+          </div>
+        </details>
       </div>
     </AppLayout>
   );

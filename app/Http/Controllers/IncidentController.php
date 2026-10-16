@@ -21,9 +21,16 @@ class IncidentController extends Controller
     // ─────────────────────────────────────────────────────────────────────────────
     // 1. CREATE  →  GET  /incident/create
     // ─────────────────────────────────────────────────────────────────────────────
-    public function create()
+    /** Inspector / Supervisor / Manager can only name themselves as the responsible person. */
+    private function reportsAsSelf(): bool
+    {
+        return in_array((int) Auth::user()->role_id, [3, 4, 7, 8], true);
+    }
+
+    public function create(Request $request)
     {
         $user = Auth::user();
+        $inspector = $request->routeIs('inspector.*');
 
         $userStaff = CompanyStaff::where('user_id', $user->id)->first();
         $companyId = $userStaff ? $userStaff->company_id : null;
@@ -32,7 +39,29 @@ class IncidentController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
+        // inspectors only report on the projects they are assigned to
+        if ($inspector && $userStaff) {
+            $assigned = DB::table('project_assign')
+                ->where('entity_type', 'staff')->where('entity_id', $userStaff->id)->pluck('project_id');
+            if ($assigned->isNotEmpty()) {
+                $projects = $projects->whereIn('id', $assigned)->values();
+            }
+        }
+
         return Inertia::render('WSIS/Incident_Create', [
+            'portal'          => $inspector ? 'inspector' : 'admin',
+            'endpoints'       => $inspector ? [
+                'store'       => '/inspector/incidents',
+                'assignments' => '/inspector/incidents/project-assignments/',
+                'staff'       => '/inspector/incidents/subcon-staff/',
+                'back'        => '/inspector/incidents',
+            ] : [
+                'store'       => '/incident',
+                'assignments' => '/incident/project-assignments/',
+                'staff'       => '/incident/subcon-staff/',
+                'back'        => '/incident-statistic',
+            ],
+            'selfStaffId'     => ($this->reportsAsSelf() && $userStaff) ? $userStaff->id : null,
             'title'           => 'Report Incident',
             'userCompanyId'   => $companyId,
             'projects'        => $projects,
@@ -78,6 +107,11 @@ class IncidentController extends Controller
             ->where('entity_type', 'staff')
             ->pluck('entity_id');
 
+        if ($this->reportsAsSelf()) {
+            $me = CompanyStaff::where('user_id', Auth::id())->first();
+            $staffIds = $me ? collect([$me->id]) : collect();
+        }
+
         $assignedStaff = CompanyStaff::with('role:id,name')
             ->whereIn('id', $staffIds)
             ->orderBy('name')
@@ -91,6 +125,79 @@ class IncidentController extends Controller
         return response()->json([
             'subconCompanies' => $subconCompanies,
             'assignedStaff'   => $assignedStaff,
+        ]);
+    }
+
+    /**
+     * Inspector view: every incident of the projects they are assigned to,
+     * whoever reported it (not only their own reports).
+     */
+    public function inspectorIndex(Request $request)
+    {
+        $user = Auth::user();
+        $staff = CompanyStaff::where('user_id', $user->id)->first();
+
+        $assigned = $staff
+            ? DB::table('project_assign')->where('entity_type', 'staff')->where('entity_id', $staff->id)->pluck('project_id')
+            : collect();
+
+        $projects = Project::where('company_id', $user->company_id)
+            ->when($assigned->isNotEmpty(), fn ($q) => $q->whereIn('id', $assigned))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $incidents = Incident::with([
+                'project:id,name',
+                'subcontractor:id,name',
+                'incidentType:id,name',
+                'injuryType:id,name',
+                'reportedBy:id,name',
+                'responsibleBy:id,name',
+                'involvedStaff:id,name,role',
+                'responses',
+            ])
+            ->whereIn('project_id', $projects->pluck('id'))
+            ->orderByDesc('incident_date')
+            ->get()
+            ->map(fn (Incident $i) => [
+                'id' => $i->id,
+                'date' => optional($i->incident_date)->format('Y-m-d H:i'),
+                'project_id' => $i->project_id,
+                'project' => optional($i->project)->name,
+                'subcon' => optional($i->subcontractor)->name,
+                'type' => optional($i->incidentType)->name,
+                'injury' => optional($i->injuryType)->name,
+                'body_part' => $i->body_part,
+                'location' => $i->location,
+                'description' => $i->incident_description,
+                'immediate_cause' => $i->immediate_cause,
+                'immediate_action' => $i->immediate_action,
+                'corrective' => $i->corrective,
+                'status' => $i->status,
+                'reported_by' => optional($i->reportedBy)->name,
+                'responsible' => optional($i->responsibleBy)->name,
+                'mine' => $staff && (int) $i->reported_by === (int) $staff->id,
+                'involved' => $i->involvedStaff->map(fn ($x) => ['id' => $x->id, 'name' => $x->name, 'role' => $x->role])->values(),
+                'responses' => $i->responses->map(fn ($r) => [
+                    'id' => $r->id, 'type' => $r->type, 'message' => $r->message, 'by' => $r->staff_name,
+                    'role' => $r->role_label, 'at' => optional($r->created_at)->format('Y-m-d H:i'),
+                ])->values(),
+            ]);
+
+        return Inertia::render('Inspector/Incidents', [
+            'incidents' => $incidents,
+            'projects' => $projects,
+            'user' => $user,
+        ]);
+    }
+
+    /** Staff of a subcontractor company, for the "who was involved" checklist (AJAX). */
+    public function subconStaff($subconId)
+    {
+        return response()->json([
+            'staff' => \App\Models\SubconStaff::where('company_id', $subconId)
+                ->orderBy('name')
+                ->get(['id', 'name', 'role']),
         ]);
     }
 
@@ -126,7 +233,25 @@ class IncidentController extends Controller
             'immediate_action'     => ['required', 'string', 'max:255'],
             'corrective'           => ['nullable', 'string', 'max:255'],
             // 'manhours_lost'        => ['nullable', 'integer', 'min:0'],
+            'staff_ids'            => ['nullable', 'array'],
+            'staff_ids.*'          => ['integer', 'exists:subcon_staff,id'],
         ]);
+
+        $staffIds = $validated['staff_ids'] ?? [];
+        unset($validated['staff_ids']);
+
+        // only staff that belong to the chosen subcontractor can be linked
+        if (!empty($validated['subcon_company_id'])) {
+            $staffIds = \App\Models\SubconStaff::where('company_id', $validated['subcon_company_id'])
+                ->whereIn('id', $staffIds)->pluck('id')->all();
+        } else {
+            $staffIds = [];
+        }
+
+        // never trust the posted value for roles that can only report as themselves
+        if ($this->reportsAsSelf()) {
+            $validated['responsible_by'] = $userStaff->id;
+        }
 
         if (!isset($validated['status'])) {
             $validated['status'] = 'open';
@@ -136,7 +261,12 @@ class IncidentController extends Controller
         $validated['status']    = 'open';
         $validated['review_by'] = null;
 
-        Incident::create($validated);
+        $incident = Incident::create($validated);
+        $incident->involvedStaff()->sync($staffIds);
+
+        if ($request->routeIs('inspector.*')) {
+            return redirect('/inspector/incidents')->with('success', 'Incident report submitted successfully.');
+        }
 
         return redirect()
             ->route('incident.statistic')
