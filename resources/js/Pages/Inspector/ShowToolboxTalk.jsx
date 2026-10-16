@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Pencil, Printer, Trash2, CalendarDays, Users, UserRound, CheckCircle2, XCircle, ListChecks, Image as ImageIcon, X } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import { SectionCard, InfoRow, Sheet, ActionBar, fmtDate, storageUrl, darkBtn, ghostBtn } from '@/Components/inspector/kit';
+import { spPercent } from '@/Components/shared/SpSampling';
 
 export default function ShowToolboxTalk({ toolboxTalk, user }) {
     const [lightbox, setLightbox] = useState(null);
@@ -61,10 +62,41 @@ export default function ShowToolboxTalk({ toolboxTalk, user }) {
                     </div>
                 </SectionCard>
 
-                {isConducted && (toolboxTalk.topics || []).length > 0 && (
-                    <SectionCard title="Topics discussed" icon={ListChecks}>
+                {toolboxTalk.sp_sampled > 0 && (
+                    <SectionCard title="Safety Passport sampling" icon={ListChecks}>
+                        <div className="grid grid-cols-3 gap-3 text-center">
+                            <div className="rounded-2xl bg-gray-50 p-3"><p className="text-2xl font-extrabold text-gray-900">{toolboxTalk.sp_sampled}</p><p className="text-[11px] text-gray-500">Sampled</p></div>
+                            <div className="rounded-2xl bg-gray-50 p-3"><p className="text-2xl font-extrabold text-gray-900">{toolboxTalk.sp_not_registered ?? 0}</p><p className="text-[11px] text-gray-500">Not registered</p></div>
+                            <div className="rounded-2xl bg-ink-900 p-3"><p className="text-2xl font-extrabold text-brand-400">{spPercent(toolboxTalk.sp_sampled, toolboxTalk.sp_not_registered)}%</p><p className="text-[11px] text-gray-300">SP compliance</p></div>
+                        </div>
+                        <p className="mt-3 text-center text-xs text-gray-500">
+                            ({toolboxTalk.sp_sampled} − {toolboxTalk.sp_not_registered ?? 0}) ÷ {toolboxTalk.sp_sampled} × 100
+                        </p>
+                    </SectionCard>
+                )}
+
+                {(toolboxTalk.attendees || []).length > 0 && (
+                    <SectionCard title={`Attendees (${toolboxTalk.attendees.length})`} icon={Users}>
+                        <ul className="divide-y divide-gray-100">
+                            {toolboxTalk.attendees.map((a) => (
+                                <li key={a.id} className="flex items-center gap-3 py-2.5">
+                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-sm font-extrabold text-brand-900">
+                                        {(a.name || '?').charAt(0).toUpperCase()}
+                                    </span>
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-sm font-semibold text-gray-900">{a.name}</span>
+                                        {a.role && <span className="block truncate text-xs text-gray-500">{a.role}</span>}
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                    </SectionCard>
+                )}
+
+                {isConducted && (toolboxTalk.categories?.length || toolboxTalk.topics?.length) > 0 && (
+                    <SectionCard title="Toolbox category" icon={ListChecks}>
                         <div className="flex flex-wrap gap-2">
-                            {toolboxTalk.topics.map((t) => (
+                            {(toolboxTalk.categories?.length ? toolboxTalk.categories : toolboxTalk.topics).map((t) => (
                                 <span key={t.id} className="rounded-xl border border-brand-300 bg-brand-100 px-3 py-2 text-xs font-bold text-brand-900">
                                     {t.name || t.title}
                                 </span>

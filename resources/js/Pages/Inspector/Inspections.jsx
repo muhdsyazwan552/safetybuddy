@@ -4,7 +4,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Plus, MapPin, CalendarDays, Building2, ChevronRight, Pencil, Trash2, Eye } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import {
-    EVAL, EVAL_ORDER, EvalBadge, ListHeader, Sheet, EmptyState, Pager, Field,
+    EVAL, EVAL_ORDER, EvalBadge, StatusBadge, ListHeader, Sheet, EmptyState, Pager, Field,
     inputClass, fmtDate, primaryBtn, ghostBtn,
 } from '@/Components/inspector/kit';
 
@@ -56,7 +56,7 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                     action={
                         <Link
                             href="/inspector/inspections/create"
-                            className="inline-flex h-11 items-center gap-1.5 rounded-2xl bg-brand-500 px-4 text-sm font-extrabold text-ink-900 shadow-md active:scale-95 transition"
+                            className="sb-create"
                         >
                             <Plus className="h-4 w-4" strokeWidth={3} /> New
                         </Link>
@@ -109,7 +109,10 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                                             <p className="truncate text-[15px] font-bold text-gray-900">{i.project?.name || '-'}</p>
                                             <p className="mt-0.5 truncate text-xs text-gray-500">{i.topic?.name || i.topic?.title || '-'}</p>
                                         </div>
-                                        <EvalBadge value={i.evaluation} />
+                                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                            <EvalBadge value={i.evaluation} />
+                                            <StatusBadge value={i.status} />
+                                        </div>
                                     </div>
 
                                     <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-600">
@@ -136,6 +139,7 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                                         <th className="px-5 py-3">Subcon</th>
                                         <th className="px-5 py-3">Topic</th>
                                         <th className="px-5 py-3">Evaluation</th>
+                                        <th className="px-5 py-3">Status</th>
                                         <th className="px-5 py-3">Date</th>
                                         <th className="px-5 py-3">Location</th>
                                         <th className="px-5 py-3 text-right">Actions</th>
@@ -149,6 +153,7 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                                             <td className="px-5 py-3.5 text-gray-600">{i.subcon_company?.name || '-'}</td>
                                             <td className="px-5 py-3.5 text-gray-600">{i.topic?.name || i.topic?.title || '-'}</td>
                                             <td className="px-5 py-3.5"><EvalBadge value={i.evaluation} /></td>
+                                            <td className="px-5 py-3.5"><StatusBadge value={i.status} /></td>
                                             <td className="whitespace-nowrap px-5 py-3.5 text-gray-600">{fmtDate(i.inspection_date)}</td>
                                             <td className="px-5 py-3.5 text-gray-600">{i.location || '-'}</td>
                                             <td className="px-5 py-3.5">

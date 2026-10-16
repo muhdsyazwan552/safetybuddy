@@ -3,7 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Pencil, Printer, Trash2, MapPin, CalendarDays, Building2, UserRound, Tag, FolderKanban, Image as ImageIcon, AlertTriangle, MessageSquareWarning, X } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import {
-    EVAL, EvalBadge, SectionCard, InfoRow, Sheet, ActionBar, fmtDate, parsePhotos, storageUrl, darkBtn, ghostBtn,
+    EVAL, EvalBadge, StatusBadge, SectionCard, InfoRow, Sheet, ActionBar, fmtDate, parsePhotos, storageUrl, darkBtn, ghostBtn,
 } from '@/Components/inspector/kit';
 
 export default function ShowInspection({ inspection, user }) {
@@ -70,8 +70,14 @@ export default function ShowInspection({ inspection, user }) {
                                 <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Inspection #{inspection.id}</p>
                                 <h1 className="mt-1 text-xl font-extrabold leading-tight">{inspection.project?.name || '-'}</h1>
                             </div>
-                            <EvalBadge value={inspection.evaluation} className="shrink-0 !border-transparent bg-white" />
+                            <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                <EvalBadge value={inspection.evaluation} className="!border-transparent bg-white" />
+                                <StatusBadge value={inspection.status} className="bg-white" />
+                            </div>
                         </div>
+                        {inspection.status === 'rejected' && inspection.review_comment && (
+                            <p className="mt-3 rounded-xl bg-red-500/20 px-3 py-2 text-sm text-red-100">Returned: {inspection.review_comment}</p>
+                        )}
                         <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-300">
                             <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-brand-400" />{fmtDate(inspection.inspection_date, { day: 'numeric', month: 'long', year: 'numeric' })}</span>
                             <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-brand-400" />{inspection.location || '-'}</span>

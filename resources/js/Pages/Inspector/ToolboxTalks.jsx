@@ -28,7 +28,8 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
     const confirmDelete = () =>
         router.delete(`/inspector/toolbox-talks/${toDelete.id}`, { preserveScroll: true, onFinish: () => setToDelete(null) });
 
-    const topicsOf = (t) => (t.topics || []).map((x) => x.name || x.title).filter(Boolean);
+    // categories (new talks); old talks fall back to their legacy topics
+    const topicsOf = (t) => ((t.categories && t.categories.length ? t.categories : t.topics) || []).map((x) => x.name || x.title).filter(Boolean);
 
     return (
         <InspectorLayout user={user}>
@@ -44,7 +45,7 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
                     action={
                         <Link
                             href="/inspector/toolbox-talks/create"
-                            className="inline-flex h-11 items-center gap-1.5 rounded-2xl bg-brand-500 px-4 text-sm font-extrabold text-ink-900 shadow-md active:scale-95 transition"
+                            className="sb-create"
                         >
                             <Plus className="h-4 w-4" strokeWidth={3} /> New
                         </Link>
@@ -112,7 +113,7 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
                                         <th className="w-12 px-5 py-3">#</th>
                                         <th className="px-5 py-3">Project</th>
                                         <th className="px-5 py-3">Conducted by</th>
-                                        <th className="px-5 py-3">Topics</th>
+                                        <th className="px-5 py-3">Category</th>
                                         <th className="px-5 py-3">Attendees</th>
                                         <th className="px-5 py-3">Date</th>
                                         <th className="px-5 py-3">Status</th>

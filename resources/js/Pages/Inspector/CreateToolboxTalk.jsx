@@ -4,7 +4,7 @@ import { Head, router, usePage } from '@inertiajs/react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import ToolboxTalkForm from '@/Components/inspector/ToolboxTalkForm';
 
-export default function CreateToolboxTalk({ projects = [], topics = [], user }) {
+export default function CreateToolboxTalk({ projects = [], categories = [], staffByProject = {}, user }) {
     const { errors } = usePage().props;
 
     // `projects` are project-assignment rows: { project: { id, name } }
@@ -29,8 +29,9 @@ export default function CreateToolboxTalk({ projects = [], topics = [], user }) 
             </div>
             <ToolboxTalkForm
                 projects={projectOptions}
-                topics={topics}
+                topics={categories}
                 initial={{}}
+                staffByProject={staffByProject}
                 conductor={user?.staff_name || user?.name}
                 serverErrors={errors || {}}
                 submitLabel="Save record"

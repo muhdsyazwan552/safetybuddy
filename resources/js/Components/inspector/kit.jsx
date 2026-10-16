@@ -5,12 +5,11 @@ import { ChevronLeft, ChevronRight, X, SlidersHorizontal, Inbox } from 'lucide-r
 
 export const EVAL = {
     good: { label: 'Good', color: '#10b981', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    moderate: { label: 'Moderate', color: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
     poor: { label: 'Poor', color: '#f97316', badge: 'bg-orange-50 text-orange-700 border-orange-200' },
     nonconformance: { label: 'Non-Conformance', color: '#ef4444', badge: 'bg-red-50 text-red-700 border-red-200' },
     clientcomplaint: { label: 'Client Complaint', color: '#8b5cf6', badge: 'bg-violet-50 text-violet-700 border-violet-200' },
 };
-export const EVAL_ORDER = ['good', 'moderate', 'poor', 'nonconformance', 'clientcomplaint'];
+export const EVAL_ORDER = ['good', 'poor', 'nonconformance', 'clientcomplaint'];
 
 export const inputClass =
     'w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-900 placeholder-gray-400 ' +
@@ -40,6 +39,36 @@ export function EvalBadge({ value, className = '' }) {
     return (
         <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${ev?.badge || 'bg-gray-50 text-gray-600 border-gray-200'} ${className}`}>
             {ev?.label || value || '-'}
+        </span>
+    );
+}
+
+export const REVIEW_STATUS = {
+    pending_verification: { label: 'Pending verification', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
+    verified: { label: 'Verified', badge: 'bg-blue-50 text-blue-700 border-blue-200' },
+    approved: { label: 'Approved', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    rejected: { label: 'Returned', badge: 'bg-red-50 text-red-700 border-red-200' },
+};
+
+// Light card tint per review status / case state (amber = waiting, blue = verified / replied, green = done, red = returned)
+export const CARD_TONE = {
+    pending_verification: { card: 'bg-amber-50 border-amber-200', line: 'border-amber-200', foot: 'bg-amber-100/60' },
+    verified: { card: 'bg-sky-50 border-sky-200', line: 'border-sky-200', foot: 'bg-sky-100/60' },
+    approved: { card: 'bg-emerald-50 border-emerald-200', line: 'border-emerald-200', foot: 'bg-emerald-100/60' },
+    rejected: { card: 'bg-rose-50 border-rose-200', line: 'border-rose-200', foot: 'bg-rose-100/60' },
+    // NC / CC case states
+    open: { card: 'bg-amber-50 border-amber-200', line: 'border-amber-200', foot: 'bg-amber-100/60' },
+    responded: { card: 'bg-sky-50 border-sky-200', line: 'border-sky-200', foot: 'bg-sky-100/60' },
+    returned: { card: 'bg-rose-50 border-rose-200', line: 'border-rose-200', foot: 'bg-rose-100/60' },
+    closed: { card: 'bg-emerald-50 border-emerald-200', line: 'border-emerald-200', foot: 'bg-emerald-100/60' },
+};
+export const cardTone = (key) => CARD_TONE[key] || { card: 'bg-white border-gray-100', line: 'border-gray-100', foot: 'bg-gray-50' };
+
+export function StatusBadge({ value, className = '' }) {
+    const s = REVIEW_STATUS[value || 'pending_verification'];
+    return (
+        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${s.badge} ${className}`}>
+            {s.label}
         </span>
     );
 }
@@ -177,9 +206,18 @@ export function InfoRow({ label, children }) {
 }
 
 /** Sticky action bar above the mobile tab bar */
-export function ActionBar({ children }) {
+export function ActionBar({ children, leftClass = 'lg:left-72', inline = false }) {
+    if (inline) {
+        // web layout: the buttons sit under the form, right aligned, instead of floating at the bottom
+        return (
+            <div className="mx-auto mt-2 flex max-w-6xl flex-col-reverse gap-3 border-t border-gray-200 px-4 pb-8 pt-4 sm:flex-row sm:justify-end sm:px-6 [&>button]:sm:min-w-[160px] [&>button]:sm:flex-none">
+                {children}
+            </div>
+        );
+    }
+
     return (
-        <div className="fixed inset-x-0 bottom-16 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur lg:bottom-0 lg:left-72"
+        <div className={`fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 backdrop-blur lg:bottom-0 ${leftClass}`}
              style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom) * 0)' }}>
             <div className="mx-auto flex max-w-3xl gap-3">{children}</div>
         </div>

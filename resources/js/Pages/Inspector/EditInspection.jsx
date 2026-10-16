@@ -5,10 +5,11 @@ import InspectorLayout from '@/Layouts/InspectorLayout';
 import InspectionFields from '@/Components/inspector/InspectionFields';
 import { ActionBar, ghostBtn, primaryBtn, parsePhotos, storageUrl } from '@/Components/inspector/kit';
 
-export default function EditInspection({ inspection, projects = [], subconCompanies = [], topics = [], evaluations = [], user }) {
+export default function EditInspection({ inspection, projects = [], subconCompanies = [], categories = [], evaluations = [], user }) {
     const [item, setItem] = useState({
         project_id: inspection.project_id ?? '',
         subcon_company_id: inspection.subcon_company_id ?? '',
+        category_id: inspection.topic?.inspection_category_id ?? '',
         topic_id: inspection.topic_inspection_id ?? '',
         evaluation: inspection.evaluation ?? '',
         inspection_date: (inspection.inspection_date || '').slice(0, 10),
@@ -71,7 +72,7 @@ export default function EditInspection({ inspection, projects = [], subconCompan
         <InspectorLayout user={user}>
             <Head title="Edit Inspection" />
 
-            <div className="mx-auto max-w-2xl px-4 pb-40 pt-5 sm:px-6 lg:pb-32">
+            <div className="mx-auto max-w-2xl px-4 pb-32 pt-5 sm:px-6 lg:pb-32">
                 <div className="mb-4">
                     <p className="text-[11px] font-bold uppercase tracking-widest text-brand-800">Inspection #{inspection.id}</p>
                     <h1 className="text-2xl font-extrabold text-gray-900">Edit inspection</h1>
@@ -83,7 +84,7 @@ export default function EditInspection({ inspection, projects = [], subconCompan
                         onChange={change}
                         projects={projects}
                         subcons={subcons}
-                        topics={topics}
+                        categories={categories}
                         evaluations={evaluations.length ? evaluations : undefined}
                         errors={errors}
                         existingPhotos={parsePhotos(inspection.photo).map(storageUrl)}

@@ -5,7 +5,7 @@ import InspectorLayout from '@/Layouts/InspectorLayout';
 import ToolboxTalkForm from '@/Components/inspector/ToolboxTalkForm';
 import { storageUrl } from '@/Components/inspector/kit';
 
-export default function EditToolboxTalk({ toolboxTalk, projects = [], topics = [], user }) {
+export default function EditToolboxTalk({ toolboxTalk, attendeeIds = [], spByCompany = {}, projects = [], categories = [], staffByProject = {}, user }) {
     const { errors } = usePage().props;
     const conducted = toolboxTalk.conducted === 'yes';
 
@@ -26,13 +26,15 @@ export default function EditToolboxTalk({ toolboxTalk, projects = [], topics = [
             </div>
             <ToolboxTalkForm
                 projects={projects.map((p) => ({ id: p.id, name: p.name }))}
-                topics={topics}
+                topics={categories}
+                staffByProject={staffByProject}
                 initial={{
                     project_id: toolboxTalk.project_id,
                     inspection_date: (toolboxTalk.inspection_date || '').slice(0, 10),
                     is_conducted: conducted ? 1 : 0,
-                    total_attended: toolboxTalk.total_attended || '',
-                    topics: (toolboxTalk.topics || []).map((t) => t.id),
+                    attendees: attendeeIds,
+                    sp: spByCompany,
+                    categories: (toolboxTalk.categories || []).map((c) => c.id),
                 }}
                 conductor={user?.staff_name || user?.name}
                 existingImages={{

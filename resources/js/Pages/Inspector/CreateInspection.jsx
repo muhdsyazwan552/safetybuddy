@@ -11,6 +11,7 @@ const blank = (id) => ({
     id,
     project_id: '',
     subcon_company_id: '',
+    category_id: '',
     topic_id: '',
     evaluation: '',
     inspection_date: today(),
@@ -20,10 +21,10 @@ const blank = (id) => ({
     previews: [],    // string[]
 });
 
-const REQUIRED = ['project_id', 'subcon_company_id', 'topic_id', 'evaluation', 'inspection_date', 'location'];
+const REQUIRED = ['project_id', 'subcon_company_id', 'category_id', 'topic_id', 'evaluation', 'inspection_date', 'location'];
 const isComplete = (item) => REQUIRED.every((k) => String(item[k] || '').trim() !== '');
 
-export default function CreateInspection({ projects = [], topics = [], evaluations = [], user }) {
+export default function CreateInspection({ projects = [], categories = [], evaluations = [], user }) {
     const [items, setItems] = useState([blank(1)]);
     const [step, setStep] = useState(0);
     const [errors, setErrors] = useState({});
@@ -138,7 +139,7 @@ export default function CreateInspection({ projects = [], topics = [], evaluatio
         <InspectorLayout user={user}>
             <Head title="New Inspection" />
 
-            <div className="mx-auto max-w-2xl px-4 pb-40 pt-5 sm:px-6 lg:pb-32">
+            <div className="mx-auto max-w-2xl px-4 pb-32 pt-5 sm:px-6 lg:pb-32">
                 {/* Sheet switcher */}
                 <div className="mb-4">
                     <div className="mb-2 flex items-center justify-between">
@@ -194,7 +195,7 @@ export default function CreateInspection({ projects = [], topics = [], evaluatio
                         onChange={update}
                         projects={projects}
                         subcons={subcons}
-                        topics={topics}
+                        categories={categories}
                         evaluations={evaluations.length ? evaluations : undefined}
                         errors={errors}
                         newPhotos={item.previews.map((preview) => ({ preview }))}

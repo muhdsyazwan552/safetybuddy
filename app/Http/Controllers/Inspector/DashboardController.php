@@ -110,7 +110,7 @@ class DashboardController extends Controller
         $inspectionsQuery = fn () => Inspection::whereIn('project_id', $assignedProjectIds);
         $startOfWeek = now()->startOfWeek();
         $totalEvaluated = $inspectionsQuery()->count();
-        $goodModerate = $inspectionsQuery()->whereIn('evaluation', ['good', 'moderate'])->count();
+        $goodCount = $inspectionsQuery()->where('evaluation', 'good')->count();
 
         $openNc = NoConformance::where('status', 'open')
             ->whereHas('inspection', fn ($q) => $q->whereIn('project_id', $assignedProjectIds))
@@ -125,7 +125,7 @@ class DashboardController extends Controller
             'last_week_inspections' => $inspectionsQuery()
                 ->whereBetween('inspection_date', [$startOfWeek->copy()->subWeek(), $startOfWeek])
                 ->count(),
-            'compliance_rate' => $totalEvaluated > 0 ? round(($goodModerate / $totalEvaluated) * 100) : 0,
+            'compliance_rate' => $totalEvaluated > 0 ? round(($goodCount / $totalEvaluated) * 100) : 0,
             'open_nc' => $openNc,
             'open_cc' => $openCc,
             'toolbox_this_month' => ToolboxTalks::whereIn('project_id', $assignedProjectIds)
@@ -309,8 +309,8 @@ class DashboardController extends Controller
                 ->unique();
 
             $subconCompanies = SubconCompany::whereIn('id', $subconCompanyIds)
-                ->where('status', 'active')
-                ->select('id', 'name', 'email', 'contact')
+                ->orderBy('name')
+                ->select('id', 'name', 'email', 'contact', 'status')
                 ->get();
 
             // Add subcon companies to project object
@@ -319,16 +319,214 @@ class DashboardController extends Controller
             return $project;
         });
 
-        $topics = ToolboxTopic::all();
+        $categories = \App\Models\InspectionCategory::catalogue();
         $evaluations = Inspection::$evaluationOptions;
 
         return Inertia::render('Inspector/CreateInspection', [
             'projects' => $projects,
-            'topics' => $topics,
+            'categories' => $categories,
             'evaluations' => $evaluations,
             'user' => $user,
             'staffId' => $staff->id,
         ]);
+    }
+
+    // ------------------------------------------------------------------ site visit (toolbox + inspection)
+
+    /** Projects (with subcontractors) the logged-in inspector is assigned to. */
+    private function visitProjects($staff, bool $allOfCompany = false, $companyId = null)
+    {
+        $query = $allOfCompany
+            ? Project::where('company_id', $companyId)
+            : Project::whereIn('id', ProjectAssign::where('entity_type', 'staff')->where('entity_id', $staff->id)->pluck('project_id'));
+
+        return $query->orderBy('name')->get()->map(function ($project) {
+            $subconIds = DB::table('project_assign')
+                ->where('entity_type', 'compsub')->where('project_id', $project->id)->pluck('entity_id')->unique();
+
+            // inactive companies are inspected too (they may be inactive because of the very findings)
+            $project->subcon_companies = SubconCompany::whereIn('id', $subconIds)
+                ->orderBy('name')->select('id', 'name', 'status')->get();
+
+            return $project;
+        });
+    }
+
+    /**
+     * One flow for the day on site: toolbox talk first (can be skipped),
+     * then the inspections - or the toolbox talk only.
+     */
+    public function createVisit()
+    {
+        $user = Auth::user();
+        $staff = CompanyStaff::where('user_id', $user->id)->first();
+        if (!$staff) {
+            return redirect()->back()->with('error', 'Staff record not found');
+        }
+
+        // the company admin uses the same flow, on every project of the company
+        $isAdmin = (int) $user->role_id === 2;
+        $projects = $this->visitProjects($staff, $isAdmin, $user->company_id);
+
+        return Inertia::render('Inspector/NewVisit', [
+            'portal' => $isAdmin ? 'admin' : 'inspector',
+            'endpoints' => $isAdmin
+                ? ['store' => '/site-visits', 'done' => '/inspection', 'doneToolbox' => '/inspection']
+                : ['store' => '/inspector/visits', 'done' => '/inspector/inspections', 'doneToolbox' => '/inspector/toolbox-talks'],
+            'projects' => $projects,
+            'categories' => \App\Models\InspectionCategory::catalogue(),
+            'toolboxCategories' => \App\Models\ToolboxCategory::options(),
+            'staffByProject' => \App\Support\ToolboxAttendees::byProject($projects->pluck('id'), $user->company_id),
+            'evaluations' => Inspection::$evaluationOptions,
+            'user' => $user,
+        ]);
+    }
+
+    public function storeVisit(Request $request)
+    {
+        $user = Auth::user();
+        $staff = CompanyStaff::where('user_id', $user->id)->firstOrFail();
+
+        $toolbox = $request->boolean('toolbox');
+        $toolboxOnly = $toolbox && $request->boolean('toolbox_only');
+
+        $rules = [
+            'project_id' => 'required|exists:projects,id',
+            'visit_date' => 'required|date',
+            'toolbox' => 'required|boolean',
+        ];
+        $conducted = $request->boolean('conducted', true);
+        if ($toolbox && $conducted) {
+            $rules += [
+                'attendees' => 'required|array|min:1',
+                'attendees.*' => 'integer',
+                'categories' => 'required|array|min:1',
+                'categories.*' => 'integer|exists:toolbox_categories,id',
+                'img_group' => 'nullable|image|max:2048',
+                'img_attendance' => 'nullable|image|max:2048',
+            ];
+        } elseif ($toolbox) {
+            // not conducted: attendance + Safety Passport sampling are still recorded
+            $rules += [
+                'attendees' => 'nullable|array',
+                'attendees.*' => 'integer',
+                'sp_not_registered' => 'nullable|integer|min:0|max:100000',
+            ];
+        }
+        if (!$toolboxOnly) {
+            $rules += [
+                'inspections' => 'required|array|min:1',
+                'inspections.*.subcon_company_id' => 'required|exists:subcon_company,id',
+                'inspections.*.topic_id' => 'required|exists:toolbox_topic,id',
+                'inspections.*.evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
+                'inspections.*.inspection_date' => 'required|date',
+                'inspections.*.location' => 'required|string|max:255',
+                'inspections.*.description' => 'nullable|string',
+                'inspections.*.photos' => 'nullable|array',
+                'inspections.*.photos.*' => 'image|max:2048',
+            ];
+        }
+        $request->validate($rules);
+
+        if ((int) $user->role_id === 2) {
+            // company admin: any project of their own company
+            abort_unless(
+                Project::where('id', $request->project_id)->where('company_id', $user->company_id)->exists(),
+                403,
+                'This project does not belong to your company.'
+            );
+        } else {
+            // the inspector may only work on the projects they are assigned to
+            $isAssigned = ProjectAssign::where('entity_type', 'staff')
+                ->where('entity_id', $staff->id)->where('project_id', $request->project_id)->exists();
+            abort_unless($isAssigned, 403, 'You are not assigned to this project.');
+        }
+
+        $result = DB::transaction(function () use ($request, $user, $staff, $toolbox, $toolboxOnly, $conducted) {
+            $talk = null;
+
+            if ($toolbox) {
+                $attendeeIds = !empty($request->attendees)
+                    ? \App\Support\ToolboxAttendees::validIds((int) $request->project_id, $request->attendees, $user->company_id)
+                    : [];
+
+                if ($conducted && count($attendeeIds) === 0) {
+                    throw \Illuminate\Validation\ValidationException::withMessages(['attendees' => 'Select at least one staff member who attended.']);
+                }
+
+                // Safety Passport sampling only for a talk that was NOT conducted
+                $spSampled = null;
+                $spNotRegistered = null;
+                if (!$conducted && count($attendeeIds) > 0) {
+                    $spSampled = count($attendeeIds);
+                    $spNotRegistered = (int) ($request->sp_not_registered ?? 0);
+                    if ($spNotRegistered > $spSampled) {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            'sp_not_registered' => "Cannot be more than the {$spSampled} worker(s) sampled.",
+                        ]);
+                    }
+                }
+
+                $spPlan = \App\Support\ToolboxSp::plan($attendeeIds, $request->input('sp'), $request->filled('sp_not_registered') ? (int) $request->input('sp_not_registered') : null);
+
+                $talk = ToolboxTalks::create([
+                    'project_id' => (int) $request->project_id,
+                    'conducted' => $conducted ? 'yes' : 'no',
+                    'inspection_by' => $staff->id,
+                    'total_attended' => count($attendeeIds),
+                    'sp_sampled' => $spSampled,
+                    'sp_not_registered' => $spNotRegistered,
+                    'inspection_date' => date('Y-m-d', strtotime($request->visit_date)),
+                    'img_group' => ($conducted && $request->hasFile('img_group')) ? $request->file('img_group')->store('toolbox-talks/group', 'public') : null,
+                    'img_attendance' => ($conducted && $request->hasFile('img_attendance')) ? $request->file('img_attendance')->store('toolbox-talks/attendance', 'public') : null,
+                ]);
+                if ($conducted) {
+                    $talk->categories()->sync($request->categories);
+                }
+                if ($attendeeIds) {
+                    \App\Support\ToolboxAttendees::sync($talk, $attendeeIds);
+                }
+                \App\Support\ToolboxSp::persist($talk, $spPlan);
+            }
+
+            $saved = 0;
+            if (!$toolboxOnly) {
+                foreach ($request->inspections as $index => $item) {
+                    $paths = [];
+                    foreach ($request->file("inspections.{$index}.photos", []) as $photo) {
+                        $paths[] = $photo->store('inspections/photos', 'public');
+                    }
+
+                    $inspection = Inspection::create([
+                        'project_id' => (int) $request->project_id,
+                        'company_id' => $user->company_id,
+                        'inspection_by' => $staff->id,
+                        'toolbox_talk_id' => $talk?->id,
+                        'topic_inspection_id' => $item['topic_id'],
+                        'inspection_date' => $item['inspection_date'],
+                        'location' => $item['location'],
+                        'evaluation' => $item['evaluation'],
+                        'description' => $item['description'] ?? null,
+                        'subcon_company_id' => $item['subcon_company_id'],
+                        'inspectee_id' => null,
+                        'photo' => $this->encodePhotoPaths($paths),
+                    ]);
+
+                    // NC / CC cases are opened automatically, same as a stand-alone inspection
+                    if ($item['evaluation'] === 'nonconformance') {
+                        NoConformance::create(['inspection_id' => $inspection->id, 'status' => 'open', 'date_open' => $item['inspection_date']]);
+                    }
+                    if ($item['evaluation'] === 'clientcomplaint') {
+                        ClientComplaint::create(['inspection_id' => $inspection->id, 'status' => 'open', 'date_open' => $item['inspection_date']]);
+                    }
+                    $saved++;
+                }
+            }
+
+            return ['toolbox' => (bool) $talk, 'inspections' => $saved];
+        });
+
+        return response()->json(['success' => true] + $result);
     }
 
     public function getProjectSubconCompanies($projectId)
@@ -365,7 +563,7 @@ class DashboardController extends Controller
                 'inspections.*.project_id' => 'required|exists:projects,id',
                 'inspections.*.subcon_company_id' => 'required|exists:subcon_company,id',
                 'inspections.*.topic_id' => 'required|exists:toolbox_topic,id',
-                'inspections.*.evaluation' => 'required|in:good,moderate,poor,nonconformance,clientcomplaint',
+                'inspections.*.evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
                 'inspections.*.inspection_date' => 'required|date',
                 'inspections.*.location' => 'required|string|max:255',
                 'inspections.*.description' => 'nullable|string',
@@ -533,7 +731,7 @@ class DashboardController extends Controller
     //         'project_id' => 'required|exists:projects,id',
     //         'subcon_company_id' => 'nullable|exists:subcon_company,id',
     //         'topic_inspection_id' => 'nullable|exists:toolbox_topics,id',
-    //         'evaluation' => 'required|in:good,moderate,poor,nonconformance,clientcomplaint',
+    //         'evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
     //         'description' => 'nullable|string',
     //         'inspection_date' => 'required|date',
     //         'location' => 'nullable|string|max:255',
@@ -611,21 +809,21 @@ class DashboardController extends Controller
                 ->unique();
 
             $project->subcon_companies = SubconCompany::whereIn('id', $subconCompanyIds)
-                ->where('status', 'active')
-                ->select('id', 'name')
+                ->orderBy('name')
+                ->select('id', 'name', 'status')
                 ->get();
 
             return $project;
         });
         $subconCompanies = SubconCompany::where('status', 'active')->get();
-        $topics = ToolboxTopic::all();
+        $categories = \App\Models\InspectionCategory::catalogue();
         $evaluations = Inspection::$evaluationOptions;
 
         return Inertia::render('Inspector/EditInspection', [
-            'inspection' => $inspection,
+            'inspection' => $inspection->load('topic:id,inspection_category_id,name'),
             'projects' => $projects,
             'subconCompanies' => $subconCompanies,
-            'topics' => $topics,
+            'categories' => $categories,
             'evaluations' => $evaluations,
             'user' => Auth::user(),
         ]);
@@ -660,7 +858,7 @@ class DashboardController extends Controller
             'project_id' => 'required|exists:projects,id',
             'subcon_company_id' => 'nullable|exists:subcon_company,id',
             'topic_inspection_id' => 'nullable|exists:toolbox_topic,id',
-            'evaluation' => 'required|in:good,moderate,poor,nonconformance,clientcomplaint',
+            'evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
             'description' => 'nullable|string',
             'inspection_date' => 'required|date',
             'location' => 'nullable|string|max:255',
@@ -679,6 +877,11 @@ class DashboardController extends Controller
                 $existing[] = $photo->store('inspections/photos', 'public');
             }
             $validated['photo'] = $this->encodePhotoPaths(array_values($existing));
+        }
+
+        // a returned inspection goes back into the verification queue once corrected
+        if ($inspection->status === Inspection::STATUS_REJECTED) {
+            $validated['status'] = Inspection::STATUS_PENDING;
         }
 
         $inspection->update($validated);
@@ -715,8 +918,8 @@ class DashboardController extends Controller
             ->where('entity_id', $staff->id)
             ->pluck('project_id');
 
-        $query = ToolboxTalks::with(['project', 'CompanyStaff', 'topics' => function ($query) {
-            $query->select('toolbox_topic.id', 'toolbox_topic.name'); // Explicitly select fields
+        $query = ToolboxTalks::with(['project', 'CompanyStaff', 'categories:id,name', 'topics' => function ($query) {
+            $query->select('toolbox_topic.id', 'toolbox_topic.name'); // legacy topics of old talks
         }])->whereIn('project_id', $assignedProjectIds);
 
         if ($request->project_id) {
@@ -763,7 +966,7 @@ class DashboardController extends Controller
                 ->where('entity_id', $staff->id)
                 ->pluck('project_id');
 
-            $toolboxTalk = ToolboxTalks::with(['project', 'companyStaff', 'topics'])
+            $toolboxTalk = ToolboxTalks::with(['project', 'companyStaff', 'topics', 'categories:id,name', 'attendees:id,name,role,company_id'])
                 ->whereIn('project_id', $assignedProjectIds)
                 ->findOrFail($id);
 
@@ -811,7 +1014,8 @@ class DashboardController extends Controller
 
         return inertia('Inspector/CreateToolboxTalk', [
             'projects' => $projects,
-            'topics' => $topics,
+            'categories' => \App\Models\ToolboxCategory::options(),
+            'staffByProject' => \App\Support\ToolboxAttendees::byProject($projects->pluck('project_id'), $user->company_id),
             'user' => $user,
         ]);
     }
@@ -837,11 +1041,16 @@ class DashboardController extends Controller
                 'inspection_date' => 'required|date',
             ];
 
+            // attendance + Safety Passport sampling are recorded even when the talk was not conducted
+            $rules['attendees'] = 'nullable|array';
+            $rules['attendees.*'] = 'integer';
+            $rules['sp_not_registered'] = 'nullable|integer|min:0|max:100000';
+
             if ($request->is_conducted == 1) {
                 $rules['conducted'] = 'nullable|string|max:255';
-                $rules['total_attended'] = 'required|integer|min:1';
-                $rules['topics'] = 'required|array|min:1';
-                $rules['topics.*'] = 'exists:toolbox_topic,id'; // Fixed table name
+                $rules['attendees'] = 'required|array|min:1';
+                $rules['categories'] = 'required|array|min:1';
+                $rules['categories.*'] = 'integer|exists:toolbox_categories,id';
                 $rules['img_group'] = 'nullable|image|max:2048';
                 $rules['img_attendance'] = 'nullable|image|max:2048';
             }
@@ -855,7 +1064,31 @@ class DashboardController extends Controller
 
             // Prepare data
             $conductedValue = $request->is_conducted == 1 ? 'yes' : 'no';
-            $totalAttended = $request->is_conducted == 1 ? (int)$validated['total_attended'] : 0;
+            // Attendance comes from the ticked subcontractor staff - nobody types a number
+            $attendeeIds = !empty($validated['attendees'])
+                ? \App\Support\ToolboxAttendees::validIds((int) $validated['project_id'], $validated['attendees'], $user->company_id)
+                : [];
+
+            if ($request->is_conducted == 1 && count($attendeeIds) === 0) {
+                return redirect()->back()->withErrors(['attendees' => 'Select at least one staff member who attended.'])->withInput();
+            }
+
+            $totalAttended = count($attendeeIds);
+
+            // Safety Passport sampling only for a talk that was NOT conducted;
+            // workers sampled = the staff ticked as present.
+            $spSampled = null;
+            $spNotRegistered = null;
+            if ($request->is_conducted != 1 && $totalAttended > 0) {
+                $spSampled = $totalAttended;
+                $spNotRegistered = (int) ($validated['sp_not_registered'] ?? 0);
+
+                if ($spNotRegistered > $spSampled) {
+                    return redirect()->back()
+                        ->withErrors(['sp_not_registered' => "Cannot be more than the {$spSampled} worker(s) sampled."])
+                        ->withInput();
+                }
+            }
 
             // Handle file uploads
             $imgGroupPath = null;
@@ -878,6 +1111,8 @@ class DashboardController extends Controller
                 'conducted' => $conductedValue,
                 'inspection_by' => $staff->id,
                 'total_attended' => $totalAttended,
+                'sp_sampled' => $spSampled,
+                'sp_not_registered' => $spNotRegistered,
                 'inspection_date' => $inspectionDate,
                 'img_group' => $imgGroupPath,
                 'img_attendance' => $imgAttendancePath,
@@ -885,32 +1120,22 @@ class DashboardController extends Controller
 
             \Log::info('Attempting to insert:', $insertData);
 
+            // Safety Passport sampling per subcontractor (validated before anything is saved)
+            $spPlan = \App\Support\ToolboxSp::plan($attendeeIds, $request->input('sp'), $request->filled('sp_not_registered') ? (int) $request->input('sp_not_registered') : null);
+
             $toolboxTalk = ToolboxTalks::create($insertData);
 
             \Log::info('ToolboxTalk created with ID: ' . $toolboxTalk->id);
 
-            // Attach topics if conducted is YES
-            if ($request->is_conducted == 1 && !empty($validated['topics'])) {
-                $topicsToAttach = $validated['topics'];
-                \Log::info('Topics to attach (IDs):', $topicsToAttach);
-
-                // Method 1: Using attach
-                $toolboxTalk->topics()->attach($topicsToAttach);
-
-                // Method 2: Alternative manual insertion (use if Method 1 doesn't work)
-                // foreach ($topicsToAttach as $topicId) {
-                //     \DB::table('toolbox_talks_topics')->insert([
-                //         'toolbox_talks_id' => $toolboxTalk->id,
-                //         'toolbox_topic_id' => $topicId,
-                //     ]);
-                // }
-
-                \Log::info('Topics attached successfully');
-
-                // Verify attachment
-                $attachedCount = $toolboxTalk->topics()->count();
-                \Log::info('Total topics attached: ' . $attachedCount);
+            // Attach the selected toolbox categories if conducted is YES
+            if ($request->is_conducted == 1 && !empty($validated['categories'])) {
+                $toolboxTalk->categories()->sync($validated['categories']);
             }
+
+            if ($attendeeIds) {
+                \App\Support\ToolboxAttendees::sync($toolboxTalk, $attendeeIds);
+            }
+            \App\Support\ToolboxSp::persist($toolboxTalk, $spPlan);
 
             \Log::info('=== TOOLBOX TALK CREATED SUCCESSFULLY ===');
 
@@ -955,10 +1180,15 @@ class DashboardController extends Controller
         $projects = Project::whereIn('id', $assignedProjectIds)->where('status', 'active')->get();
         $topics = ToolboxTopic::all();
 
+        $toolboxTalk->load(['attendees:id', 'categories:id,name']);
+
         return Inertia::render('Inspector/EditToolboxTalk', [
             'toolboxTalk' => $toolboxTalk,
+            'attendeeIds' => $toolboxTalk->attendees->pluck('id')->values(),
+            'spByCompany' => (object) \App\Support\ToolboxSp::forTalk($toolboxTalk->id),
             'projects' => $projects,
-            'topics' => $topics,
+            'categories' => \App\Models\ToolboxCategory::options(),
+            'staffByProject' => \App\Support\ToolboxAttendees::byProject($projects->pluck('id'), Auth::user()->company_id),
             'user' => Auth::user(),
         ]);
     }
@@ -975,23 +1205,48 @@ class DashboardController extends Controller
         $rules = [
             'project_id' => 'required|exists:projects,id',
             'inspection_date' => 'required|date',
+            'attendees' => 'nullable|array',
+            'attendees.*' => 'integer',
+            'sp_not_registered' => 'nullable|integer|min:0|max:100000',
         ];
 
         if ($conducted) {
-            $rules['total_attended'] = 'required|integer|min:1';
-            $rules['topics'] = 'required|array|min:1';
-            $rules['topics.*'] = 'exists:toolbox_topic,id';
+            $rules['attendees'] = 'required|array|min:1';
+            $rules['categories'] = 'required|array|min:1';
+            $rules['categories.*'] = 'integer|exists:toolbox_categories,id';
             $rules['img_group'] = 'nullable|image|max:2048';
             $rules['img_attendance'] = 'nullable|image|max:2048';
         }
 
         $validated = $request->validate($rules);
 
+        $attendeeIds = !empty($validated['attendees'])
+            ? \App\Support\ToolboxAttendees::validIds((int) $validated['project_id'], $validated['attendees'], Auth::user()->company_id)
+            : [];
+
+        if ($conducted && count($attendeeIds) === 0) {
+            return back()->withErrors(['attendees' => 'Select at least one staff member who attended.']);
+        }
+
+        // Safety Passport sampling only for a talk that was NOT conducted
+        $spSampled = null;
+        $spNotRegistered = null;
+        if (!$conducted && count($attendeeIds) > 0) {
+            $spSampled = count($attendeeIds);
+            $spNotRegistered = (int) ($validated['sp_not_registered'] ?? 0);
+
+            if ($spNotRegistered > $spSampled) {
+                return back()->withErrors(['sp_not_registered' => "Cannot be more than the {$spSampled} worker(s) sampled."]);
+            }
+        }
+
         $data = [
             'project_id' => $validated['project_id'],
             'inspection_date' => date('Y-m-d', strtotime($validated['inspection_date'])),
             'conducted' => $conducted ? 'yes' : 'no',
-            'total_attended' => $conducted ? (int) $validated['total_attended'] : 0,
+            'total_attended' => count($attendeeIds),
+            'sp_sampled' => $spSampled,
+            'sp_not_registered' => $spNotRegistered,
         ];
 
         if ($conducted) {
@@ -1003,8 +1258,17 @@ class DashboardController extends Controller
             }
         }
 
+        // a returned talk goes back into the verification queue once corrected
+        if ($toolboxTalk->status === 'rejected') {
+            $data['status'] = 'pending_verification';
+        }
+
+        $spPlan = \App\Support\ToolboxSp::plan($attendeeIds, $request->input('sp'), $request->filled('sp_not_registered') ? (int) $request->input('sp_not_registered') : null);
+
         $toolboxTalk->update($data);
-        $toolboxTalk->topics()->sync($conducted ? $validated['topics'] : []);
+        $toolboxTalk->categories()->sync($conducted ? $validated['categories'] : []);
+        \App\Support\ToolboxAttendees::sync($toolboxTalk, $attendeeIds);
+        \App\Support\ToolboxSp::persist($toolboxTalk, $spPlan);
 
         return redirect()->route('inspector.toolbox-talks')->with('success', 'Toolbox Talk updated successfully');
     }
@@ -1026,6 +1290,62 @@ class DashboardController extends Controller
     /**
      * Get projects list
      */
+    /** The inspector's own site visits: toolbox talk + inspections together, with review status. */
+    public function visits()
+    {
+        $user = Auth::user();
+        $staff = CompanyStaff::where('user_id', $user->id)->first();
+
+        return Inertia::render('Inspector/Visits', [
+            'visits' => $staff ? \App\Support\VisitFeed::collect($user->company_id, null, $staff->id) : [],
+            'user' => $user,
+        ]);
+    }
+
+    /**
+     * Daily attendance ticked by the subcontractor leaders - read only for inspectors.
+     */
+    public function attendance(Request $request)
+    {
+        $user = Auth::user();
+        $staff = CompanyStaff::where('user_id', $user->id)->first();
+        $date = $request->query('date', now()->toDateString());
+
+        $assigned = $staff
+            ? ProjectAssign::where('entity_type', 'staff')->where('entity_id', $staff->id)->pluck('project_id')
+            : collect();
+
+        $projects = Project::where('company_id', $user->company_id)
+            ->when($assigned->isNotEmpty(), fn ($q) => $q->whereIn('id', $assigned))
+            ->orderBy('name')
+            ->get(['id', 'name']);
+
+        $rows = \Illuminate\Support\Facades\DB::table('manhour_attendances as a')
+            ->join('subcon_staff as st', 'st.id', '=', 'a.subcon_staff_id')
+            ->join('subcon_company as c', 'c.id', '=', 'a.subcon_company_id')
+            ->whereIn('a.project_id', $projects->pluck('id'))
+            ->where('a.work_date', $date)
+            ->orderBy('c.name')->orderBy('st.name')
+            ->get(['a.project_id', 'a.subcon_company_id', 'c.name as subcon', 'st.id as staff_id', 'st.name as staff', 'st.role', 'a.hours']);
+
+        $groups = $projects->map(fn ($p) => [
+            'project_id' => $p->id,
+            'project' => $p->name,
+            'subcons' => $rows->where('project_id', $p->id)->groupBy('subcon_company_id')->map(fn ($g) => [
+                'name' => $g->first()->subcon,
+                'workers' => $g->count(),
+                'manhours' => (float) $g->sum('hours'),
+                'staff' => $g->map(fn ($r) => ['id' => $r->staff_id, 'name' => $r->staff, 'role' => $r->role])->values(),
+            ])->values(),
+        ])->values();
+
+        return Inertia::render('Inspector/Attendance', [
+            'date' => $date,
+            'groups' => $groups,
+            'user' => $user,
+        ]);
+    }
+
     public function projects(Request $request)
     {
         $user = Auth::user();
@@ -1143,7 +1463,7 @@ class DashboardController extends Controller
             ->get();
 
         $evaluation = [];
-        foreach (['good', 'moderate', 'poor', 'nonconformance', 'clientcomplaint'] as $ev) {
+        foreach (['good', 'poor', 'nonconformance', 'clientcomplaint'] as $ev) {
             $evaluation[$ev] = $inspections->where('evaluation', $ev)->count();
         }
 

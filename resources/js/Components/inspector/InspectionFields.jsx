@@ -11,16 +11,22 @@ export default function InspectionFields({
     onChange,
     projects = [],
     subcons = [],
-    topics = [],
+    categories = [],         // [{ id, name, items: [{ id, name, code }] }]
     evaluations = EVAL_ORDER,
     errors = {},
     newPhotos = [],          // [{ preview }]
     onPickPhotos,            // (FileList) => void
     onRemovePhoto,           // (index) => void
     existingPhotos = [],     // [url]
+    hideProject = false,     // project already chosen earlier in the flow
+    wide = false,            // web layout: 2 column grid
 }) {
+    const categoryId = String(item.category_id || '');
+    const subTopics = categories.find((c) => String(c.id) === categoryId)?.items || [];
+
     return (
-        <div className="space-y-5">
+        <div className={wide ? 'grid grid-cols-1 gap-5 lg:grid-cols-2' : 'space-y-5'}>
+            {!hideProject && (
             <Field label="Project *" error={errors.project_id}>
                 <select
                     className={inputClass}
@@ -31,6 +37,7 @@ export default function InspectionFields({
                     {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
             </Field>
+            )}
 
             <Field label="Subcon company *" error={errors.subcon_company_id}>
                 <select
@@ -40,21 +47,34 @@ export default function InspectionFields({
                     onChange={(e) => onChange('subcon_company_id', e.target.value)}
                 >
                     <option value="">{item.project_id ? 'Select subcon' : 'Choose a project first'}</option>
-                    {subcons.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    {subcons.map((c) => <option key={c.id} value={c.id}>{c.name}{String(c.status || '').toLowerCase() === 'inactive' ? ' (inactive)' : ''}</option>)}
                 </select>
             </Field>
 
-            <Field label="Inspection topic *" error={errors.topic_id}>
-                <select className={inputClass} value={item.topic_id} onChange={(e) => onChange('topic_id', e.target.value)}>
-                    <option value="">Select topic</option>
-                    {topics.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            <Field label="Inspection category *" error={errors.category_id}>
+                <select
+                    className={inputClass}
+                    value={categoryId}
+                    onChange={(e) => { onChange('category_id', e.target.value); onChange('topic_id', ''); }}
+                >
+                    <option value="">Select category</option>
+                    {categories.map((c) => <option key={c.id} value={c.id}>{c.code} · {c.name}</option>)}
                 </select>
             </Field>
+
+            {categoryId && (
+                <Field label="Sub topic *" error={errors.topic_id}>
+                    <select className={inputClass} value={item.topic_id} onChange={(e) => onChange('topic_id', e.target.value)}>
+                        <option value="">Select sub topic</option>
+                        {subTopics.map((t) => <option key={t.id} value={t.id}>{t.code} · {t.name}</option>)}
+                    </select>
+                </Field>
+            )}
 
             {/* Evaluation as big tap targets */}
-            <div>
+            <div className={wide ? 'lg:col-span-2' : ''}>
                 <p className={labelClass}>Evaluation *</p>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className={`grid grid-cols-2 gap-2.5 ${wide ? 'lg:grid-cols-4' : ''}`}>
                     {evaluations.map((ev) => {
                         const selected = item.evaluation === ev;
                         const meta = EVAL[ev];
@@ -76,7 +96,7 @@ export default function InspectionFields({
                 {errors.evaluation && <p className="mt-1.5 ml-1 text-xs font-medium text-red-500">{errors.evaluation}</p>}
             </div>
 
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 ${wide ? 'lg:col-span-2' : ''}`}>
                 <Field label="Date *" error={errors.inspection_date}>
                     <input type="date" className={inputClass} value={item.inspection_date} onChange={(e) => onChange('inspection_date', e.target.value)} />
                 </Field>
@@ -85,14 +105,14 @@ export default function InspectionFields({
                 </Field>
             </div>
 
-            <Field label="Notes / observations">
+            <Field label="Notes / observations" className={wide ? 'lg:col-span-2' : ''}>
                 <textarea rows={4} className={inputClass} placeholder="Describe what you observed…" value={item.description} onChange={(e) => onChange('description', e.target.value)} />
             </Field>
 
             {/* Photos */}
-            <div>
+            <div className={wide ? 'lg:col-span-2' : ''}>
                 <p className={labelClass}>Evidence photos</p>
-                <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+                <div className={`grid grid-cols-3 gap-2.5 sm:grid-cols-4 ${wide ? 'lg:grid-cols-6' : ''}`}>
                     {existingPhotos.map((src) => (
                         <div key={src} className="aspect-square overflow-hidden rounded-2xl border border-gray-200">
                             <img src={src} alt="" className="h-full w-full object-cover" />

@@ -22,12 +22,11 @@ import {
 
 const EVAL = {
     good: { label: 'Good', color: '#10b981', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    moderate: { label: 'Moderate', color: '#f59e0b', badge: 'bg-amber-50 text-amber-700 border-amber-200' },
     poor: { label: 'Poor', color: '#f97316', badge: 'bg-orange-50 text-orange-700 border-orange-200' },
     nonconformance: { label: 'Non-Conformance', color: '#ef4444', badge: 'bg-red-50 text-red-700 border-red-200' },
     clientcomplaint: { label: 'Client Complaint', color: '#8b5cf6', badge: 'bg-violet-50 text-violet-700 border-violet-200' },
 };
-const EVAL_ORDER = ['good', 'moderate', 'poor', 'nonconformance', 'clientcomplaint'];
+const EVAL_ORDER = ['good', 'poor', 'nonconformance', 'clientcomplaint'];
 
 const fade = {
     hidden: { opacity: 0, y: 14 },
@@ -228,7 +227,7 @@ export default function Dashboard({
                         <div className="relative mt-5 flex flex-wrap gap-2">
                             <Link
                                 href="/inspector/inspections/create"
-                                className="inline-flex items-center gap-2 rounded-2xl bg-brand-500 px-4 py-2.5 text-sm font-bold text-ink-900 shadow-md active:scale-95 transition"
+                                className="sb-create"
                             >
                                 <Plus className="w-4 h-4" strokeWidth={3} /> New Inspection
                             </Link>
