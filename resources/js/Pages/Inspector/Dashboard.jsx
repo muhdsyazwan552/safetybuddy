@@ -5,6 +5,7 @@ import InspectorLayout from '@/Layouts/InspectorLayout';
 import {
     ClipboardCheck,
     HardHat,
+    ClipboardList,
     Building2,
     Plus,
     ArrowRight,
@@ -146,8 +147,8 @@ export default function Dashboard({
     const openIssues = (insights.open_nc || 0) + (insights.open_cc || 0);
 
     const quickActions = [
-        { label: 'New Inspection', href: '/inspector/inspections/create', icon: ClipboardCheck, primary: true },
-        { label: 'Toolbox Talk', href: '/inspector/toolbox-talks/create', icon: HardHat },
+        { label: 'New Site Visit', href: '/inspector/visits/create', icon: ClipboardList, primary: true },
+        { label: 'Site Visits', href: '/inspector/visits', icon: CalendarDays },
         { label: 'Projects', href: '/inspector/projects', icon: Building2 },
         { label: 'Subcons', href: '/inspector/subcon-companies', icon: Users },
     ];
@@ -226,16 +227,10 @@ export default function Dashboard({
 
                         <div className="relative mt-5 flex flex-wrap gap-2">
                             <Link
-                                href="/inspector/inspections/create"
+                                href="/inspector/visits/create"
                                 className="sb-create"
                             >
-                                <Plus className="w-4 h-4" strokeWidth={3} /> New Inspection
-                            </Link>
-                            <Link
-                                href="/inspector/toolbox-talks/create"
-                                className="inline-flex items-center gap-2 rounded-2xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white border border-white/10 active:scale-95 transition"
-                            >
-                                <HardHat className="w-4 h-4 text-brand-400" /> Toolbox Talk
+                                <Plus className="w-4 h-4" strokeWidth={3} /> New Site Visit
                             </Link>
                         </div>
                     </motion.section>

@@ -128,6 +128,59 @@ class ReviewController extends Controller
         ]);
     }
 
+    // ------------------------------------------------------------------ subcontractors
+
+    /** Subcontractor companies of this company with a quick health summary. */
+    public function subconsIndex(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        $companies = \App\Models\SubconCompany::where('company_id', $this->companyId())
+            ->withCount('subconStaff')
+            ->when($q !== '', fn ($w) => $w->where('name', 'like', "%{$q}%"))
+            ->orderBy('name')->get(['id', 'name', 'email', 'contact', 'status']);
+
+        $ids = $companies->pluck('id');
+        $openCases = [];
+        foreach ([\App\Models\NoConformance::class, \App\Models\ClientComplaint::class] as $class) {
+            $table = (new $class)->getTable();
+            $class::where("{$table}.status", '!=', 'closed')
+                ->join('inspections as i', 'i.id', '=', "{$table}.inspection_id")->whereIn('i.subcon_company_id', $ids)
+                ->selectRaw('i.subcon_company_id as sid, count(*) as n')->groupBy('i.subcon_company_id')
+                ->pluck('n', 'sid')->each(function ($n, $sid) use (&$openCases) {
+                    $openCases[$sid] = ($openCases[$sid] ?? 0) + $n;
+                });
+        }
+        $machines = \App\Models\SubconMachinery::whereIn('subcon_company_id', $ids)
+            ->selectRaw('subcon_company_id, count(*) as n')->groupBy('subcon_company_id')->pluck('n', 'subcon_company_id');
+        $today = \App\Models\Manhour::whereIn('subcon_company_id', $ids)->where('work_date', now()->toDateString())
+            ->selectRaw('subcon_company_id, sum(worker_count) as n')->groupBy('subcon_company_id')->pluck('n', 'subcon_company_id');
+
+        return Inertia::render('Review/Subcons', [
+            'filters' => ['q' => $q],
+            'companies' => $companies->map(fn ($c) => [
+                'id' => $c->id,
+                'name' => $c->name,
+                'email' => $c->email,
+                'contact' => $c->contact,
+                'status' => $c->status,
+                'staff' => $c->subcon_staff_count,
+                'machinery' => (int) ($machines[$c->id] ?? 0),
+                'present_today' => (int) ($today[$c->id] ?? 0),
+                'open_cases' => (int) ($openCases[$c->id] ?? 0),
+            ])->values(),
+        ]);
+    }
+
+    public function subconShow($id)
+    {
+        $company = \App\Support\SubconDetail::find($id, $this->companyId());
+        $detail = \App\Support\SubconDetail::for($company);
+
+        return Inertia::render('Review/SubconShow', [
+            'company' => $company->only(['id', 'name', 'email', 'contact', 'address', 'status']),
+        ] + $detail);
+    }
+
     public function casesIndex(Request $request)
     {
         $f = $this->listFilters($request) + [

@@ -6,7 +6,7 @@ import { Link, usePage } from '@inertiajs/react';
 import Toast from '@/Components/Toast';
 import { confirmLogout } from '@/Helpers/logout';
 import {
-    LayoutDashboard, ClipboardCheck, AlertTriangle, LogOut, Settings, Siren, BarChart3, Menu, X,
+    LayoutDashboard, ClipboardCheck, AlertTriangle, LogOut, Settings, Siren, BarChart3, Menu, X, Users,
 } from 'lucide-react';
 
 const NAV = [
@@ -14,6 +14,7 @@ const NAV = [
     { name: 'Site visits', href: '/review/visits', icon: ClipboardCheck },
     { name: 'Incidents', href: '/review/incidents', icon: Siren },
     { name: 'NC / CC cases', href: '/review/cases', icon: AlertTriangle },
+    { name: 'Subcontractors', href: '/review/subcons', icon: Users },
     { name: 'Reports', href: '/review/reports', icon: BarChart3 },
     { name: 'My profile', href: '/profile', icon: Settings },
 ];

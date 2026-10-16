@@ -51,7 +51,7 @@ export default function NewVisit({
     const isAdmin = portal === 'admin';
     const Shell = isAdmin ? AppLayout : InspectorLayout;
     const shellProps = isAdmin ? { title: 'New site visit' } : { user };
-    const barLeft = isAdmin ? 'lg:left-64' : 'lg:left-72';
+    const barLeft = isAdmin ? 'lg:left-64' : '';
     const maxW = isAdmin ? 'max-w-6xl' : 'max-w-2xl';
     const padB = isAdmin ? 'pb-6' : 'pb-32';
     const [step, setStep] = useState('start'); // start | toolbox | choose | inspect

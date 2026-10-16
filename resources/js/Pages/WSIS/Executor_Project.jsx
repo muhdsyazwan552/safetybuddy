@@ -211,7 +211,7 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
                             href={route('executor.staff', { id: company.id })}
                             className="text-blue-600 hover:text-blue-800"
                           >
-                            View Staff
+                            View Detail
                           </Link>
                           <button
                             className="text-green-600 hover:text-green-800"

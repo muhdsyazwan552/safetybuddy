@@ -206,7 +206,7 @@ export function InfoRow({ label, children }) {
 }
 
 /** Sticky action bar above the mobile tab bar */
-export function ActionBar({ children, leftClass = 'lg:left-72', inline = false }) {
+export function ActionBar({ children, leftClass = '', inline = false }) {
     if (inline) {
         // web layout: the buttons sit under the form, right aligned, instead of floating at the bottom
         return (

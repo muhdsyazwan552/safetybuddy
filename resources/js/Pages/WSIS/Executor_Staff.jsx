@@ -4,8 +4,10 @@ import AppLayout from '@/Pages/WSIS/Layout';
 import dayjs from 'dayjs';
 import { showAlert } from '@/Helpers/alert';
 import ShareSubconLink from '@/Components/shared/ShareSubconLink';
+import { SubconSummary, SubconTabs, SubconPanels, ExpiryBadge, subconCounts } from '@/Components/shared/SubconDetail';
 
-const ExecutorStaff = ({ title, company, staff }) => {
+const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], attendance = [], induction = { topics: [], total: 0, done: 0, complete: false } }) => {
+  const [tab, setTab] = useState('staff');
   const [showForm, setShowForm] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [showCreatePage, setShowCreatePage] = useState(false);
@@ -167,11 +169,19 @@ const ExecutorStaff = ({ title, company, staff }) => {
                 <h3 className="text-sm font-medium text-gray-500">Company Details</h3>
                 <div className="mt-2 space-y-1">
                   <p className="text-sm"><span className="font-medium">Staff Count:</span> {staff?.length || 0}</p>
+                  <p className="text-sm"><span className="font-medium">Safety Induction:</span> {induction.done}/{induction.total} topics acknowledged</p>
+                  <p className="text-sm"><span className="font-medium">Machinery:</span> {machinery.length}</p>
                 </div>
               </div>
             </div>
           </div>
 
+          <SubconSummary staff={staff} machinery={machinery} cases={cases} attendance={attendance} induction={induction} onSelect={setTab} />
+          <SubconTabs tab={tab} onChange={setTab} counts={subconCounts({ staff, machinery, cases, attendance, induction })} />
+
+          {tab !== 'staff' && <SubconPanels tab={tab} machinery={machinery} cases={cases} attendance={attendance} induction={induction} />}
+
+          {tab === 'staff' && (<>
           {/* Staff Section */}
           <div className="mb-6">
             <h2 className="text-xl font-semibold text-gray-800">Staff Members</h2>
@@ -229,6 +239,7 @@ const ExecutorStaff = ({ title, company, staff }) => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certifications</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined Date</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -268,6 +279,18 @@ const ExecutorStaff = ({ title, company, staff }) => {
                             {member.status || 'active'}
                           </span>
                         </td>
+                        <td className="px-6 py-4 text-sm">
+                          {member.certifications?.length ? (
+                            <div className="flex flex-col gap-1">
+                              {member.certifications.map(c => (
+                                <a key={c.id} href={c.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
+                                  {c.title}
+                                  <ExpiryBadge date={c.expiry_date} />
+                                </a>
+                              ))}
+                            </div>
+                          ) : <span className="text-gray-400">-</span>}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {member.created_at ? dayjs(member.created_at).format('DD MMM YYYY') : '-'}
                         </td>
@@ -295,7 +318,7 @@ const ExecutorStaff = ({ title, company, staff }) => {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="8" className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
                         {searchTerm ? 'No staff members match your search.' : 'No staff members found. Click "Add Single Staff" or "Add Multiple Staff" to get started.'}
                       </td>
                     </tr>
@@ -337,6 +360,7 @@ const ExecutorStaff = ({ title, company, staff }) => {
               </div>
             )}
           </div>
+          </>)}
         </div>
 
         {/* Add/Edit Staff Modal */}

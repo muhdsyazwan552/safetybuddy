@@ -5,16 +5,16 @@ import { Phone, Mail, MapPin, Users, ClipboardCheck, AlertTriangle, FolderKanban
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import { EVAL, EvalBadge, EmptyState, SectionCard, fmtDate } from '@/Components/inspector/kit';
 import { statusMeta } from '@/Components/inspector/projectUtils';
+import SubconDetail from '@/Components/shared/SubconDetail';
 
-export default function SubconCompanyDetails({ company, inspections = [], stats = {}, user }) {
-    const staff = company.subcon_staff || company.subconStaff || [];
+export default function SubconCompanyDetails({ company, inspections = [], stats = {}, user, staff = [], machinery = [], cases = [], attendance = [], induction }) {
     const projects = company.projects || [];
 
     return (
         <InspectorLayout user={user}>
             <Head title={`Subcon: ${company.name}`} />
 
-            <div className="mx-auto max-w-3xl space-y-4 px-4 pb-10 pt-5 sm:px-6">
+            <div className="mx-auto max-w-5xl space-y-4 px-4 pb-10 pt-5 sm:px-6">
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
                     <div className="flex items-center gap-4">
                         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-brand-500 text-2xl font-extrabold text-ink-900">
@@ -49,22 +49,7 @@ export default function SubconCompanyDetails({ company, inspections = [], stats 
                     ))}
                 </div>
 
-                <SectionCard title={`Staff (${staff.length})`} icon={Users}>
-                    {staff.length === 0 ? <p className="text-sm text-gray-400">No staff registered.</p> : (
-                        <ul className="space-y-3">
-                            {staff.map((s) => (
-                                <li key={s.id} className="flex items-center gap-3">
-                                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-sm font-extrabold text-brand-900">{(s.name || '?').charAt(0).toUpperCase()}</span>
-                                    <span className="min-w-0 flex-1">
-                                        <span className="block truncate text-sm font-semibold text-gray-900">{s.name}</span>
-                                        <span className="block truncate text-xs text-gray-500">{s.role || '-'}</span>
-                                    </span>
-                                    {s.contact && <a href={`tel:${s.contact}`} className="flex h-9 w-9 items-center justify-center rounded-xl bg-gray-100 text-gray-600" aria-label="Call"><Phone className="h-4 w-4" /></a>}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </SectionCard>
+                <SubconDetail staff={staff} machinery={machinery} cases={cases} attendance={attendance} induction={induction} />
 
                 {projects.length > 0 && (
                     <SectionCard title={`Projects (${projects.length})`} icon={FolderKanban}>

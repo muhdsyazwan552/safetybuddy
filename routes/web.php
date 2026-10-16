@@ -264,6 +264,8 @@ Route::middleware(['auth', 'role:3,4'])->prefix('review')->name('review.')->grou
     Route::get('/cases', [$c, 'casesIndex'])->name('cases');
     Route::get('/toolbox', [$c, 'toolboxIndex'])->name('toolbox');
     Route::get('/visits', [$c, 'visitsIndex'])->name('visits');
+    Route::get('/subcons', [$c, 'subconsIndex'])->name('subcons');
+    Route::get('/subcons/{id}', [$c, 'subconShow'])->where('id', '[0-9]+')->name('subcons.show');
 
     // performance reports (Supervisor verifies, Manager approves and reviews penalties)
     Route::get('/reports', [\App\Http\Controllers\PerformanceController::class, 'index'])->name('reports');

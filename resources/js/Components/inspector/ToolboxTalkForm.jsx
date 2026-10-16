@@ -131,7 +131,7 @@ function AttendeeSelect({ staff, value, onChange, error, projectSelected }) {
  *  initial:  { project_id, inspection_date, is_conducted (1|0|null), total_attended, categories: [ids] }
  *  onSubmit(payload, { setErrors, setSaving })
  */
-export default function ToolboxTalkForm({ projects, topics, initial, conductor, staffByProject = {}, existingImages = {}, serverErrors = {}, submitLabel = 'Save record', onSubmit, embedded = false, onCancel = null, cancelLabel = 'Cancel', actionBarLeft = 'lg:left-72', wide = false }) {
+export default function ToolboxTalkForm({ projects, topics, initial, conductor, staffByProject = {}, existingImages = {}, serverErrors = {}, submitLabel = 'Save record', onSubmit, embedded = false, onCancel = null, cancelLabel = 'Cancel', actionBarLeft = '', wide = false }) {
     const [data, setData] = useState({
         project_id: initial.project_id ?? '',
         inspection_date: initial.inspection_date ?? new Date().toISOString().split('T')[0],

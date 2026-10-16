@@ -96,15 +96,14 @@ class ContentController extends Controller
     // For SubconCompany staff management
     public function executorStaff($id)
     {
-        // Get subcon company with its staff using the correct relationship
-        $company = SubconCompany::with('subconStaff')->findOrFail($id);
+        $company = \App\Support\SubconDetail::find($id, Auth::user()->company_id);
+        $detail = \App\Support\SubconDetail::for($company);
         $company->setAttribute('leader_key', $company->leaderKey());
 
         return Inertia::render('WSIS/Executor_Staff', [
             'title' => $company->name . ' Staff',
             'company' => $company,
-            'staff' => $company->subconStaff  // Use the correct relationship name
-        ]);
+        ] + $detail);
     }
 
 

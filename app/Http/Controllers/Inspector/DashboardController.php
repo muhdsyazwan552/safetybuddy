@@ -1523,7 +1523,8 @@ class DashboardController extends Controller
      */
     public function subconCompanies(Request $request)
     {
-        $query = SubconCompany::withCount('subconStaff');
+        $query = SubconCompany::withCount('subconStaff')
+            ->when(Auth::user()->company_id, fn ($q, $companyId) => $q->where('company_id', $companyId));
 
         if ($request->search) {
             $query->where('name', 'like', "%{$request->search}%");
@@ -1547,11 +1548,9 @@ class DashboardController extends Controller
      */
     public function showSubconCompany($id)
     {
-        $company = SubconCompany::with([
-            'subconStaff',
-            'projects',
-            'assignments'
-        ])->findOrFail($id);
+        $company = \App\Support\SubconDetail::find($id, Auth::user()->company_id);
+        $detail = \App\Support\SubconDetail::for($company);
+        $company->load(['projects', 'assignments']);
 
         $inspections = Inspection::with(['project', 'topic'])
             ->where('subcon_company_id', $id)
@@ -1572,6 +1571,6 @@ class DashboardController extends Controller
             'inspections' => $inspections,
             'stats' => $stats,
             'user' => Auth::user(),
-        ]);
+        ] + $detail);
     }
 }
