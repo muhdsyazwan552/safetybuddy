@@ -271,7 +271,7 @@ export default function CompanyDetails({
                 {/* Top bar */}
                 <header className="sticky top-0 z-40 bg-ink-900 text-white shadow-md">
                     <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
-                        <img src="/images/logo.png" alt="Safety Buddy" className="h-10 w-10 shrink-0 rounded-full ring-2 ring-brand-500" />
+                        <img src="/images/sbc-logo.png" alt="Safety Buddy" className="h-10 w-10 shrink-0 rounded-full ring-2 ring-brand-500" />
                         <div className="min-w-0 flex-1 leading-tight">
                             <p className="truncate text-[15px] font-extrabold">{company.name}</p>
                             <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-brand-400">

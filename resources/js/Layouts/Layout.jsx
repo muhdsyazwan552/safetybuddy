@@ -27,16 +27,12 @@ export default function Layout({ children }) {
     <div className="container mx-auto px-4 py-4">
         <div className="flex justify-between items-center">
             {/* Logo/Brand */}
-           <Link href="/" className="flex items-center space-x-2">
-  {/* Replace the SVG with your image logo */}
+           <Link href="/" className="flex items-center" aria-label="Safety Buddy home">
   <img 
-    src="/images/logo.png" 
-    alt="Safety Buddy" 
-    className="w-14 h-14 object-contain rounded-full" // Maintains same size as original SVG
+    src="/images/sbc-header.png"
+    alt="Safety Buddy – Cmeri"
+    className="h-20 w-auto max-w-[240px] object-contain"
   />
-  <span className="text-2xl font-extrabold text-ink-900">
-    Safety <span className='text-brand-600'>Buddy</span>
-  </span>
 </Link>
 
             {/* Main Navigation */}

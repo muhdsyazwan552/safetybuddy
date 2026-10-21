@@ -113,7 +113,7 @@ export default function Sidebar({
     <>
       <div className={`flex items-center ${compact ? 'justify-center' : 'justify-between'} px-4 h-16 shrink-0 border-b border-white/10`}>
         <Link href="/dashboard" className="flex items-center gap-3 min-w-0">
-          <img src="/images/logo.png" alt="Safety Buddy" className="h-10 w-10 rounded-full shrink-0 ring-2 ring-brand-500" />
+          <img src="/images/sbc-logo.png" alt="Safety Buddy" className="h-10 w-10 rounded-full shrink-0 ring-2 ring-brand-500" />
           {!compact && (
             <span className="leading-tight min-w-0">
               <span className="block text-base font-extrabold text-white truncate">Safety Buddy</span>

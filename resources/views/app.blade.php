@@ -6,7 +6,7 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <meta name="theme-color" content="#12171E">
-        <link rel="icon" type="image/png" href="/images/logo.png">
+        <link rel="icon" type="image/png" href="/images/sbc-logo.png">
 
         <title inertia>{{ 'Safety Buddy' }}</title>
 

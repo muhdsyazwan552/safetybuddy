@@ -332,9 +332,8 @@ export default function Landing({ modules = [] }) {
             {/* nav */}
             <header className={`sticky top-0 z-40 transition ${stuck ? 'bg-white/85 shadow-sm backdrop-blur-md' : 'bg-white'}`}>
                 <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-4 sm:px-8">
-                    <a href="#top" className="flex items-center gap-2.5">
-                        <img src="/images/logo.png" alt="Safety Buddy" className="h-9 w-9 rounded-full" />
-                        <span className="text-xl font-bold tracking-tight">Safety<span className="text-brand-600">Buddy</span></span>
+                    <a href="#top" className="flex shrink-0 items-center" aria-label="Safety Buddy home">
+                        <img src="/images/sbc-header.png" alt="Safety Buddy – Cmeri" className="h-14 w-auto max-w-[180px] object-contain" />
                     </a>
 
                     <nav className="hidden items-center gap-8 text-[15px] font-medium text-ink-900 lg:flex">
@@ -835,9 +834,8 @@ export default function Landing({ modules = [] }) {
             <footer id="contact" className="mx-auto max-w-[1400px] scroll-mt-20 px-5 pb-8 pt-20 sm:px-8">
                 <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
                     <div className="lg:col-span-2">
-                        <div className="flex items-center gap-2.5">
-                            <img src="/images/logo.png" alt="Safety Buddy" className="h-11 w-11 rounded-full" />
-                            <span className="text-2xl font-bold tracking-tight">Safety<span className="text-brand-600">Buddy</span></span>
+                        <div className="flex items-center">
+                            <img src="/images/sbc-header.png" alt="Safety Buddy – Cmeri" className="h-16 w-auto max-w-[240px] object-contain" />
                         </div>
                         <p className="mt-4 max-w-xs text-sm text-gray-500">Control. Performance. Report. The all-in-one safety management platform for contractors.</p>
                         <div className="mt-6 space-y-2 text-sm">

@@ -56,7 +56,7 @@ const Login = () => {
           <Link href="/" className="relative mb-8" aria-label="Safety Buddy home">
             <span className="absolute inset-0 rounded-full bg-brand-500/30 blur-2xl animate-pulse" />
             <img
-              src="/images/logo.png"
+              src="/images/sbc-logo.png"
               alt="Company Logo"
               className="relative h-28 w-28 rounded-full ring-4 ring-brand-500 shadow-2xl transition hover:scale-105"
             />
@@ -86,7 +86,7 @@ const Login = () => {
           <div className="text-center lg:hidden mb-8">
             <Link href="/" aria-label="Safety Buddy home" className="inline-block">
               <img 
-                src="/images/logo.png" 
+                src="/images/sbc-logo.png"
                 alt="Company Logo" 
                 className="h-20 w-20 rounded-full mx-auto"
               />

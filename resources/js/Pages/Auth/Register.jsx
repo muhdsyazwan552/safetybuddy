@@ -117,7 +117,7 @@ const handleSubmit = async (e) => {
         <NetBackground points={70} maxDistance={170} />
         <div className="relative z-10 h-full flex flex-col items-center">
           <img 
-            src="/images/logo.png" 
+            src="/images/sbc-logo.png"
             alt="Company Logo" 
             className="h-24 w-24 rounded-full mb-6 ring-4 ring-brand-500"
           />

@@ -79,7 +79,7 @@ const Projects = () => {
               <div className="mb-0 px-3 text-center">
             <img
               className="block w-auto h-12"
-              src="/images/logo.png"
+              src="/images/sbc-logo.png"
             />
           </div>
              

@@ -89,7 +89,7 @@ export default function InspectorLayout({ children, user }) {
             >
                 <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-2 sm:px-4">
                     {isTopLevel ? (
-                        <img src="/images/logo.png" alt="Safety Buddy" className="ml-1 h-9 w-9 shrink-0 rounded-full ring-2 ring-brand-500" />
+                        <img src="/images/sbc-logo.png" alt="Safety Buddy" className="ml-1 h-9 w-9 shrink-0 rounded-full ring-2 ring-brand-500" />
                     ) : (
                         <button
                             onClick={() => window.history.back()}
