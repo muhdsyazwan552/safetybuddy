@@ -105,13 +105,13 @@ export default function InspectionFields({
                 </Field>
             </div>
 
-            <Field label="Notes / observations" className={wide ? 'lg:col-span-2' : ''}>
+            <Field label={`Notes / observations${item.evaluation && item.evaluation !== 'good' ? ' *' : ''}`} error={errors.description} className={wide ? 'lg:col-span-2' : ''}>
                 <textarea rows={4} className={inputClass} placeholder="Describe what you observed…" value={item.description} onChange={(e) => onChange('description', e.target.value)} />
             </Field>
 
             {/* Photos */}
             <div className={wide ? 'lg:col-span-2' : ''}>
-                <p className={labelClass}>Evidence photos</p>
+                <p className={labelClass}>Evidence photos{item.evaluation && item.evaluation !== 'good' ? ' *' : ''}</p>
                 <div className={`grid grid-cols-3 gap-2.5 sm:grid-cols-4 ${wide ? 'lg:grid-cols-6' : ''}`}>
                     {existingPhotos.map((src) => (
                         <div key={src} className="aspect-square overflow-hidden rounded-2xl border border-gray-200">
@@ -144,6 +144,7 @@ export default function InspectionFields({
                     </label>
                 </div>
                 <p className="mt-2 ml-1 text-[11px] text-gray-400">JPG / PNG, up to 2&nbsp;MB each.</p>
+                {errors.photos && <p className="mt-1 ml-1 text-xs font-medium text-red-500">{errors.photos}</p>}
             </div>
         </div>
     );

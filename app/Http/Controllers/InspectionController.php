@@ -280,12 +280,14 @@ class InspectionController extends Controller
                 'inspection_items.*.location'          => 'required|string|max:255',
                 'inspection_items.*.topic_id'          => 'required|exists:toolbox_topic,id',
                 'inspection_items.*.evaluation'        => 'required|in:good,poor,nonconformance,clientcomplaint',
-                'inspection_items.*.description'       => 'required|string',
+                'inspection_items.*.description'       => 'required_unless:inspection_items.*.evaluation,good|string',
+                'inspection_items.*.photos'            => 'required_unless:inspection_items.*.evaluation,good|array',
+                'inspection_items.*.photos.*'          => 'image|max:2048',
             ]);
 
             $savedInspections = [];
 
-            foreach ($request->inspection_items as $item) {
+            foreach ($request->inspection_items as $index => $item) {
                 $inspection = new Inspection();
                 $inspection->project_id          = $request->project_id;
                 $inspection->company_id          = Auth::user()->company_id;
@@ -294,10 +296,15 @@ class InspectionController extends Controller
                 $inspection->inspection_date     = $request->inspection_date;
                 $inspection->location            = $item['location'];
                 $inspection->evaluation          = $item['evaluation'];
-                $inspection->description         = $item['description'];
+                $inspection->description         = $item['description'] ?? null;
                 $inspection->subcon_company_id   = $item['subcon_company_id'];
                 $inspection->inspectee_id        = null;
 
+                $paths = [];
+                foreach ($request->file("inspection_items.{$index}.photos", []) as $photo) {
+                    $paths[] = $photo->store('inspections/photos', 'public');
+                }
+                $inspection->photo = json_encode($paths);
                 $inspection->save();
 
                 // Auto-create nonconformance record
@@ -484,6 +491,8 @@ class InspectionController extends Controller
      */
     public function update(Request $request, Inspection $inspection)
     {
+        $currentPhotos = json_decode((string) $inspection->photo, true);
+        $currentPhotos = is_array($currentPhotos) ? $currentPhotos : array_filter([$inspection->photo]);
         $request->validate([
             'project_id' => 'required|exists:projects,id',
             'company_id' => 'required|exists:executors,id',
@@ -491,9 +500,9 @@ class InspectionController extends Controller
             'inspection_name' => 'required|string|max:255',
             'inspection_date' => 'required|date',
             'location' => 'required|string|max:255',
-            'evaluation' => 'required|string|max:50',
-            'description' => 'required|string',
-            'new_photos' => 'nullable|array',
+            'evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
+            'description' => 'required_unless:evaluation,good|string',
+            'new_photos' => [\Illuminate\Validation\Rule::requiredIf(fn () => $request->input('evaluation') !== 'good' && count($currentPhotos) === 0), 'array'],
             'new_photos.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
         ]);
 
@@ -511,7 +520,6 @@ class InspectionController extends Controller
 
             // Handle new photo uploads
             if ($request->hasFile('new_photos')) {
-                $currentPhotos = $inspection->photo ?? [];
                 $newPhotoPaths = [];
 
                 foreach ($request->file('new_photos') as $photo) {
@@ -519,7 +527,7 @@ class InspectionController extends Controller
                     $newPhotoPaths[] = $path;
                 }
 
-                $inspection->photo = array_merge($currentPhotos, $newPhotoPaths);
+                $inspection->photo = json_encode(array_merge($currentPhotos, $newPhotoPaths));
                 $inspection->save();
             }
 
@@ -574,8 +582,13 @@ class InspectionController extends Controller
         ]);
 
         try {
-            $currentPhotos = $inspection->photo ?? [];
+            $currentPhotos = json_decode((string) $inspection->photo, true);
+            $currentPhotos = is_array($currentPhotos) ? $currentPhotos : array_filter([$inspection->photo]);
             $photosToRemove = $request->photo_paths;
+
+            if ($inspection->evaluation !== 'good' && count(array_diff($currentPhotos, $photosToRemove)) === 0) {
+                return response()->json(['success' => false, 'message' => 'At least one evidence photo is required.'], 422);
+            }
 
             // Delete files from storage
             foreach ($photosToRemove as $photoPath) {
@@ -584,7 +597,7 @@ class InspectionController extends Controller
 
             // Remove from array
             $updatedPhotos = array_diff($currentPhotos, $photosToRemove);
-            $inspection->photo = array_values($updatedPhotos); // Reindex array
+            $inspection->photo = json_encode(array_values($updatedPhotos));
             $inspection->save();
 
             return response()->json([
@@ -611,13 +624,16 @@ class InspectionController extends Controller
             'inspection_by'    => 'required|exists:company_staff,id',
             'inspection_date'  => 'required|date',
             'conducted'        => 'required|in:yes,no',
-            'attendee_ids'     => 'nullable|array',
+            'attendee_ids'     => 'required|array|min:1',
             'attendee_ids.*'   => 'integer',
             'sp_not_registered' => 'nullable|integer|min:0|max:100000',
             'categories'       => 'nullable|array',
             'categories.*'     => 'integer|exists:toolbox_categories,id',
             'attendance_photo' => 'nullable|image|max:2048',
             'group_photo'      => 'nullable|image|max:2048',
+        ], [
+            'attendee_ids.required' => 'Select at least one person for Safety Passport sampling.',
+            'attendee_ids.min' => 'Select at least one person for Safety Passport sampling.',
         ]);
 
         // Additional validation if conducted is 'yes'

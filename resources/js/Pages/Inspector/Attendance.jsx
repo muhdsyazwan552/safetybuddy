@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/react';
 import { CalendarDays, Users, Clock, ChevronDown, Building2 } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import { EmptyState } from '@/Components/inspector/kit';
+import PdfButton from '@/Components/shared/PdfButton';
 
 function SubconRow({ subcon }) {
     const [open, setOpen] = useState(false);
@@ -43,6 +44,7 @@ export default function Attendance({ date, groups = [], user }) {
         <InspectorLayout user={user}>
             <Head title="Attendance" />
             <div className="mx-auto max-w-2xl space-y-4 px-4 pb-24 pt-5 sm:px-6">
+                <div className="flex justify-end"><PdfButton href={`/pdf/attendance?date=${date}`} label="Attendance PDF" /></div>
                 <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
                     <label className="block">
                         <span className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500">

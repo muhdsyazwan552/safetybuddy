@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { Pencil, Printer, Trash2, MapPin, CalendarDays, Building2, UserRound, Tag, FolderKanban, Image as ImageIcon, AlertTriangle, MessageSquareWarning, X } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
 import {
     EVAL, EvalBadge, StatusBadge, SectionCard, InfoRow, Sheet, ActionBar, fmtDate, parsePhotos, storageUrl, darkBtn, ghostBtn,
 } from '@/Components/inspector/kit';
+import PdfButton from '@/Components/shared/PdfButton';
 
 export default function ShowInspection({ inspection, user, can_edit = false }) {
     const [expanded, setExpanded] = useState(false);
@@ -30,6 +32,7 @@ export default function ShowInspection({ inspection, user, can_edit = false }) {
                 icon={danger ? AlertTriangle : MessageSquareWarning}
                 tone={danger ? 'danger' : 'default'}
             >
+                <ReviewProgress kind="case" record={data} className="mb-4" />
                 <div className="grid grid-cols-2 gap-4">
                     <InfoRow label="Status">
                         <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase ${statusPill(data.status)}`}>{data.status}</span>
@@ -61,6 +64,7 @@ export default function ShowInspection({ inspection, user, can_edit = false }) {
             )}
 
             <div className="mx-auto max-w-3xl space-y-4 px-4 pb-32 pt-5 sm:px-6 lg:pb-24">
+                {inspection.status === 'approved' && <div className="flex justify-end"><PdfButton href={`/pdf/inspection/${inspection.id}`} /></div>}
                 {/* Hero */}
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
                     <span className="absolute inset-y-0 left-0 w-2" style={{ background: ev?.color || '#9ca3af' }} />

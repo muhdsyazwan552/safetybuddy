@@ -4,10 +4,13 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\CompanyStaff;
+use App\Models\Company;
+use App\Services\CompanySeatLimits;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Illuminate\Validation\Rules;
@@ -22,7 +25,7 @@ public function store(Request $request)
     $validated = $request->validate([
         'name' => 'required|string|max:255',
         'contact' => 'required|string|unique:company_staff,contact', // Changed from 'phone' to 'contact'
-        'email' => 'nullable|email|unique:company_staff,email',
+        'email' => 'required|email|unique:company_staff,email|unique:users,email',
         // only the three tiers can be created here (never e.g. system admin)
         'role_id' => ['required', \Illuminate\Validation\Rule::in([3, 4, 7])],
     ]);
@@ -30,30 +33,29 @@ public function store(Request $request)
     // ✅ Step 2: Get the current authenticated user (admin)
     $admin = Auth::user();
 
-    // ✅ Step 3: Create staff in company_staff table
-    $staff = CompanyStaff::create([
-        'name'       => $validated['name'],
-        'email'      => $validated['email'] ?? null,
-        'contact'    => $validated['contact'], // Using 'contact' column
-        'role_id'    => $validated['role_id'],
-        'company_id' => $admin->company_id,
-        'status'     => 'active' // Default status
-    ]);
+    $staff = DB::transaction(function () use ($admin, $validated) {
+        Company::whereKey($admin->company_id)->lockForUpdate()->firstOrFail();
+        CompanySeatLimits::assertAvailable((int) $admin->company_id, (int) $validated['role_id']);
 
-    // ✅ Optional: Also create a user account if needed
-    // Uncomment this if you want to also create a user account
-    
-    $user = User::create([
-        'name'       => $validated['name'],
-        'email'      => $validated['email'],
-        'password'   => Hash::make($validated['contact']),
-        'phone'      => $validated['contact'],
-        'company_id' => $admin->company_id,
-        'role_id'    => $validated['role_id'],
-    ]);
-    
-    // Link the user_id in company_staff
-    $staff->update(['user_id' => $user->id]);
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['contact']),
+            'phone' => $validated['contact'],
+            'company_id' => $admin->company_id,
+            'role_id' => $validated['role_id'],
+        ]);
+
+        return \App\Support\SeriesCodes::createEmployee((int) $admin->company_id, [
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'contact' => $validated['contact'],
+            'role_id' => $validated['role_id'],
+            'company_id' => $admin->company_id,
+            'user_id' => $user->id,
+            'status' => 'active',
+        ]);
+    });
     
 
     // Load the role relationship
@@ -87,21 +89,28 @@ public function update(Request $request, $id)
         'role_id' => ['required', \Illuminate\Validation\Rule::in($allowedRoles)],
     ]);
 
-    $staff->update([
-        'name' => $validated['name'],
-        'contact' => $validated['contact'],
-        'email' => $validated['email'] ?? null,
-        'role_id' => $validated['role_id'],
-    ]);
+    DB::transaction(function () use ($staff, $validated) {
+        Company::whereKey($staff->company_id)->lockForUpdate()->firstOrFail();
+        if ((int) $validated['role_id'] !== (int) $staff->role_id) {
+            CompanySeatLimits::assertAvailable((int) $staff->company_id, (int) $validated['role_id'], $staff->id, $staff->user_id);
+        }
 
-    if ($staff->user_id && ($user = User::find($staff->user_id)) && !in_array((int) $user->role_id, [1, 2], true)) {
-        $user->update([
+        $staff->update([
             'name' => $validated['name'],
-            'email' => $validated['email'] ?? $user->email,
-            'phone' => $validated['contact'],
+            'contact' => $validated['contact'],
+            'email' => $validated['email'] ?? null,
             'role_id' => $validated['role_id'],
         ]);
-    }
+
+        if ($staff->user_id && ($user = User::find($staff->user_id)) && !in_array((int) $user->role_id, [1, 2], true)) {
+            $user->update([
+                'name' => $validated['name'],
+                'email' => $validated['email'] ?? $user->email,
+                'phone' => $validated['contact'],
+                'role_id' => $validated['role_id'],
+            ]);
+        }
+    });
 
     $staff->load('role');
 

@@ -1,17 +1,19 @@
 <?php
 
 use App\Http\Controllers\SubscriptionController;
+use App\Http\Controllers\SubscriptionPlanController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\Auth\CompanyEmailVerificationController;
 use App\Http\Controllers\ContentController;
 use App\Http\Controllers\StaffController;
 use App\Http\Controllers\ProjectController;
-use App\Http\Controllers\MetricController;
 use App\Http\Controllers\InspectionController;
 use App\Http\Controllers\IncidentController;
 use App\Http\Controllers\ManhourController;
 use App\Http\Controllers\SystemAdminController;
+use App\Http\Controllers\MetricController;
 use App\Http\Controllers\SubconPublicController;
 use App\Http\Controllers\Inspector\DashboardController;
 use Illuminate\Foundation\Application;
@@ -36,20 +38,22 @@ Route::get('/product', function () {
 
 
 Route::get('/', function () {
-    // real module prices for the pricing section
-    $modules = \App\Models\Module::where('is_active', 'Y')
-        ->orderBy('price', 'desc')
-        ->get(['code', 'name', 'price'])
-        ->map(fn ($m) => ['code' => $m->code, 'name' => $m->name, 'price' => (float) $m->price]);
-
-    return Inertia::render('PublicWeb/Index', ['modules' => $modules]);
+    return Inertia::render('PublicWeb/Index', [
+        'subscriptionPlans' => \App\Models\SubscriptionPlan::where('is_active', true)->orderBy('sort_order')->get(),
+    ]);
 });
 
 Route::get('/login', [AuthController::class, 'login'])->name('admin.login');
 Route::post('/login', [AuthController::class, 'authenticate'])->name('login');
 
 Route::get('/register-view', [AuthController::class, 'register'])->name('admin.register');
-Route::post('/register', [AuthController::class, 'store']);
+Route::post('/register', [AuthController::class, 'store'])->middleware('throttle:5,1');
+
+Route::get('/verify-email', [CompanyEmailVerificationController::class, 'notice'])->name('verification.notice');
+Route::get('/verify-email/{id}/{hash}', [CompanyEmailVerificationController::class, 'verify'])
+    ->middleware(['signed', 'throttle:6,1'])->name('verification.verify');
+Route::post('/email/verification-notification', [CompanyEmailVerificationController::class, 'resend'])
+    ->middleware('throttle:3,1')->name('verification.send');
 
 Route::middleware(['auth', 'role:1'])->prefix('admin')->name('system.admin.')->group(function () {
     Route::get('/dashboard', [SystemAdminController::class, 'dashboard'])->name('dashboard');
@@ -60,6 +64,9 @@ Route::middleware(['auth', 'role:1'])->prefix('admin')->name('system.admin.')->g
     Route::post('/subscriptions', [SystemAdminController::class, 'storeSubscription'])->name('subscriptions.store');
     Route::put('/subscriptions/{subscription}', [SystemAdminController::class, 'updateSubscription'])->name('subscriptions.update');
     Route::post('/packages', [SystemAdminController::class, 'storePackage'])->name('packages.store');
+    Route::post('/subscription-plans', [SubscriptionPlanController::class, 'storePlan'])->name('plans.store');
+    Route::post('/plan-requests/{planRequest}/approve', [SubscriptionPlanController::class, 'approve'])->name('plan-requests.approve');
+    Route::post('/plan-requests/{planRequest}/reject', [SubscriptionPlanController::class, 'reject'])->name('plan-requests.reject');
 });
 
 
@@ -85,17 +92,22 @@ Route::prefix('subcon')->group(function () {
     // Leader-only routes
     Route::put('/{token}/staff/{staffId}', [SubconPublicController::class, 'updateStaff'])->name('subcon.public.staff.update');
 
-    // Safety induction ticks + machinery: leader only (secret leader key is checked)
+    // Safety Passport rules acknowledgement + machinery: leader only (secret leader key is checked)
     Route::get('/{token}/attendance', [\App\Http\Controllers\SubconPortalController::class, 'attendance'])->name('subcon.public.attendance');
     Route::get('/{token}/attendance/history', [\App\Http\Controllers\SubconPortalController::class, 'attendanceHistory'])->name('subcon.public.attendance.history');
     Route::post('/{token}/attendance', [\App\Http\Controllers\SubconPortalController::class, 'saveAttendance'])->name('subcon.public.attendance.save');
+    Route::get('/{token}/cases/{type}/{id}', [\App\Http\Controllers\SubconPortalController::class, 'showCase'])
+        ->where('type', 'nc|cc')->where('id', '[0-9]+')->name('subcon.public.case.show');
     Route::post('/{token}/cases/{type}/{id}/respond', [\App\Http\Controllers\SubconPortalController::class, 'respondCase'])
         ->where('type', 'nc|cc')->name('subcon.public.case.respond');
-    Route::post('/{token}/induction/acknowledge-all', [\App\Http\Controllers\SubconPortalController::class, 'acknowledgeAll'])->name('subcon.public.induction.all');
-    Route::post('/{token}/induction/{topicId}', [\App\Http\Controllers\SubconPortalController::class, 'toggleInduction'])->name('subcon.public.induction.toggle');
+    Route::post('/{token}/safety-passport/{topicId}', [\App\Http\Controllers\SubconPortalController::class, 'toggleInduction'])->name('subcon.public.passport.toggle');
+    Route::post('/{token}/induction/{topicId}', [\App\Http\Controllers\SubconPortalController::class, 'toggleInduction']);
     Route::post('/{token}/machinery', [\App\Http\Controllers\SubconPortalController::class, 'storeMachinery'])->name('subcon.public.machinery.store');
     Route::post('/{token}/machinery/{id}', [\App\Http\Controllers\SubconPortalController::class, 'updateMachinery'])->name('subcon.public.machinery.update');
     Route::delete('/{token}/machinery/{id}', [\App\Http\Controllers\SubconPortalController::class, 'destroyMachinery'])->name('subcon.public.machinery.destroy');
+
+    Route::get('/{token}/safety-passport/pdf', [\App\Http\Controllers\SubconPortalController::class, 'passportPdf'])->name('subcon.public.passport.pdf');
+    Route::get('/{token}/staff-report', [\App\Http\Controllers\SubconPortalController::class, 'staffReport'])->name('subcon.public.staff.report');
 
     // Staff certification records: anyone may upload, only the leader may remove
     Route::post('/{token}/staff/{staffId}/certifications', [\App\Http\Controllers\SubconPortalController::class, 'storeCertification'])->name('subcon.public.cert.store');
@@ -103,8 +115,18 @@ Route::prefix('subcon')->group(function () {
     Route::delete('/{token}/staff/{staffId}', [SubconPublicController::class, 'destroyStaff'])->name('subcon.public.staff.destroy');
 });
 
+Route::middleware(['auth', 'role:2,3,4,7,8'])->group(function () {
+    Route::get('/plans', [SubscriptionPlanController::class, 'index'])->name('subscription.plans');
+});
+
 Route::middleware(['auth', 'role:2'])->group(function () {
+    Route::get('/subscription/start', [SubscriptionPlanController::class, 'start'])->name('subscription.start');
+    Route::post('/plans/request', [SubscriptionPlanController::class, 'store'])->name('subscription.plans.request');
+    Route::post('/plans/inspector-addon', [SubscriptionPlanController::class, 'storeInspectorAddon'])->name('subscription.plans.inspector-addon');
     Route::get('/module', [SubscriptionController::class, 'index'])->name('index.module');
+});
+
+Route::middleware(['auth', 'role:2'])->group(function () {
 
     Route::get('/compliance-metrics', [ContentController::class, 'compMetrics'])
         ->name('compliance.metrics');
@@ -112,16 +134,15 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::get('/penalty-settings', fn () => redirect()->route('compliance.metrics'))
         ->name('penalty.settings');
 
-    // Performance settings > Safety Induction (Safety Passport Rules, Appendix A defaults)
-    Route::get('/safety-induction', [\App\Http\Controllers\SafetyInductionController::class, 'index'])->name('safety.induction');
-    Route::post('/safety-induction/topics', [\App\Http\Controllers\SafetyInductionController::class, 'store'])->name('safety.induction.store');
-    Route::put('/safety-induction/topics/{id}', [\App\Http\Controllers\SafetyInductionController::class, 'update'])->name('safety.induction.update');
-    Route::patch('/safety-induction/topics/{id}/toggle', [\App\Http\Controllers\SafetyInductionController::class, 'toggle'])->name('safety.induction.toggle');
-    Route::post('/safety-induction/topics/{id}/reset', [\App\Http\Controllers\SafetyInductionController::class, 'reset'])->name('safety.induction.reset');
-    Route::delete('/safety-induction/topics/{id}', [\App\Http\Controllers\SafetyInductionController::class, 'destroy'])->name('safety.induction.destroy');
-    Route::post('/safety-induction/reorder', [\App\Http\Controllers\SafetyInductionController::class, 'reorder'])->name('safety.induction.reorder');
-    Route::post('/safety-induction/restore-missing', [\App\Http\Controllers\SafetyInductionController::class, 'restoreMissing'])->name('safety.induction.restore');
-    Route::post('/safety-induction/reset-all', [\App\Http\Controllers\SafetyInductionController::class, 'resetAll'])->name('safety.induction.reset.all');
+
+    // Performance settings > Safety Passport Rules
+    Route::get('/safety-induction', fn () => redirect()->route('safety.passport'));
+    Route::get('/safety-passport', [\App\Http\Controllers\SafetyInductionController::class, 'index'])->name('safety.passport');
+    Route::post('/safety-passport/topics', [\App\Http\Controllers\SafetyInductionController::class, 'store'])->name('safety.passport.store');
+    Route::put('/safety-passport/topics/{id}', [\App\Http\Controllers\SafetyInductionController::class, 'update'])->name('safety.passport.update');
+    Route::patch('/safety-passport/topics/{id}/toggle', [\App\Http\Controllers\SafetyInductionController::class, 'toggle'])->name('safety.passport.toggle');
+    Route::delete('/safety-passport/topics/{id}', [\App\Http\Controllers\SafetyInductionController::class, 'destroy'])->name('safety.passport.destroy');
+    Route::post('/safety-passport/reorder', [\App\Http\Controllers\SafetyInductionController::class, 'reorder'])->name('safety.passport.reorder');
 
 
     Route::get('/manage-employee', [ContentController::class, 'manageEmployee'])->name('manage.employee');
@@ -131,6 +152,8 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::delete('/delete-project/{id}', [ProjectController::class, 'destroyProject'])->name('admin.projects.destroy');
     Route::post('/admin/projects', [ProjectController::class, 'storeProject'])->name('admin.projects.store');
     Route::post('/store-company', [ProjectController::class, 'storeExCompany'])->name('admin.company.store');
+    Route::put('/executor-companies/{executor}', [ProjectController::class, 'update'])->name('admin.company.update');
+    Route::delete('/executor-companies/{executor}', [ProjectController::class, 'destroy'])->name('admin.company.destroy');
     Route::post('/executor-staff', [ProjectController::class, 'storeExStaff'])->name('admin.staff.store');
 
 
@@ -166,6 +189,8 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::put('/performance-settings', [\App\Http\Controllers\PerformanceController::class, 'updateSettings'])->name('performance.settings');
     Route::get('/executors/{id}/staff', [ContentController::class, 'executorStaff'])
         ->name('executor.staff');
+    Route::get('/executors/{id}/report', [ContentController::class, 'executorReport'])
+        ->name('executor.report');
     // Toolbox Talks live inside the combined Toolbox & Inspection page (first section)
     Route::get('/toolbox-talks', fn () => redirect('/inspection#toolbox'))->name('toolbox');
 
@@ -177,11 +202,6 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::get('/dashboard', [AuthController::class, 'index'])->name('admin.dashboard');
 
 
-    Route::post('/post-compliance-metrics', [MetricController::class, 'storeMetrics'])->name('compliance-metrics.store');
-    Route::put('/compliance-metrics/{id}', [MetricController::class, 'updateMetrics'])->name('compliance-metrics.update');
-    Route::delete('/compliance-metrics/{id}', [MetricController::class, 'destroyMetrics'])->name('compliance-metrics.destroy');
-
-    Route::post('/compliance-metrics/defaults', [MetricController::class, 'loadDefaults'])->name('compliance-metrics.defaults');
 
 
     Route::get('/executors/{id}/project', [ContentController::class, 'executorProjDetails'])->name('executor.project.detail');
@@ -200,6 +220,11 @@ Route::middleware(['auth', 'role:2'])->group(function () {
 
     Route::get('/dashboard', [InspectionController::class, 'dashboard'])
         ->name('dashboard.inspection');
+
+    Route::post('/post-compliance-metrics', [MetricController::class, 'storeMetrics'])->name('compliance-metrics.store');
+    Route::put('/compliance-metrics/{id}', [MetricController::class, 'updateMetrics'])->name('compliance-metrics.update');
+    Route::delete('/compliance-metrics/{id}', [MetricController::class, 'destroyMetrics'])->name('compliance-metrics.destroy');
+    Route::post('/compliance-metrics/defaults', [MetricController::class, 'loadDefaults'])->name('compliance-metrics.defaults');
 
     Route::post('/public/staff', [StaffController::class, 'publicStore'])->name('public.staff.store');
 
@@ -278,6 +303,10 @@ Route::middleware(['auth', 'role:3,4'])->prefix('review')->name('review.')->grou
     Route::post('/reports/monthly/{id}/approve', [\App\Http\Controllers\PerformanceController::class, 'monthlyApprove'])->name('reports.monthly.approve');
     Route::post('/reports/monthly/{id}/reject', [\App\Http\Controllers\PerformanceController::class, 'monthlyReject'])->name('reports.monthly.reject');
     Route::get('/performance', [\App\Http\Controllers\PerformanceController::class, 'learnMore'])->name('performance');
+    Route::get('/staff-approval', [\App\Http\Controllers\StaffApprovalController::class, 'index'])->name('staff-approval');
+    Route::get('/staff-approval/{id}', [\App\Http\Controllers\StaffApprovalController::class, 'show'])->where('id', '[0-9]+')->name('staff-approval.show');
+    Route::post('/staff-approval/approve-many', [\App\Http\Controllers\StaffApprovalController::class, 'approveMany'])->name('staff-approval.approve-many');
+    Route::post('/staff-approval/{id}/approve', [\App\Http\Controllers\StaffApprovalController::class, 'approve'])->name('staff-approval.approve');
     Route::get('/incidents', [$c, 'incidentsIndex'])->name('incidents');
     Route::get('/incidents/{id}', [$c, 'incidentShow'])->where('id', '[0-9]+')->name('incidents.show');
     Route::post('/incidents/{id}/respond', [$c, 'incidentRespond'])->name('incidents.respond');
@@ -352,6 +381,20 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings', [ProfileController::class, 'edit'])->name('settings');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+});
+
+// PDF reports (company admin 2, manager 3, supervisor 4, inspectors 7/8) - scoped to the user's company
+Route::middleware(['auth', 'role:2,3,4,7,8'])->prefix('pdf')->name('pdf.')->group(function () {
+    $c = \App\Http\Controllers\PdfReportController::class;
+    Route::get('/inspection/{id}', [$c, 'inspection'])->where('id', '[0-9]+')->name('inspection');
+    Route::get('/toolbox/{id}', [$c, 'toolbox'])->where('id', '[0-9]+')->name('toolbox');
+    Route::get('/visit/{key}', [$c, 'visit'])->where('key', '(talk|insp)-[0-9]+')->name('visit');
+    Route::get('/case/{type}/{id}', [$c, 'caseReport'])->where('type', 'nc|cc')->where('id', '[0-9]+')->name('case');
+    Route::get('/attendance', [$c, 'attendance'])->name('attendance');
+    Route::get('/manhour', [$c, 'manhour'])->name('manhour');
+    Route::get('/incident/{id}', [$c, 'incident'])->where('id', '[0-9]+')->name('incident');
+    Route::get('/daily/{id}', [$c, 'daily'])->where('id', '[0-9]+')->name('daily');
+    Route::get('/monthly/{id}', [$c, 'monthly'])->where('id', '[0-9]+')->name('monthly');
 });
 
 // Company profile (company account only)

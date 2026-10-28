@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { Bar, BarChart, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import AppLayout from '@/Pages/WSIS/Layout';
+import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
+import PdfButton from '@/Components/shared/PdfButton';
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -35,6 +37,7 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
   const [selectedCompany, setSelectedCompany] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [pdf, setPdf] = useState({ from: '', to: '', project_id: '', subcon_id: '' });
 
   const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
     project_id: '',
@@ -191,6 +194,9 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
     });
   };
 
+  const pdfProjects = useMemo(() => [...new Map(entries.filter((e) => e.project_id).map((e) => [e.project_id, e.project_name])).entries()].sort((x, y) => String(x[1]).localeCompare(String(y[1]))), [entries]);
+  const pdfSubcons = useMemo(() => [...new Map(entries.filter((e) => e.subcon_company_id).map((e) => [e.subcon_company_id, e.subcontractor_name])).entries()].sort((x, y) => String(x[1]).localeCompare(String(y[1]))), [entries]);
+
   return (
     <AppLayout>
       <Head title={title} />
@@ -207,6 +213,18 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
         <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
           <Link href="/man-hour" className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white">Company view</Link>
           <Link href="/man-hour/overall" className="rounded-md px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Overall view</Link>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+          <h2 className="font-bold text-slate-800">Manhour PDF report</h2>
+          <p className="text-sm text-slate-500">Report by day, project and subcontractor. Leave a field empty to include everything.</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <label className="text-xs font-semibold text-slate-500">From<input type="date" value={pdf.from} onChange={(e) => setPdf({ ...pdf, from: e.target.value })} className="mt-1 w-full rounded-md border-slate-300 text-sm" /></label>
+            <label className="text-xs font-semibold text-slate-500">To<input type="date" value={pdf.to} onChange={(e) => setPdf({ ...pdf, to: e.target.value })} className="mt-1 w-full rounded-md border-slate-300 text-sm" /></label>
+            <label className="text-xs font-semibold text-slate-500">Project<select value={pdf.project_id} onChange={(e) => setPdf({ ...pdf, project_id: e.target.value })} className="mt-1 w-full rounded-md border-slate-300 text-sm"><option value="">All projects</option>{pdfProjects.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+            <label className="text-xs font-semibold text-slate-500">Subcontractor<select value={pdf.subcon_id} onChange={(e) => setPdf({ ...pdf, subcon_id: e.target.value })} className="mt-1 w-full rounded-md border-slate-300 text-sm"><option value="">All subcontractors</option>{pdfSubcons.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
+            <div className="flex items-end"><PdfButton href={`/pdf/manhour?${new URLSearchParams(Object.entries(pdf).filter(([, v]) => v)).toString()}`} label="Generate PDF" className="!py-2.5" /></div>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -252,7 +270,7 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
                     <td className="px-4 py-3 text-right">{number(entry.worker_count)}</td>
                     <td className="px-4 py-3 text-right">{number(entry.working_hours)} hrs</td>
                     <td className="px-4 py-3 text-right font-bold text-slate-800">{number(entry.manhours)} hrs</td>
-                    <td className="px-4 py-3 text-right"><button type="button" onClick={() => setDetail(entry)} className="font-semibold text-blue-600 hover:text-blue-800">View staff</button></td>
+                    <td className="px-4 py-3 text-right"><button type="button" onClick={() => setDetail(entry)} className={tableViewActionClass} title="View staff" aria-label="View staff"><TableViewIcon /></button></td>
                   </tr>
                 ))}
                 {!filteredEntries.length && <tr><td colSpan="8" className="px-4 py-12 text-center text-slate-500">No manhour records match these filters. Add your first daily record to begin.</td></tr>}
@@ -301,7 +319,10 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
                 <p className="mt-1 text-sm text-slate-500">{formatDate(detail.work_date)} · {detail.project_name || '-'}</p>
                 <p className="text-sm font-semibold text-slate-700">{detail.subcontractor_name || '-'}</p>
               </div>
-              <button type="button" onClick={() => setDetail(null)} className="text-xl leading-none text-slate-400 hover:text-slate-700" aria-label="Close">×</button>
+              <div className="flex items-center gap-3">
+                <PdfButton href={`/pdf/attendance?date=${String(detail.work_date).slice(0, 10)}${detail.project_id ? `&project_id=${detail.project_id}` : ''}`} label="Attendance PDF" />
+                <button type="button" onClick={() => setDetail(null)} className="text-xl leading-none text-slate-400 hover:text-slate-700" aria-label="Close">×</button>
+              </div>
             </div>
             <div className="grid grid-cols-3 gap-3 border-b border-slate-100 bg-slate-50 px-6 py-4 text-center">
               <div><p className="text-xl font-bold text-slate-800">{number(detail.worker_count)}</p><p className="text-xs text-slate-500">Workers</p></div>

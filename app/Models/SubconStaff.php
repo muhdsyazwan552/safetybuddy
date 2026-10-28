@@ -13,13 +13,36 @@ class SubconStaff extends Model
 
     protected $fillable = [
         'company_id',
+        'code',
+        'serial_no',
         'user_id',
         'name',
         'role',
         'email',
         'contact',
-        'status'
+        'status',
+        'is_safetypassport',
+        'supervisor_approved_by',
+        'supervisor_approved_at',
+        'manager_approved_by',
+        'manager_approved_at',
+        'sp_briefing_status',
+        'sp_briefing_date'
     ];
+
+    protected $casts = [
+        'is_safetypassport' => 'boolean',
+        'supervisor_approved_at' => 'datetime',
+        'manager_approved_at' => 'datetime',
+    ];
+
+    /** Active once both the Supervisor and the Manager have approved the registration. */
+    public function activateIfFullyApproved(): void
+    {
+        if ($this->status === 'pending' && $this->supervisor_approved_at && $this->manager_approved_at) {
+            $this->forceFill(['status' => 'active'])->save();
+        }
+    }
 
     public function certifications()
     {

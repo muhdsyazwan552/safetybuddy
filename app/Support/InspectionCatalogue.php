@@ -51,7 +51,7 @@ class InspectionCatalogue
         ['C02', 'C02-09', 'Full Body Harness'],
         ['C02', 'C02-10', 'PPE Inspection'],
         ['C02', 'C02-11', 'Worker Competency'],
-        ['C02', 'C02-12', 'Safety Induction'],
+        ['C02', 'C02-12', 'Safety Passport'],
         ['C02', 'C02-13', 'Toolbox Meeting Attendance'],
         ['C02', 'C02-14', 'Worker Identification'],
         ['C02', 'C02-15', 'Fatigue Management'],

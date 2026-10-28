@@ -16,6 +16,8 @@ return [
 
     'default' => env('MAIL_MAILER', 'log'),
 
+    'ca_file' => env('MAIL_CA_FILE'),
+
     /*
     |--------------------------------------------------------------------------
     | Mailer Configurations

@@ -17,12 +17,19 @@ const blankItem = (id, project_id, date) => ({
     inspection_date: date, location: '', description: '', photos: [], previews: [],
 });
 const REQUIRED = ['subcon_company_id', 'category_id', 'topic_id', 'evaluation', 'inspection_date', 'location'];
-const complete = (it) => REQUIRED.every((k) => String(it[k] || '').trim() !== '');
+const complete = (it) => REQUIRED.every((k) => String(it[k] || '').trim() !== '') &&
+    (it.evaluation === 'good' || (String(it.description || '').trim() && it.photos.length > 0));
+const STEP_TITLES = {
+    start: 'Toolbox talk',
+    toolbox: 'Toolbox talk',
+    choose: 'Choose next step',
+    inspect: 'Create Inspection',
+};
 
-function Stepper({ step, withToolbox }) {
+function Stepper({ step, withToolbox, talkNo }) {
     const steps = [
         ['start', 'Start'],
-        ...(withToolbox ? [['toolbox', 'Toolbox talk'], ['choose', 'Next']] : []),
+        ...(withToolbox ? [['toolbox', talkNo ? 'Safety Passport Sampling' : 'Toolbox talk'], ['choose', 'Next step']] : []),
         ['inspect', 'Inspection'],
     ];
     const idx = Math.max(0, steps.findIndex(([k]) => k === step));
@@ -125,6 +132,10 @@ export default function NewVisit({
                 setIdx(bad);
                 const e = {};
                 REQUIRED.forEach((k) => { if (!String(items[bad][k] || '').trim()) e[k] = 'Required'; });
+                if (items[bad].evaluation && items[bad].evaluation !== 'good') {
+                    if (!String(items[bad].description || '').trim()) e.description = 'Notes / observations are required.';
+                    if (!items[bad].photos.length) e.photos = 'Add at least one evidence photo.';
+                }
                 setErrors(e);
                 setServerError(`Inspection ${bad + 1} is missing required fields.`);
                 return;
@@ -170,17 +181,19 @@ export default function NewVisit({
             });
     };
 
+    const stepTitle = step === 'toolbox' && talk === 'no' ? 'Safety Passport Sampling' : STEP_TITLES[step];
+
     const header = (
         <div className={`mx-auto ${maxW} px-4 pt-5 sm:px-6`}>
             <p className="text-[11px] font-bold uppercase tracking-widest text-brand-800">Site visit</p>
-            <h1 className="mb-4 text-2xl font-extrabold text-gray-900">Toolbox &amp; inspection</h1>
-            <Stepper step={step} withToolbox={withToolbox} />
+            <h1 className="mb-4 text-2xl font-extrabold text-gray-900">{stepTitle}</h1>
+            <Stepper step={step} withToolbox={withToolbox} talkNo={talk === 'no'} />
         </div>
     );
 
     return (
         <Shell {...shellProps}>
-            <Head title="Site visit" />
+            <Head title={`${stepTitle} · Site visit`} />
             {header}
 
             {/* ───── 1. Start ───── */}
@@ -200,22 +213,22 @@ export default function NewVisit({
                         </div>
 
                         <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-                            <p className="mb-1 text-center text-base font-extrabold text-gray-900">Was the toolbox talk conducted?</p>
-                            <p className="mb-4 text-center text-xs text-gray-500">If not, you still record who was present and the Safety Passport sampling.</p>
+                            <p className="mb-1 text-center text-base font-extrabold text-gray-900">Do you want to conduct a Toolbox Talk?</p>
+                            <p className="mb-4 text-center text-xs text-gray-500">Choose No to skip straight to Safety Passport Sampling.</p>
                             <div className="grid grid-cols-2 gap-3">
                                 <button
                                     type="button"
                                     onClick={() => setTalk('yes')}
                                     className={`flex flex-col items-center gap-1.5 rounded-2xl border-2 py-5 text-sm font-extrabold transition active:scale-95 ${talk === 'yes' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 text-gray-500'}`}
                                 >
-                                    <HardHat className="h-6 w-6" /> Yes, conducted
+                                    <HardHat className="h-6 w-6 shrink-0" /> <span className="px-2 text-center leading-snug">Yes &ndash; Proceed with Toolbox Talk.</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setTalk('no')}
                                     className={`flex flex-col items-center gap-1.5 rounded-2xl border-2 py-5 text-sm font-extrabold transition active:scale-95 ${talk === 'no' ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 text-gray-500'}`}
                                 >
-                                    <X className="h-6 w-6" /> No, not conducted
+                                    <X className="h-6 w-6 shrink-0" /> <span className="px-2 text-center leading-snug">No &ndash; Skip to Safety Passport Sampling.</span>
                                 </button>
                             </div>
                             <button
@@ -337,7 +350,7 @@ export default function NewVisit({
                         <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
                             <div className="mb-5 flex items-center justify-between">
                                 <div className="min-w-0">
-                                    <h2 className="text-base font-extrabold text-gray-900">Inspection details</h2>
+                                    <h2 className="text-base font-extrabold text-gray-900">Create Inspection</h2>
                                     <p className="truncate text-xs text-gray-500">{project?.name}</p>
                                 </div>
                                 {items.length > 1 && (

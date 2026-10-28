@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { FiMail, FiLock, FiArrowLeft } from 'react-icons/fi';
 import NetBackground from '@/Components/shared/NetBackground';
 
 const Login = () => {
+  const { flash = {} } = usePage().props;
   const [credentials, setCredentials] = useState({
     email: '',
     password: '',
@@ -94,6 +95,8 @@ const Login = () => {
           </div>
 
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Sign in to your account</h2>
+
+          {flash.success && <div className="mb-4 rounded-md bg-emerald-50 p-3 text-sm text-emerald-800">{flash.success}</div>}
           
           {errors.general && (
             <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-md text-sm">
@@ -197,7 +200,7 @@ const Login = () => {
           <div className="mt-6 text-center text-sm text-gray-600">
             Don't have an account?{' '}
             <Link 
-              href="/register" 
+              href="/register-view"
               className="font-medium text-blue-600 hover:text-blue-500"
             >
               Register here

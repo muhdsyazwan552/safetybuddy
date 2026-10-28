@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react'; // Add usePage import
 import AppLayout from '@/Pages/WSIS/Layout';
+import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { showAlert } from '@/Helpers/alert';
+import PdfButton from '@/Components/shared/PdfButton';
 
 const ClientComplaint = ({ title, auth, clientComplaints = [] }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -203,10 +206,13 @@ const ClientComplaint = ({ title, auth, clientComplaints = [] }) => {
                     </td>
                     <td className="px-6 py-4 text-right text-sm font-medium">
                       <button
-                        className="text-blue-600 hover:text-blue-800"
+                        type="button"
+                        className={tableViewActionClass}
                         onClick={() => setViewingComplaint(cc)}
+                        title="View complaint"
+                        aria-label="View complaint"
                       >
-                        View
+                        <TableViewIcon />
                       </button>
                     </td>
                   </tr>
@@ -267,6 +273,9 @@ const ClientComplaint = ({ title, auth, clientComplaints = [] }) => {
                   </svg>
                 </button>
               </div>
+
+              {viewingComplaint.status === 'closed' && <div className="mb-4 flex justify-end"><PdfButton href={`/pdf/case/cc/${viewingComplaint.id}`} /></div>}
+              <ReviewProgress kind="case" record={viewingComplaint} className="mb-4" />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">
                 <div><p className="text-gray-500 font-medium">Project</p><p>{viewingComplaint.inspection?.project?.name ?? '-'}</p></div>

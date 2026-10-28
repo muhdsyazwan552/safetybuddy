@@ -107,7 +107,7 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
                         <ActionTile icon={ClipboardCheck} tone="amber" value={counts.visits_verify} label="Site visits to verify" hint="Toolbox talk + inspections" href="/review/visits?status=pending_verification" />
                         {is_manager && <ActionTile icon={BadgeCheck} tone="sky" value={counts.visits_approve} label="Site visits to approve" hint="Verified by a supervisor" href="/review/visits?status=verified" />}
                         <ActionTile icon={AlertTriangle} tone="violet" value={counts.cases_review} label="NC / CC replies to review" hint={`${counts.cases_waiting} waiting for the subcontractor`} href="/review/cases?state=responded" />
-                        <ActionTile icon={Siren} tone="rose" value={counts.incidents_open} label="Open incidents" hint={counts.incidents_new ? `${counts.incidents_new} new, not answered yet` : 'All have a response'} href="/review/incidents" />
+                        {!is_manager && <ActionTile icon={Siren} tone="rose" value={counts.incidents_open} label="Incidents awaiting approval" hint={counts.incidents_new ? `${counts.incidents_new} awaiting review` : 'All reviewed; awaiting approval'} href="/review/incidents" />}
                         <ActionTile icon={BarChart3} tone="sky" value={is_manager ? counts.monthly_approve : counts.monthly_verify} label={is_manager ? 'Monthly reports to approve' : 'Monthly reports to verify'} hint={is_manager ? `${counts.monthly_verify} more waiting for verification` : 'Pooled from approved inspections'} href="/review/reports?tab=monthly" />
                         {is_manager && <ActionTile icon={Wallet} tone="amber" value={counts.penalties_pending} label="Penalties to review" hint={`${rm(performance.pending_penalty)} not yet confirmed`} href="/review/reports?tab=daily&status=approved" />}
                     </div>
@@ -201,9 +201,9 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
                 </div>
 
                 {/* incidents */}
-                <Section title="Open incidents" href="/review/incidents">
+                <Section title="Incidents awaiting approval" href="/review/incidents">
                     {incidents.length === 0 ? (
-                        <Empty text="No open incident." />
+                        <Empty text="No incident is awaiting approval." />
                     ) : (
                         <div className="grid gap-3 sm:grid-cols-2">
                             {incidents.map((i) => {

@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 /**
  * Everything about one subcontractor company - staff, daily attendance, NC / CC,
- * safety induction and machinery - shared by the admin, review and inspector pages.
+ * Safety Passport and machinery - shared by the admin, review and inspector pages.
  */
 class SubconDetail
 {
@@ -24,7 +24,7 @@ class SubconDetail
 
     public static function for(SubconCompany $company): array
     {
-        // safety induction: every topic of the owner company and when the leader acknowledged it
+        // Safety Passport: every active rule of the owner company and when the leader acknowledged it
         $progress = SubconCompliance::sync($company);
         $company->refresh()->load('subconStaff.certifications');
 
@@ -38,8 +38,13 @@ class SubconDetail
             'items' => $t->items->map(fn ($i) => ['type' => $i->type, 'content' => $i->content])->values(),
         ])->values();
 
-        $staff = $company->subconStaff->map(function ($s) {
+        $approvers = \App\Models\CompanyStaff::whereIn('id', $company->subconStaff->pluck('supervisor_approved_by')->merge($company->subconStaff->pluck('manager_approved_by'))->filter()->unique())
+            ->pluck('name', 'id');
+
+        $staff = $company->subconStaff->map(function ($s) use ($approvers) {
             $row = $s->toArray();
+            $row['supervisor_approved_name'] = $approvers[$s->supervisor_approved_by] ?? null;
+            $row['manager_approved_name'] = $approvers[$s->manager_approved_by] ?? null;
             $row['certifications'] = $s->certifications->map(fn ($c) => [
                 'id' => $c->id,
                 'title' => $c->title,

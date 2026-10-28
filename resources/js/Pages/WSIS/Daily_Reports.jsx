@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
 
 const DailyReports = ({ title }) => {
   // Sample data with all required fields
@@ -224,10 +225,13 @@ const DailyReports = ({ title }) => {
                     <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
                       <div className="flex justify-end space-x-4">
                         <button 
-                          className="text-blue-600 hover:text-blue-800"
+                          type="button"
+                          className={tableViewActionClass}
                           onClick={() => setViewingIncident(incident)}
+                          title="View report"
+                          aria-label="View report"
                         >
-                          View
+                          <TableViewIcon />
                         </button>
                       </div>
                     </td>

@@ -175,6 +175,7 @@ export default function ToolboxTalkForm({ projects, topics, initial, conductor, 
         if (!data.project_id) v.project_id = 'Select a project.';
         if (!data.inspection_date) v.inspection_date = 'Select a date.';
         if (data.is_conducted === null) v.is_conducted = 'Choose whether the talk was conducted.';
+        if (data.attendees.length === 0) v.attendees = 'Select at least one person for Safety Passport sampling.';
         if (data.is_conducted === 1) {
             if (data.attendees.length === 0) v.attendees = 'Tick at least one staff member who attended.';
             if (data.categories.length === 0) v.categories = 'Select at least one category.';
@@ -229,21 +230,21 @@ export default function ToolboxTalkForm({ projects, topics, initial, conductor, 
                 {/* Conducted? (the site visit flow asks this on its first screen) */}
                 {!embedded && (
                 <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
-                    <p className="mb-3 text-center text-sm font-bold text-gray-800">Was the briefing conducted?</p>
+                    <p className="mb-3 text-center text-sm font-bold text-gray-800">Do you want to conduct a Toolbox Talk?</p>
                     <div className="grid grid-cols-2 gap-3">
                         <button
                             type="button"
                             onClick={() => set('is_conducted', 1)}
                             className={`flex items-center justify-center gap-2 rounded-2xl border-2 py-4 text-sm font-extrabold transition active:scale-95 ${yes ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-white text-gray-400'}`}
                         >
-                            <Check className="h-5 w-5" /> Yes, conducted
+                            <Check className="h-5 w-5 shrink-0" /> <span className="px-1 text-center leading-snug">Yes &ndash; Proceed with Toolbox Talk.</span>
                         </button>
                         <button
                             type="button"
                             onClick={() => set('is_conducted', 0)}
                             className={`flex items-center justify-center gap-2 rounded-2xl border-2 py-4 text-sm font-extrabold transition active:scale-95 ${data.is_conducted === 0 ? 'border-red-500 bg-red-50 text-red-700' : 'border-gray-200 bg-white text-gray-400'}`}
                         >
-                            <X className="h-5 w-5" /> No, skipped
+                            <X className="h-5 w-5 shrink-0" /> <span className="px-1 text-center leading-snug">No &ndash; Skip to Safety Passport Sampling.</span>
                         </button>
                     </div>
                     {err.is_conducted && <p className="mt-2 text-center text-xs font-medium text-red-500">{err.is_conducted}</p>}

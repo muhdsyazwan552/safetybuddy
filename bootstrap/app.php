@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             \App\Http\Middleware\HandleInertiaRequests::class,
+            \App\Http\Middleware\EnsureCompanyPurchased::class,
             // NOTE: AddLinkHeadersForPreloadedAssets was removed on purpose.
             // It puts one `Link: <asset>; rel=preload` entry per JS chunk into the
             // RESPONSE HEADERS. On pages with many chunks (e.g. the subcon staff page)
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register role middleware alias
         $middleware->alias([
             'role' => RoleMiddleware::class,
+            'purchased' => \App\Http\Middleware\EnsureCompanyPurchased::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

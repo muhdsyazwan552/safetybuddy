@@ -58,9 +58,14 @@ function TierBadge({ roleId, fallback }) {
 const StaffManagement = ({ title }) => {
   // Get all props from Inertia
   const { props } = usePage();
-  const { staff: initialStaff, roles, auth } = props;
+  const { staff: initialStaff, roles, auth, seatLimits } = props;
 
   const [staffMembers, setStaffMembers] = useState(initialStaff || []);
+  const seatsUsed = (roleId) => (seatLimits?.roles?.[roleId]?.used || 0)
+    - (initialStaff || []).filter((staff) => Number(staff.role_id) === roleId).length
+    + staffMembers.filter((staff) => Number(staff.role_id) === roleId).length;
+  const roleFull = (roleId) => !seatLimits?.configured || seatsUsed(roleId) >= seatLimits.roles[roleId].limit;
+  const allRolesFull = [3, 4, 7].every(roleFull);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesToShow, setEntriesToShow] = useState(10);
@@ -81,6 +86,7 @@ const StaffManagement = ({ title }) => {
   // Filter staff based on search term
   const filteredStaff = staffMembers.filter(staff =>
     staff.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    staff.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     staff.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     staff.contact?.toLowerCase().includes(searchTerm.toLowerCase())  // Added contact search
   );
@@ -128,7 +134,7 @@ const StaffManagement = ({ title }) => {
       }
     } catch (error) {
       console.error('Error updating staff:', error);
-      showAlert.error('Failed to update staff member. Please try again.');
+      showAlert.error(error.response?.data?.errors ? Object.values(error.response.data.errors).flat().join('\n') : 'Failed to update staff member. Please try again.');
     }
   };
 
@@ -216,11 +222,13 @@ const StaffManagement = ({ title }) => {
           <h1 className="text-2xl font-bold text-gray-800">{title}</h1>
           <button 
             className="sb-create"
+            disabled={allRolesFull}
             onClick={() => setIsAdding(true)}
           >
             Add New Staff
           </button>
         </div>
+        <p className="mb-4 text-sm text-gray-600">{seatLimits?.configured ? `${seatLimits.plan_name} package · employee seats` : 'Package not assigned. Ask the system admin to select a plan before adding employees.'}</p>
 
         {/* Who does what */}
         <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -231,6 +239,7 @@ const StaffManagement = ({ title }) => {
                 <span className="text-xs font-bold uppercase tracking-wide text-gray-400">{TIERS[id].action}</span>
               </div>
               <p className="mt-2 text-sm text-gray-600">{TIERS[id].detail}</p>
+              <p className="mt-3 text-sm font-semibold text-gray-800">{seatsUsed(id)} / {seatLimits?.roles?.[id]?.limit ?? '—'} seats used</p>
             </div>
           ))}
         </div>
@@ -305,7 +314,7 @@ const StaffManagement = ({ title }) => {
                             onChange={(e) => setEditValues({...editValues, name: e.target.value})}
                           />
                         ) : (
-                          staff.name
+                          <span>{staff.name}<span className="block text-xs font-semibold text-gray-500">{staff.code}</span></span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -331,8 +340,8 @@ const StaffManagement = ({ title }) => {
                           >
                             <option value="">Select role</option>
                             {roles?.map(role => (
-                              <option key={role.id} value={role.id}>
-                                {tierLabel(role.id, role.display_name)}
+                              <option key={role.id} value={role.id} disabled={Number(staff.role_id) !== Number(role.id) && roleFull(Number(role.id))}>
+                                {tierLabel(role.id, role.display_name)}{roleFull(Number(role.id)) ? ' · Full' : ''}
                               </option>
                             ))}
                           </select>
@@ -510,8 +519,8 @@ const StaffManagement = ({ title }) => {
                     >
                       <option value="">Select role</option>
                       {roles?.map(role => (
-                        <option key={role.id} value={role.id}>
-                          {tierLabel(role.id, role.display_name)}
+                        <option key={role.id} value={role.id} disabled={roleFull(Number(role.id))}>
+                          {tierLabel(role.id, role.display_name)}{roleFull(Number(role.id)) ? ' · Full' : ''}
                         </option>
                       ))}
                     </select>

@@ -80,6 +80,7 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
   // Filter staff based on search term
   const filteredStaff = staff?.filter(member =>
     member.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    member.code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.role?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     member.contact?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -102,7 +103,15 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-800">Company Details</h1>
             <div className="space-x-3">
-              <button 
+              <a
+                href={`/executors/${company.id}/report`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-block px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900"
+              >
+                Generate PDF
+              </a>
+              <button
                 onClick={() => {
                   setEditingStaff(null);
                   reset();
@@ -126,6 +135,7 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-800">{company.name}</h2>
+                {company.code && <p className="mt-1 text-sm font-semibold text-gray-500">{company.code}</p>}
                 <button
                   type="button"
                   onClick={() => setShowShare(true)}
@@ -169,7 +179,7 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
                 <h3 className="text-sm font-medium text-gray-500">Company Details</h3>
                 <div className="mt-2 space-y-1">
                   <p className="text-sm"><span className="font-medium">Staff Count:</span> {staff?.length || 0}</p>
-                  <p className="text-sm"><span className="font-medium">Safety Induction:</span> {induction.done}/{induction.total} topics acknowledged</p>
+                  <p className="text-sm"><span className="font-medium">Safety Passport:</span> {induction.done}/{induction.total} rules acknowledged</p>
                   <p className="text-sm"><span className="font-medium">Machinery:</span> {machinery.length}</p>
                 </div>
               </div>
@@ -239,6 +249,8 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Safety Passport</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approval</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Certifications</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Joined Date</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -258,6 +270,7 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
                             </div>
                             <div className="ml-3">
                               <div className="text-sm font-medium text-gray-900">{member.name}</div>
+                              {member.code && <div className="text-xs font-semibold text-gray-500">{member.code}</div>}
                             </div>
                           </div>
                         </td>
@@ -274,10 +287,27 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
                           <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${
                             member.status === 'active' 
                               ? 'bg-green-100 text-green-800' 
-                              : 'bg-gray-100 text-gray-800'
+                              : member.status === 'pending'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-gray-100 text-gray-800'
                           }`}>
                             {member.status || 'active'}
                           </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${member.is_safetypassport ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}`}>
+                            {member.is_safetypassport ? 'Yes' : 'No'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-xs">
+                          {[['Supervisor', 'supervisor'], ['Manager', 'manager']].map(([label, k]) => (
+                            <div key={k} className={member[`${k}_approved_at`] ? 'text-green-700' : 'text-amber-700'}>
+                              <b>{label}:</b>{' '}
+                              {member[`${k}_approved_at`]
+                                ? `${member[`${k}_approved_name`] ? member[`${k}_approved_name`] + ' · ' : ''}${dayjs(member[`${k}_approved_at`]).format('DD MMM YYYY')}`
+                                : member.status === 'pending' ? 'Waiting' : '-'}
+                            </div>
+                          ))}
                         </td>
                         <td className="px-6 py-4 text-sm">
                           {member.certifications?.length ? (
@@ -318,7 +348,7 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
+                      <td colSpan="11" className="px-6 py-8 text-center text-gray-500">
                         {searchTerm ? 'No staff members match your search.' : 'No staff members found. Click "Add Single Staff" or "Add Multiple Staff" to get started.'}
                       </td>
                     </tr>

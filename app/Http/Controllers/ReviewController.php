@@ -622,32 +622,32 @@ class ReviewController extends Controller
         ]);
     }
 
-    /** Supervisor / Manager answers an incident; it moves to "in progress". */
+    /** A Supervisor reviews a submitted incident. */
     public function incidentRespond(Request $request, int $id)
     {
+        abort_unless((int) Auth::user()->role_id === 4, 403, 'Only a Supervisor can review incidents.');
         $data = $request->validate(['message' => 'required|string|min:3|max:2000']);
         $incident = $this->incidentOwn($id);
-        abort_if(strtolower((string) $incident->status) === 'closed', 422, 'This incident is already closed.');
+        abort_unless(in_array(strtolower((string) $incident->status), ['', 'open'], true), 422, 'Only submitted incidents can be reviewed.');
 
-        $this->logIncident($incident, 'response', $data['message']);
-        if (strtolower((string) $incident->status) === 'open' || !$incident->status) {
-            $incident->update(['status' => 'inprogress', 'review_by' => CompanyStaff::where('user_id', Auth::id())->value('id')]);
-        }
+        $this->logIncident($incident, 'reviewed', $data['message']);
+        $incident->update(['status' => 'inprogress', 'review_by' => CompanyStaff::where('user_id', Auth::id())->value('id')]);
 
-        return back()->with('success', 'Response added.');
+        return back()->with('success', 'Incident reviewed.');
     }
 
-    /** Close the incident with a closing remark. */
+    /** A Supervisor approves an incident after review. */
     public function incidentClose(Request $request, int $id)
     {
+        abort_unless((int) Auth::user()->role_id === 4, 403, 'Only a Supervisor can approve incidents.');
         $data = $request->validate(['message' => 'required|string|min:3|max:2000']);
         $incident = $this->incidentOwn($id);
-        abort_if(strtolower((string) $incident->status) === 'closed', 422, 'This incident is already closed.');
+        abort_unless(strtolower((string) $incident->status) === 'inprogress', 422, 'The incident must be reviewed before approval.');
 
-        $this->logIncident($incident, 'closed', $data['message']);
-        $incident->update(['status' => 'closed', 'review_by' => CompanyStaff::where('user_id', Auth::id())->value('id')]);
+        $this->logIncident($incident, 'approved', $data['message']);
+        $incident->update(['status' => 'closed']);
 
-        return back()->with('success', 'Incident closed.');
+        return back()->with('success', 'Incident approved.');
     }
 
     /** Manager reopens a closed incident. */
@@ -668,7 +668,11 @@ class ReviewController extends Controller
     {
         $incident = $this->incidentQuery()->findOrFail($id);
 
-        return Inertia::render('Review/IncidentShow', ['incident' => $this->incidentRow($incident, true)] + $this->roleFlags());
+        return Inertia::render('Review/IncidentShow', [
+            'incident' => $this->incidentRow($incident, true),
+            'can_review_incident' => (int) Auth::user()->role_id === 4,
+            'can_reopen_incident' => (int) Auth::user()->role_id === 3,
+        ]);
     }
 
     /** Full detail of one site visit: toolbox talk first, then its inspections. */

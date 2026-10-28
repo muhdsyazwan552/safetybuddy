@@ -1,381 +1,105 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { router, usePage } from '@inertiajs/react';
-import { showAlert } from '@/Helpers/alert';
-import { 
-  FaBuilding, 
-  FaUserCircle, 
-  FaChevronDown, 
-  FaSignOutAlt, 
-  FaUser, 
-  FaCreditCard, 
-  FaCrown,
-  FaExchangeAlt,
-  FaShieldAlt,
-  FaHeartbeat,
-  FaLeaf,
-  FaBook,
-  FaExclamationTriangle,
-  FaChartLine
-} from 'react-icons/fa';
+import React, { useEffect, useRef, useState } from 'react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
+import {
+    CalendarClock, Check, ChevronDown, LockKeyhole,
+    LogOut, Pencil, UserRound,
+} from 'lucide-react';
 import { confirmLogout } from '@/Helpers/logout';
 
-const iconMap = {
-    'SB360-WSIS': '📊',
-    'SB360-PS':   '✍️',
-    'SB360-C':    '✅',
-    'SB360-T':    '💰',
-    'SB360-N':    '🤖',
-    'SB360-A':    '🌐',
+const moduleArtwork = {
+    'SB360-WSIS': { label: 'Safety', image: '/images/landing/module-wsis.jpg', path: '/dashboard' },
+    'SB360-PS': { label: 'Products & Services', image: '/images/landing/module-ps.jpg' },
+    'SB360-C': { label: 'Careers', image: '/images/landing/module-careers.jpg' },
+    'SB360-T': { label: 'Training', image: '/images/landing/serve-toolbox.jpg' },
+    'SB360-N': { label: 'News', image: '/images/landing/module-news.jpg' },
+    'SB360-A': { label: 'Assist', image: '/images/landing/serve-inspection.jpg' },
 };
 
-const accentMap = {
-    'SB360-WSIS': { badge: 'bg-blue-100 text-blue-600' },
-    'SB360-PS':   { badge: 'bg-emerald-100 text-emerald-600' },
-    'SB360-C':    { badge: 'bg-amber-100 text-amber-600' },
-    'SB360-T':    { badge: 'bg-rose-100 text-rose-600' },
-    'SB360-N':    { badge: 'bg-purple-100 text-purple-600' },
-    'SB360-A':    { badge: 'bg-cyan-100 text-cyan-600' },
-};
+function stateOf(module) {
+    const artwork = moduleArtwork[module.code] ?? { label: module.name, image: '/images/landing/hero.jpg' };
+    if (!module.is_released) return { artwork, status: 'unreleased' };
+    if (module.is_available && artwork.path) return { artwork, status: 'active' };
+    if (module.has_subscribed_before) return { artwork, status: 'expired' };
+    return { artwork, status: 'locked' };
+}
 
-const pathMap = {
-    'SB360-WSIS': '/dashboard',
-};
+function AccountMenu({ user, company }) {
+    const [open, setOpen] = useState(false);
+    const menuRef = useRef(null);
+    const displayName = company?.name || user?.name || 'Account';
 
-const ModuleCard = ({ module }) => {
-    const icon      = iconMap[module.code] ?? '🔧';
-    const accent    = accentMap[module.code] ?? { badge: 'bg-gray-100 text-gray-600' };
-    const path      = pathMap[module.code]  ?? null;
-    const isFree    = parseFloat(module.price) === 0;
-    const available = module.is_available;
-
-    // Subscription state
-    const isExpired          = module.sub_status === 'expired';
-    const hasSubscribedBefore = module.has_subscribed_before;
-    const needsRenew         = isExpired && hasSubscribedBefore;
-    const needsNew           = !available && !isFree && !hasSubscribedBefore;
-
-    const handleClick = () => {
-        if (available && path) {
-            router.visit(path);
-        }
-    };
-
-    const handleSubscribeClick = (e) => {
-        e.stopPropagation();
-        showAlert.info(`Please contact support to ${needsRenew ? 'renew' : 'subscribe to'} ${module.code}.`, needsRenew ? 'Renew module' : 'Subscribe to module');
-    };
-
-    return (
-        <div
-            onClick={handleClick}
-            className={`
-                group relative backdrop-blur-xl rounded-2xl border p-5
-                flex flex-col items-center text-center
-                transition-all duration-500
-                ${available
-                    ? 'bg-gray-200 border-gray-300 hover:shadow-2xl hover:shadow-gray-200/50 ' + (path ? 'cursor-pointer' : 'cursor-default')
-                    : 'bg-gray-100 border-gray-200 opacity-80 cursor-default'
-                }
-            `}
-        >
-            {/* Top-right status badge */}
-            {!available && !isFree && (
-                <div className="absolute top-3 right-3 z-20">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wide ${
-                        needsRenew
-                            ? 'bg-orange-500 text-white'
-                            : 'bg-gray-800 text-white'
-                    }`}>
-                        {needsRenew ? '⚠️ Expired' : '🔒 Locked'}
-                    </span>
-                </div>
-            )}
-
-            <div className="relative z-10 w-full flex flex-col items-center">
-
-                {/* Icon */}
-                <div className="flex flex-col items-center mb-4 gap-2 w-full">
-                    <div className={`text-4xl p-3 rounded-2xl shadow-inner mb-2 ${
-                        available ? 'bg-white' : 'bg-gray-200 grayscale'
-                    }`}>
-                        {icon}
-                    </div>
-
-                    {/* Status badge */}
-                    <span className={`text-[10px] uppercase tracking-wider font-bold px-3 py-0.5 rounded-full border border-white ${
-                        isFree
-                            ? 'bg-green-100 text-green-600'
-                            : available
-                                ? accent.badge
-                                : needsRenew
-                                    ? 'bg-orange-100 text-orange-500'
-                                    : 'bg-gray-200 text-gray-400'
-                    }`}>
-                        {isFree
-                            ? '✓ Free'
-                            : available
-                                ? '● Active'
-                                : needsRenew
-                                    ? '↻ Expired'
-                                    : `RM ${parseFloat(module.price).toFixed(2)}`
-                        }
-                    </span>
-                </div>
-
-                {/* Module Code */}
-                <h3 className={`text-md font-bold tracking-tight mb-1 transition-colors ${
-                    available ? 'text-gray-800 group-hover:text-indigo-600' : 'text-gray-400'
-                }`}>
-                    {module.code}
-                </h3>
-
-                {/* Module Name */}
-                <p className={`text-xs font-semibold mb-1 ${available ? 'text-gray-700' : 'text-gray-400'}`}>
-                    {module.name}
-                </p>
-
-                {/* Description */}
-                <p className={`text-xs leading-relaxed mb-3 min-h-[40px] ${available ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {module.description || '—'}
-                </p>
-
-                {/* End date hint for active subscriptions */}
-                {available && !isFree && module.sub_end_date && (
-                    <p className="text-xs text-gray-500 mb-2">
-                        Valid until {module.sub_end_date ? new Date(module.sub_end_date).toLocaleDateString('en-GB') : 'N/A'}
-                    </p>
-                )}
-
-                {/* Action footer */}
-                <div className="flex items-center justify-center pt-2 border-t border-gray-100 w-full mt-auto">
-                    {available && path ? (
-                        <span className="text-xs text-indigo-600 font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">
-                            Enter <span className="text-sm">→</span>
-                        </span>
-                    ) : available && !path ? (
-                        <span className="text-xs text-gray-400 font-medium">Coming Soon</span>
-                    ) : isFree ? null : needsRenew ? (
-                        <button
-                            onClick={handleSubscribeClick}
-                            className="text-xs bg-orange-500 hover:bg-orange-600 text-white font-bold px-4 py-1.5 rounded-full transition-all"
-                        >
-                            ↻ Renew Now
-                        </button>
-                    ) : (
-                        <button
-                            onClick={handleSubscribeClick}
-                            className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-1.5 rounded-full transition-all"
-                        >
-                            + Subscribe
-                        </button>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
-};
-
-const Module = () => {
-    const { modules, auth } = usePage().props;
-    const user = auth?.user;
-    const company = user?.company_id ? user.company : null;
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const dropdownRef = useRef(null);
-
-    const isCompanyUser = user?.role_id === 2;
-    const displayName = isCompanyUser && company?.name ? company.name : user?.name;
-
-    // Close dropdown when clicking outside
     useEffect(() => {
-        function handleClickOutside(event) {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsDropdownOpen(false);
-            }
-        }
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
+        const closeOutside = event => { if (menuRef.current && !menuRef.current.contains(event.target)) setOpen(false); };
+        const closeEscape = event => { if (event.key === 'Escape') setOpen(false); };
+        document.addEventListener('pointerdown', closeOutside);
+        document.addEventListener('keydown', closeEscape);
+        return () => { document.removeEventListener('pointerdown', closeOutside); document.removeEventListener('keydown', closeEscape); };
     }, []);
 
-    const toggleDropdown = () => {
-        setIsDropdownOpen(!isDropdownOpen);
+    return <div className="relative" ref={menuRef}>
+        <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Account menu" className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-2 py-1.5 text-white transition hover:border-white/40 hover:bg-white/10">
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-400 text-xs font-black text-ink-950">{displayName.trim().charAt(0).toUpperCase()}</span>
+            <span className="hidden max-w-[130px] truncate text-sm font-semibold sm:block">{displayName}</span>
+            <ChevronDown className={`h-4 w-4 text-white/60 transition ${open ? 'rotate-180' : ''}`}/>
+        </button>
+        {open && <div className="absolute right-0 z-30 mt-3 w-64 rounded-2xl border border-white/15 bg-[#1E1B1D] p-2 text-white shadow-2xl">
+            <div className="border-b border-white/10 px-3 py-3"><p className="truncate text-sm font-bold">{displayName}</p><p className="truncate text-xs text-white/50">{user?.email}</p></div>
+            <Link href="/profile" className="mt-2 flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white"><UserRound className="h-4 w-4"/> {company ? 'Profile & company' : 'Profile'}</Link>
+            <Link href="/plans" className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-white/80 hover:bg-white/10 hover:text-white"><Pencil className="h-4 w-4"/> Manage packages</Link>
+            <button type="button" onClick={() => confirmLogout()} className="mt-1 flex w-full items-center gap-3 border-t border-white/10 px-3 py-3 text-left text-sm text-rose-300 hover:bg-white/10"><LogOut className="h-4 w-4"/> Log out</button>
+        </div>}
+    </div>;
+}
+
+function ModuleTile({ module }) {
+    const { artwork, status } = stateOf(module);
+    const active = status === 'active';
+    const unreleased = status === 'unreleased';
+    const statusText = { active: 'Active', unreleased: 'Coming soon', expired: 'Expired', locked: 'Locked' }[status];
+    const StatusIcon = { active: Check, unreleased: LockKeyhole, expired: CalendarClock, locked: LockKeyhole }[status];
+
+    const onSelect = () => {
+        if (active) return router.visit(artwork.path);
+        return router.visit('/plans');
     };
 
-    const handleLogout = (e) => {
-        e.preventDefault();
-        confirmLogout();
-    };
+    return <button type="button" onClick={onSelect} disabled={unreleased} aria-label={`${artwork.label}: ${statusText}`} className={`group flex min-w-0 flex-col items-center text-center focus:outline-none ${unreleased ? 'cursor-not-allowed' : ''}`}>
+        <span className={`relative block aspect-square w-full overflow-hidden rounded-2xl border-[3px] bg-ink-800 shadow-[0_18px_45px_rgba(0,0,0,0.25)] transition duration-300 ${unreleased ? '' : 'group-hover:-translate-y-2 group-hover:border-brand-400 group-hover:shadow-[0_25px_55px_rgba(0,0,0,0.4)] group-focus-visible:border-brand-400'} ${active ? 'border-white/25' : unreleased ? 'border-white/5' : 'border-white/10'}`}>
+            <img src={artwork.image} alt="" className={`h-full w-full object-cover transition duration-500 ${unreleased ? 'grayscale blur-[2px] brightness-[0.48]' : `group-hover:scale-110 ${status === 'locked' || status === 'expired' ? 'brightness-75' : ''}`}`}/>
+            <span className={`absolute inset-0 ${unreleased ? 'bg-slate-950/40' : 'bg-gradient-to-t from-black/60 via-transparent to-transparent'}`}/>
+            {unreleased && <span className="absolute inset-0 flex items-center justify-center"><span className="rounded-full border border-white/20 bg-black/50 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-white/85 backdrop-blur-sm">Coming soon</span></span>}
+            <span className={`absolute bottom-3 left-3 flex h-7 w-7 items-center justify-center rounded-lg backdrop-blur-sm ${active ? 'bg-emerald-500 text-white' : 'bg-black/55 text-white'}`}><StatusIcon className="h-4 w-4" strokeWidth={2.5}/></span>
+        </span>
+        <span className={`mt-5 flex h-12 items-center justify-center text-lg font-bold leading-tight sm:text-xl ${unreleased ? 'text-white/35' : 'text-white/65 transition group-hover:text-white group-focus-visible:text-white'}`}>{artwork.label}</span>
+        <span className={`mt-1 text-xs font-semibold ${active ? 'text-brand-300' : 'text-white/40'}`}>{statusText}</span>
+    </button>;
+}
 
-    const handleModuleChange = (modulePath) => {
-        router.get(modulePath);
-        setIsDropdownOpen(false);
-    };
+export default function Module() {
+    const { modules = [], auth } = usePage().props;
+    const user = auth?.user;
+    const company = user?.company ?? null;
 
-    // Available modules for switcher
-    const modulesList = [
-        { name: 'Safety Module', path: '/module', icon: <FaShieldAlt className="mr-2 text-blue-500" /> },
-        { name: 'Health Module', path: '/module/health', icon: <FaHeartbeat className="mr-2 text-green-500" /> },
-        { name: 'Environment Module', path: '/module/environment', icon: <FaLeaf className="mr-2 text-emerald-500" /> },
-        { name: 'Training Module', path: '/module/training', icon: <FaBook className="mr-2 text-purple-500" /> },
-        { name: 'Incident Module', path: '/module/incident', icon: <FaExclamationTriangle className="mr-2 text-red-500" /> },
-        { name: 'Audit Module', path: '/module/audit', icon: <FaChartLine className="mr-2 text-indigo-500" /> },
-    ];
+    return <><Head title="Choose a module · Safety Buddy"/><div className="relative flex min-h-screen flex-col overflow-hidden bg-[#160F11] text-white" style={{ backgroundImage: 'radial-gradient(ellipse at 50% 19%, #421B20 0%, #241114 45%, #120E11 100%)' }}>
+        <header className="relative z-10 flex items-start justify-between gap-4 px-5 pt-6 sm:px-10 sm:pt-9 lg:px-16">
+            <Link href="/module" className="flex items-center gap-3">
+                <img src="/images/sbc-logo.png" alt="" className="h-12 w-12 rounded-full object-cover ring-2 ring-brand-400/50 sm:h-14 sm:w-14"/>
+                <span className="hidden text-xl font-black tracking-tight text-brand-400 sm:block">SAFETY BUDDY</span>
+            </Link>
+            <p className="absolute left-1/2 top-10 hidden -translate-x-1/2 text-sm font-medium tracking-wide text-white/60 lg:block">Control. Performance. Report.</p>
+            <AccountMenu user={user} company={company}/>
+        </header>
 
-    return (
-        <div className="min-h-screen bg-gradient-to-tr from-gray-50 via-white to-blue-50">
-            {/* Navbar */}
-            <nav className="bg-white shadow-lg sticky top-0 z-50">
-                <div className="max-w-[1600px] mx-auto px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        {/* Left side - Logo and Company Info */}
-                        <div className="flex items-center space-x-6">
-                            {/* Logo */}
-                            <div className="flex items-center space-x-2">
-                                <div className="w-10 h-10 bg-gradient-to-br from-brand-600 to-brand-800 rounded-lg flex items-center justify-center">
-                                    <span className="text-white font-bold text-xl">SB</span>
-                                </div>
-                                <span className="font-bold text-gray-800 text-lg hidden sm:block">SafetyBuddy</span>
-                            </div>
+        <main className="relative z-0 mx-auto flex w-full max-w-[1390px] flex-1 flex-col items-center justify-center px-5 pb-16 pt-16 text-center sm:px-10 sm:pb-20 lg:pt-10">
+            <p className="text-xs font-black uppercase tracking-[0.25em] text-brand-400">Your workspace</p>
+            <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Choose a module</h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-white/55 sm:text-base">Safety is available now. Other modules are shown as a preview and will open in the future.</p>
 
-                            
-                        </div>
+            {modules.length ? <div className="mt-12 grid w-full max-w-[1280px] grid-cols-2 gap-x-5 gap-y-11 sm:grid-cols-3 sm:gap-x-7 lg:grid-cols-6 lg:gap-x-6 xl:gap-x-8">
+                {modules.map(module => <ModuleTile key={module.id} module={module}/>)}
+            </div> : <p className="mt-12 rounded-xl border border-white/15 px-6 py-5 text-white/60">No modules are available yet.</p>}
 
-                        {/* Right side - Profile Dropdown */}
-                        <div className="relative" ref={dropdownRef}>
-                            <button
-                                onClick={toggleDropdown}
-                                className="group flex items-center gap-3 px-3 py-2 rounded-full hover:bg-gray-100 transition-all duration-200 focus:outline-none border border-gray-200"
-                            >
-                                <FaUserCircle className="text-gray-500 group-hover:text-indigo-600 text-2xl transition-colors duration-200" />
-                                <div className="hidden md:block text-left">
-                                    <p className="text-sm font-medium text-gray-700 group-hover:text-indigo-600">
-                                        {displayName}
-                                    </p>
-                                    <p className="text-xs text-gray-400">
-                                        {isCompanyUser ? 'Company Account' : 'User Account'}
-                                    </p>
-                                </div>
-                                <FaChevronDown
-                                    className={`text-gray-400 text-sm transition-transform duration-300 ${
-                                        isDropdownOpen ? 'rotate-180' : ''
-                                    }`}
-                                />
-                            </button>
-
-                            {/* Dropdown Menu */}
-                            {isDropdownOpen && (
-                                <div className="absolute right-0 mt-2 w-72 max-w-[90vw] bg-white rounded-lg shadow-xl py-2 z-50 border border-gray-100">
-                                    {/* User/Company Info Header */}
-                                    <div className="px-4 py-3 border-b bg-gradient-to-r from-gray-50 to-white rounded-t-lg">
-                                        {isCompanyUser && company ? (
-                                            <>
-                                                <p className="text-sm font-bold text-gray-900">{company.name}</p>
-                                                <p className="text-xs text-gray-500 mt-1">{company.email}</p>
-                                                {company.registration_no && (
-                                                    <p className="text-xs text-gray-400 mt-1">Reg No: {company.registration_no}</p>
-                                                )}
-                                                <p className="text-xs text-indigo-600 mt-2 flex items-center">
-                                                    <FaCrown className="mr-1 text-xs" />
-                                                    Company Account
-                                                </p>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <p className="text-sm font-bold text-gray-900">{user?.name}</p>
-                                                <p className="text-xs text-gray-500 mt-1">{user?.email}</p>
-                                                <p className="text-xs text-gray-400 mt-1">Role: {user?.role?.name || 'User'}</p>
-                                            </>
-                                        )}
-                                    </div>
-
-                                    
-                                   
-
-                                    {/* Profile & Company Section */}
-                                    <div className="border-b">
-                                        <button
-                                            onClick={() => router.get('/profile')}
-                                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-150"
-                                        >
-                                            <FaUser className="mr-3 text-blue-500" />
-                                            Profile Details
-                                        </button>
-                                        
-                                        {isCompanyUser && (
-                                            <button
-                                                onClick={() => router.get('/company-profile')}
-                                                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-150"
-                                            >
-                                                <FaBuilding className="mr-3 text-purple-500" />
-                                                Company Profile
-                                            </button>
-                                        )}
-                                        
-                                        <button
-                                            onClick={() => router.get('/company-plan')}
-                                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors duration-150"
-                                        >
-                                            <FaCreditCard className="mr-3 text-green-500" />
-                                            Company Plan & Billing
-                                        </button>
-                                    </div>
-
-                                    {/* Logout */}
-                                    <div className="pt-1">
-                                        <button
-                                            onClick={handleLogout}
-                                            className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center transition-colors duration-150"
-                                        >
-                                            <FaSignOutAlt className="mr-3" />
-                                            Logout
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </nav>
-
-            {/* Main Content */}
-            <div className="py-12 px-6 flex items-center justify-center">
-                <div className="max-w-[1600px] w-full mx-auto">
-                    {/* Header */}
-                    <div className="text-center mb-16">
-                        <h1 className="text-3xl md:text-5xl font-black text-gray-900 tracking-tight mb-4">
-                            List{' '}
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-brand-800">
-                                Modules
-                            </span>
-                        </h1>
-                        <div className="h-1 w-20 bg-indigo-600 mx-auto rounded-full mb-6"></div>
-                        <p className="text-gray-500 text-sm md:text-lg max-w-2xl mx-auto font-medium">
-                            Select a system module to begin your workflow
-                        </p>
-                    </div>
-
-                    {/* Grid */}
-                    {modules.length === 0 ? (
-                        <p className="text-center text-gray-400">No active modules found.</p>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-                            {modules.map(module => (
-                                <ModuleCard key={module.id} module={module} />
-                            ))}
-                        </div>
-                    )}
-
-                    {/* Footer */}
-                    <div className="mt-40 text-center">
-                        <p className="text-gray-400 text-[10px] uppercase tracking-[0.2em] font-bold">
-                            © 2024 SB360 Ecosystem • Modern Interface
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-export default Module;
+            <Link href="/plans" className="mt-16 inline-flex items-center justify-center gap-3 rounded-full border border-white/35 bg-black/25 px-6 py-3 text-sm font-bold text-white transition hover:border-brand-400 hover:bg-brand-400 hover:text-ink-950 sm:text-base"><Pencil className="h-5 w-5"/> Manage Packages</Link>
+        </main>
+    </div></>;
+}

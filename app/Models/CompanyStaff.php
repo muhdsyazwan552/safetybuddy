@@ -13,6 +13,8 @@ class CompanyStaff extends Model
 
     protected $fillable = [
         'company_id',
+        'code',
+        'serial_no',
         'user_id',
         'name',
         'role_id',

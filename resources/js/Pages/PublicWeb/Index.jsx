@@ -11,7 +11,7 @@ import {
 /* ──────────────────────────────────────────────────────────────
    Content (edit freely – images live in public/images/landing)
 ────────────────────────────────────────────────────────────── */
-const CONTACT = { phone: '+60 3-1234 5678', email: 'hello@safetybuddy.my', address: 'Kuala Lumpur, Malaysia' };
+const CONTACT = { phone: '+60 16-886 5619', email: 'hello@safetybuddy.my', address: 'Kuala Lumpur, Malaysia' };
 
 const NAV = [
     { label: 'About', href: '#about' },
@@ -90,7 +90,7 @@ const REVIEWS = [
 ];
 
 const STEPS = [
-    { title: 'Create your account', text: 'Register your company and choose the modules you need.' },
+    { title: 'Create your account', text: 'Register your company, sign in and choose a Safety Buddy package.' },
     { title: 'Set up your company', text: 'Add projects, staff, subcontractors and your compliance metrics.' },
     { title: 'Assign & invite', text: 'Assign inspectors to projects and share the registration link with subcontractors.' },
     { title: 'Inspect & report', text: 'Run inspections and toolbox talks on site, then pull reports in one click.' },
@@ -137,7 +137,7 @@ function Reveal({ children, delay = 0, y = 28, className = '' }) {
 }
 
 /** Photo with a styled fallback so the page looks good before real images are added */
-function Photo({ src, alt, className = '', tone = 'dark', children }) {
+function Photo({ src, alt, className = '', imageClassName = '', loading = 'lazy', tone = 'dark', children }) {
     const [failed, setFailed] = useState(false);
     const bg =
         tone === 'dark'
@@ -150,9 +150,9 @@ function Photo({ src, alt, className = '', tone = 'dark', children }) {
                 <img
                     src={`/images/landing/${src}`}
                     alt={alt}
-                    loading="lazy"
+                    loading={loading}
                     onError={() => setFailed(true)}
-                    className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                    className={`absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105 ${imageClassName}`}
                 />
             )}
             {children}
@@ -268,7 +268,7 @@ function Counter({ to, suffix = '+', duration = 1.8 }) {
 /* ──────────────────────────────────────────────────────────────
    Page
 ────────────────────────────────────────────────────────────── */
-export default function Landing({ modules = [] }) {
+export default function Landing({ subscriptionPlans = [] }) {
     const [bar, setBar] = useState(true);
     const [menu, setMenu] = useState(false);
     const [stuck, setStuck] = useState(false);
@@ -281,31 +281,20 @@ export default function Landing({ modules = [] }) {
         return () => window.removeEventListener('scroll', on);
     }, []);
 
-    // pricing from real module prices
-    const priceOf = (code, fallback) => modules.find((m) => m.code === code)?.price ?? fallback;
     const plans = useMemo(
-        () => [
-            {
-                name: 'Starter',
-                tag: 'Free modules for everyone',
-                price: priceOf('SB360-N', 0),
-                items: ['News module', 'Assist module', 'Community access', 'Email support'],
-            },
-            {
-                name: 'Growth',
-                tag: 'Grow your business profile',
-                price: priceOf('SB360-PS', 1000),
-                items: ['Products & Services', 'Careers or Trainings', 'Company profile', 'Priority email support'],
-            },
-            {
-                name: 'Safety Pro',
-                tag: 'The complete safety toolkit',
-                price: priceOf('SB360-WSIS', 1500),
-                popular: true,
-                items: ['Inspections & toolbox talks', 'Non-conformance & complaints', 'Incident statistics & man-hours', 'Subcontractor registration links', 'Reports & compliance metrics'],
-            },
-        ],
-        [modules]
+        () => subscriptionPlans.map(plan => ({
+            name: plan.name,
+            tag: `${plan.manager_limit} Manager · ${plan.supervisor_limit} Supervisor · ${plan.inspector_limit} Inspector${plan.inspector_limit > 1 ? 's' : ''}`,
+            price: plan.price_yearly,
+            popular: plan.code === 'PROFESSIONAL',
+            items: [
+                plan.daily_pdf_limit === null ? 'Unlimited Daily Report PDFs' : `${plan.daily_pdf_limit} Daily Report PDFs / month (shared)`,
+                plan.monthly_pdf_limit === null ? 'Unlimited Monthly Report PDFs' : `${plan.monthly_pdf_limit} Monthly Report PDFs / month (shared)`,
+                'All Safety Buddy features', 'Contractor Portal', 'Unlimited projects and contractor companies',
+                'Unlimited safety inspections, toolbox talks and NCR/CC transactions',
+            ],
+        })),
+        [subscriptionPlans]
     );
 
     return (
@@ -380,8 +369,8 @@ export default function Landing({ modules = [] }) {
             <main id="top">
                 {/* HERO */}
                 <section className="px-1 sm:px-1.5">
-                    <Photo src="hero.jpg" alt="Safety inspector on site" className="min-h-[760px] rounded-[28px] lg:min-h-[880px]">
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/50 to-black/10 lg:bg-gradient-to-l lg:from-black/85 lg:via-black/55 lg:to-black/0" />
+                    <Photo src="hero.jpg" alt="Safety officer reviewing site records on a tablet" loading="eager" imageClassName="object-[34%_center] sm:object-center" className="min-h-[760px] rounded-[28px] lg:min-h-[880px]">
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/55 to-black/10 lg:bg-gradient-to-l lg:from-black/85 lg:via-black/55 lg:to-black/0" />
                         <div className="relative mx-auto flex min-h-[760px] max-w-[1400px] items-end px-5 py-14 sm:px-8 lg:min-h-[880px] lg:items-center lg:justify-end lg:py-20">
                             <div className="max-w-3xl text-white">
                                 <Reveal>
@@ -420,7 +409,7 @@ export default function Landing({ modules = [] }) {
                                     <div className="mt-14 flex flex-wrap items-center gap-6 text-white">
                                         <p className="max-w-[170px] text-xs text-white/70">Everything your site safety team needs, on every device.</p>
                                         {[
-                                            { k: '5', v: 'Core modules' },
+                                            { k: '6', v: 'Core modules' },
                                             { k: '4', v: 'User roles' },
                                             { k: '1', v: 'Shared platform' },
                                         ].map((s) => (
@@ -577,7 +566,7 @@ export default function Landing({ modules = [] }) {
                         <div className="text-center">
                             <Reveal><SectionTag>Simple pricing</SectionTag></Reveal>
                             <Reveal delay={0.05}><H2>Clear pricing, no surprises.</H2></Reveal>
-                            <Reveal delay={0.1}><p className="mx-auto mt-4 max-w-md text-gray-500">Pick the modules you need. Know your cost before you start.</p></Reveal>
+                            <Reveal delay={0.1}><p className="mx-auto mt-4 max-w-md text-gray-500">Choose an annual Safety Buddy package. After your first purchase, explore all six modules.</p></Reveal>
                         </div>
 
                         <div className="mx-auto mt-12 grid max-w-6xl gap-5 md:grid-cols-3">
@@ -608,6 +597,7 @@ export default function Landing({ modules = [] }) {
                                 </Reveal>
                             ))}
                         </div>
+                        <p className="mx-auto mt-7 max-w-4xl text-center text-sm text-gray-500">Additional Inspector: RM800 per Inspector per year, prorated to the remaining subscription term. Self-learning user manual included; formal training certificate is not included.</p>
                     </div>
                 </section>
 

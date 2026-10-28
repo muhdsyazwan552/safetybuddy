@@ -8,19 +8,19 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * A subcontractor (executor) company stays ACTIVE only while its leader has
- * acknowledged every active safety-induction topic of the owner company.
+ * acknowledged every active Safety Passport rule of the owner company.
  * Any missing tick makes the company INACTIVE.
  */
 class SubconCompliance
 {
-    /** Active induction topics of the company that owns this subcontractor. */
+    /** Active Safety Passport rules of the company that owns this subcontractor. */
     public static function topicsFor(SubconCompany $subcon)
     {
         $owner = (int) $subcon->company_id;
 
-        // the owner never opened the settings page yet → give it the 13 defaults
-        if ($owner && !SafetyInductionTopic::where('company_id', $owner)->exists()) {
-            SafetyInductionDefaults::seedFor($owner);
+        // the 14 default rules are fixed for every company, even if the owner never opened the settings page
+        if ($owner) {
+            SafetyInductionDefaults::ensure($owner);
         }
 
         return SafetyInductionTopic::with('items')
@@ -50,7 +50,7 @@ class SubconCompliance
         ];
     }
 
-    /** Put status in line with the induction progress. Returns the new progress. */
+    /** Put status in line with the Safety Passport progress. Returns the new progress. */
     public static function sync(SubconCompany $subcon): array
     {
         $progress = self::progress($subcon);

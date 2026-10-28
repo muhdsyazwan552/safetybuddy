@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
 
 // ─── Chart colours (consistent across all 4 charts) ────────────────────────
 const CAT_COLORS = {
@@ -44,10 +46,10 @@ const ALL_MONTHS = MONTHS.map(m => m.value);
 
 const statusBadge = (status) => {
   const map = {
-    open: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500', label: 'Open' },
-    'in progress': { bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500', label: 'In Progress' },
-    inprogress: { bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500', label: 'In Progress' },
-    closed: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500', label: 'Closed' },
+    open: { bg: 'bg-red-100', text: 'text-red-700', dot: 'bg-red-500', label: 'Submitted' },
+    'in progress': { bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500', label: 'Reviewed' },
+    inprogress: { bg: 'bg-yellow-100', text: 'text-yellow-700', dot: 'bg-yellow-500', label: 'Reviewed' },
+    closed: { bg: 'bg-green-100', text: 'text-green-700', dot: 'bg-green-500', label: 'Approved' },
   };
   const s = map[(status ?? '').toLowerCase()] ?? { bg: 'bg-gray-100', text: 'text-gray-600', dot: 'bg-gray-400', label: status ?? '—' };
   return (
@@ -863,10 +865,13 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
                         <td className="px-3 py-3">{statusBadge(inc.status)}</td>
                         <td className="px-3 py-3 whitespace-nowrap">
                           <button
-                            className="text-blue-600 hover:text-blue-800 font-medium text-xs"
+                            type="button"
+                            className={tableViewActionClass}
                             onClick={() => setViewingIncident(inc)}
+                            title="View incident"
+                            aria-label="View incident"
                           >
-                            View
+                            <TableViewIcon />
                           </button>
                         </td>
                       </tr>
@@ -952,6 +957,7 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
             </div>
 
             <div className="px-6 py-5 space-y-6">
+              <ReviewProgress kind="incident" status={viewingIncident.status} />
               <section>
                 <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">Basic Information</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -1015,11 +1021,11 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
 
               {viewingIncident.responses?.length > 0 && (
                 <section>
-                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">Supervisor / Manager responses</h3>
+                  <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">Supervisor review and approval</h3>
                   <ul className="space-y-2">
                     {viewingIncident.responses.map((r) => (
-                      <li key={r.id} className={`rounded-lg px-3 py-2 text-sm ${r.type === 'closed' ? 'bg-green-50 text-green-900' : r.type === 'reopened' ? 'bg-yellow-50 text-yellow-900' : 'bg-blue-50 text-blue-900'}`}>
-                        <p className="text-xs font-bold uppercase opacity-70">{r.type === 'closed' ? 'Closed' : r.type === 'reopened' ? 'Reopened' : 'Response'} · {r.by}{r.role ? ` (${r.role})` : ''} · {r.at}</p>
+                      <li key={r.id} className={`rounded-lg px-3 py-2 text-sm ${['closed', 'approved'].includes(r.type) ? 'bg-green-50 text-green-900' : r.type === 'reopened' ? 'bg-yellow-50 text-yellow-900' : 'bg-blue-50 text-blue-900'}`}>
+                        <p className="text-xs font-bold uppercase opacity-70">{['closed', 'approved'].includes(r.type) ? 'Approved' : r.type === 'reopened' ? 'Reopened' : 'Reviewed'} · {r.by}{r.role ? ` (${r.role})` : ''} · {r.at}</p>
                         {r.message && <p className="mt-0.5 whitespace-pre-wrap">{r.message}</p>}
                       </li>
                     ))}

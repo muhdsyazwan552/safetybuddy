@@ -4,6 +4,7 @@ import { Pencil, Printer, Trash2, CalendarDays, Users, UserRound, CheckCircle2, 
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import { SectionCard, InfoRow, Sheet, ActionBar, fmtDate, storageUrl, darkBtn, ghostBtn } from '@/Components/inspector/kit';
 import { spPercent } from '@/Components/shared/SpSampling';
+import PdfButton from '@/Components/shared/PdfButton';
 
 export default function ShowToolboxTalk({ toolboxTalk, user, can_edit = false }) {
     const [lightbox, setLightbox] = useState(null);
@@ -30,6 +31,7 @@ export default function ShowToolboxTalk({ toolboxTalk, user, can_edit = false })
             )}
 
             <div className="mx-auto max-w-3xl space-y-4 px-4 pb-32 pt-5 sm:px-6 lg:pb-24">
+                {toolboxTalk.status === 'approved' && <div className="flex justify-end"><PdfButton href={`/pdf/toolbox/${toolboxTalk.id}`} /></div>}
                 {/* Hero */}
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
                     <div className="flex items-start justify-between gap-3">

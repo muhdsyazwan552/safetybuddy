@@ -3,8 +3,10 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, ClipboardCheck, CalendarDays } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import CaseCard from '@/Components/shared/CaseCard';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { SectionCard, InfoRow, EvalBadge, fmtDate } from '@/Components/inspector/kit';
 import { CaseActions } from './Cases';
+import PdfButton from '@/Components/shared/PdfButton';
 
 function Step({ done, label, when, note }) {
     return (
@@ -26,13 +28,18 @@ export default function CaseShow({ item }) {
         <ReviewLayout title={isNc ? 'Non-conformance' : 'Client complaint'}>
             <Head title={isNc ? 'Non-conformance' : 'Client complaint'} />
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
-                <Link href="/review/cases" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
-                    <ArrowLeft className="h-4 w-4" /> Back to cases
-                </Link>
+                <div className="flex items-center justify-between gap-3">
+                    <Link href="/review/cases" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                        <ArrowLeft className="h-4 w-4" /> Back to cases
+                    </Link>
+                    {closed && <PdfButton href={`/pdf/case/${item.type}/${item.id}`} />}
+                </div>
 
                 <CaseCard item={item}>
                     <CaseActions item={item} />
                 </CaseCard>
+
+                <ReviewProgress kind="case" record={item} />
 
                 <SectionCard title="Case details" icon={ClipboardCheck}>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

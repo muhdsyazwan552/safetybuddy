@@ -14,7 +14,7 @@ import InductionPanel from './Components/InductionPanel';
 import MachineryPanel from './Components/MachineryPanel';
 import CasesPanel from './Components/CasesPanel';
 import AttendancePanel from './Components/AttendancePanel';
-import { completeness, isNewThisWeek, isActiveStatus } from './Components/staffUtils';
+import { completeness, isNewThisWeek, isActiveStatus, isPendingStatus } from './Components/staffUtils';
 
 const SORTS = [
     { key: 'newest', label: 'Newest first' },
@@ -90,12 +90,13 @@ export default function CompanyDetails({
     }, [staffs]);
 
     // ---- forms
-    const addForm = useForm({ name: '', email: '', contact: '', role: '' });
+    const addForm = useForm({ name: '', email: '', contact: '', role: '', passport_topics: [], cert_title: '', cert_expiry: '', cert_file: null });
     const editForm = useForm({ name: '', email: '', contact: '', role: '', status: 'active' });
 
     const submitAdd = () => {
         addForm.post(`/subcon/${public_token}/staff`, {
             preserveScroll: true,
+            forceFormData: true,
             onSuccess: () => {
                 addForm.reset();
                 setShowModal(false);
@@ -190,12 +191,14 @@ export default function CompanyDetails({
     const stats = useMemo(() => {
         const complete = enriched.filter((s) => s._info.isComplete).length;
         const active = enriched.filter((s) => isActiveStatus(s.status)).length;
+        const pending = enriched.filter((s) => isPendingStatus(s.status)).length;
         return {
             total: enriched.length,
             complete,
             incomplete: enriched.length - complete,
             active,
-            inactive: enriched.length - active,
+            pending,
+            inactive: enriched.length - active - pending,
             fresh: enriched.filter(isNewThisWeek).length,
             pct: enriched.length ? Math.round((complete / enriched.length) * 100) : 0,
         };
@@ -210,12 +213,12 @@ export default function CompanyDetails({
         const q = query.trim().toLowerCase();
         let list = enriched.filter((s) => {
             if (q) {
-                const hay = [s.name, s.email, s.contact, s.role].filter(Boolean).join(' ').toLowerCase();
+                const hay = [s.code, s.name, s.email, s.contact, s.role].filter(Boolean).join(' ').toLowerCase();
                 if (!hay.includes(q)) return false;
             }
             if (info === 'complete' && !s._info.isComplete) return false;
             if (info === 'incomplete' && s._info.isComplete) return false;
-            if (status !== 'all' && (isActiveStatus(s.status) ? 'active' : 'inactive') !== status) return false;
+            if (status !== 'all' && (isPendingStatus(s.status) ? 'pending' : isActiveStatus(s.status) ? 'active' : 'inactive') !== status) return false;
             if (roleFilter === '__none') return !(s.role || '').trim();
             if (roleFilter !== 'all' && (s.role || '').trim() !== roleFilter) return false;
             return true;
@@ -247,7 +250,7 @@ export default function CompanyDetails({
             { key: 'cases', label: 'NC / CC cases', short: 'Cases', Icon: AlertTriangle, count: needsReply || openCases, warn: needsReply > 0 },
         ] : []),
         { key: 'staff', label: 'Staff', short: 'Staff', Icon: Users, count: staffs.length, warn: false },
-        { key: 'induction', label: 'Safety induction', short: 'Induction', Icon: ShieldCheck, count: `${induction.done}/${induction.total}`, warn: !induction.complete },
+        { key: 'induction', label: 'Safety Passport', short: 'Passport', Icon: ShieldCheck, count: `${induction.done}/${induction.total}`, warn: !induction.complete },
         { key: 'machinery', label: 'Machinery', short: 'Machinery', Icon: Tractor, count: machinery.length, warn: false },
     ];
 
@@ -255,7 +258,7 @@ export default function CompanyDetails({
         attendance: ['Daily attendance', 'Choose the project and date, then tick the staff who worked. Hours are calculated for you.'],
         cases: ['Cases to answer', 'Inspectors raised these against your company. Write what happened and what you did about it.'],
         staff: ['Your staff', isLeader ? 'Tap a person to see details, edit, or remove them.' : 'Tap a person to see details. Ask your leader to edit or remove.'],
-        induction: ['Safety induction', isLeader ? 'Tick every topic after your team has been briefed. The company becomes Active when all are ticked.' : 'The leader ticks each topic after the team is briefed.'],
+        induction: ['Safety Passport', isLeader ? 'Acknowledge every rule after your team has been briefed. The company becomes Active when all are ticked.' : 'The leader acknowledges each rule after the team is briefed.'],
         machinery: ['Machinery', 'Machines your company uses on site, with their certificate and operator.'],
     };
 
@@ -274,6 +277,7 @@ export default function CompanyDetails({
                         <img src="/images/sbc-logo.png" alt="Safety Buddy" className="h-10 w-10 shrink-0 rounded-full ring-2 ring-brand-500" />
                         <div className="min-w-0 flex-1 leading-tight">
                             <p className="truncate text-[15px] font-extrabold">{company.name}</p>
+                            {company.code && <p className="truncate text-[11px] font-semibold text-brand-400">{company.code}</p>}
                             <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-brand-400">
                                 {isLeader ? <Crown className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                                 {isLeader ? 'Team leader' : 'Staff (view & register)'}
@@ -312,7 +316,7 @@ export default function CompanyDetails({
                         >
                             <AlertTriangle className="h-6 w-6 shrink-0 text-amber-600" />
                             <span className="text-sm text-amber-900">
-                                <b>This company is INACTIVE.</b> Safety induction is {induction.done}/{induction.total} ticked
+                                <b>This company is INACTIVE.</b> Safety Passport is {induction.done}/{induction.total} acknowledged
                                 {isLeader ? ' — tap to complete it.' : ' — the company leader must tick every topic.'}
                             </span>
                         </button>
@@ -412,6 +416,7 @@ export default function CompanyDetails({
                             ['all', `All ${stats.total}`, info === 'all' && status === 'all', () => { setInfo('all'); setStatus('all'); }],
                             ['incomplete', `Need details ${stats.incomplete}`, info === 'incomplete', () => setInfo(info === 'incomplete' ? 'all' : 'incomplete')],
                             ['active', `Active ${stats.active}`, status === 'active', () => setStatus(status === 'active' ? 'all' : 'active')],
+                            ['pending', `Pending ${stats.pending}`, status === 'pending', () => setStatus(status === 'pending' ? 'all' : 'pending')],
                             ['inactive', `Inactive ${stats.inactive}`, status === 'inactive', () => setStatus(status === 'inactive' ? 'all' : 'inactive')],
                         ].map(([k, label, on, fn]) => (
                             <button key={k} onClick={fn} className={`shrink-0 rounded-full border-2 px-4 py-2 text-sm font-bold transition ${on ? 'border-ink-900 bg-ink-900 text-brand-400' : 'border-gray-200 bg-white text-gray-700'}`}>
@@ -453,6 +458,20 @@ export default function CompanyDetails({
                                     <button onClick={() => setViewMode('cards')} className={`rounded-xl p-2 ${viewMode === 'cards' ? 'bg-white shadow text-ink-900' : 'text-gray-400'}`} title="Cards"><LayoutGrid className="h-5 w-5" /></button>
                                     <button onClick={() => setViewMode('table')} className={`rounded-xl p-2 ${viewMode === 'table' ? 'bg-white shadow text-ink-900' : 'text-gray-400'}`} title="Table"><Rows3 className="h-5 w-5" /></button>
                                 </div>
+                                {isLeader && (
+                                    <select
+                                        value=""
+                                        onChange={(e) => {
+                                            if (e.target.value) window.open(`/subcon/${public_token}/staff-report?leader_key=${encodeURIComponent(leader_key)}&filter=${e.target.value}`, '_blank');
+                                        }}
+                                        className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-sm font-bold text-gray-700"
+                                        aria-label="Generate PDF report"
+                                    >
+                                        <option value="">PDF report…</option>
+                                        <option value="all">All staff</option>
+                                        <option value="active">Active staff only</option>
+                                    </select>
+                                )}
                                 <button onClick={openAdd} className="sb-create !hidden sm:!inline-flex">
                                     <UserPlus className="h-4 w-4" /> Register staff
                                 </button>
@@ -600,6 +619,7 @@ export default function CompanyDetails({
                 processing={editingStaff ? editForm.processing : addForm.processing}
                 isEditing={!!editingStaff}
                 isLeader={isLeader}
+                passportTopics={induction.topics || []}
             />
         </>
     );

@@ -5,9 +5,9 @@ import ReviewLayout from '@/Layouts/ReviewLayout';
 import ListControls, { Pager } from '@/Components/shared/ListControls';
 
 export const INCIDENT_TONE = {
-    open: { card: 'bg-rose-50 border-rose-200', line: 'border-rose-200', badge: 'bg-rose-100 text-rose-700 border-rose-200', label: 'Open' },
-    inprogress: { card: 'bg-amber-50 border-amber-200', line: 'border-amber-200', badge: 'bg-amber-100 text-amber-700 border-amber-200', label: 'In progress' },
-    closed: { card: 'bg-emerald-50 border-emerald-200', line: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'Closed' },
+    open: { card: 'bg-rose-50 border-rose-200', line: 'border-rose-200', badge: 'bg-rose-100 text-rose-700 border-rose-200', label: 'Submitted' },
+    inprogress: { card: 'bg-amber-50 border-amber-200', line: 'border-amber-200', badge: 'bg-amber-100 text-amber-700 border-amber-200', label: 'Reviewed' },
+    closed: { card: 'bg-emerald-50 border-emerald-200', line: 'border-emerald-200', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200', label: 'Approved' },
 };
 export const incidentTone = (s) => INCIDENT_TONE[s] || INCIDENT_TONE.open;
 
@@ -16,9 +16,9 @@ const monthLabel = (day) => (day ? new Date(`${day.slice(0, 7)}-01T00:00:00`).to
 export default function Incidents({ incidents = [], meta, counts = {}, filters = {}, projects = [], types = [] }) {
     const tabs = [
         ['all', 'All', counts.all],
-        ['open', 'Open', counts.open],
-        ['inprogress', 'In progress', counts.inprogress],
-        ['closed', 'Closed', counts.closed],
+        ['open', 'Submitted', counts.open],
+        ['inprogress', 'Reviewed', counts.inprogress],
+        ['closed', 'Approved', counts.closed],
     ];
     let lastMonth = null;
 

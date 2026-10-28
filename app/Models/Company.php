@@ -13,6 +13,7 @@ class Company extends Model
 
     protected $fillable = [
         'name',
+        'code',
         'registration_no',
         'email',
         'address',

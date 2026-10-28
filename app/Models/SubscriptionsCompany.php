@@ -14,10 +14,13 @@ class SubscriptionsCompany extends Model
     protected $fillable = [
         'company_id', // FK to companies table
         'module_id', // FK to modules table
+        'subscription_plan_id',
         'start_date',
         'end_date',
         'status', // active, expired, cancelled
         'type', // new, renew
+        'serial_no',
+        'code',
     ];
 
     protected $casts = [
@@ -33,6 +36,11 @@ class SubscriptionsCompany extends Model
     public function module()
     {
         return $this->belongsTo(Module::class, 'module_id');
+    }
+
+    public function plan()
+    {
+        return $this->belongsTo(SubscriptionPlan::class, 'subscription_plan_id');
     }
 
 }

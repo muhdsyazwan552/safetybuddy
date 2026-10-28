@@ -7,10 +7,8 @@ use App\Models\SafetyInductionTopic;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Default safety induction content.
- * Source: SafetyBuddy Master System Document v1.2 - Appendix B "Contractor safety declarations"
- * (12 declarations, preserved verbatim). Block types: p = paragraph, h = sub-heading, b = bullet,
- * hl = highlighted message.
+ * Default Safety Passport Rules from the Safety Passport Rules Mechanism document.
+ * Block types: p = paragraph, h = sub-heading, b = bullet, hl = highlighted message.
  */
 class SafetyInductionDefaults
 {
@@ -19,41 +17,47 @@ class SafetyInductionDefaults
     public static function topics(): array
     {
         return [
-            1 => ['title' => 'Declaration 1', 'blocks' => [
-                ['p', 'I confirm that I have read and understood the Basic Safety Induction Content provided in the Safety Passport System.'],
+            1 => ['title' => 'Safety Passport Rules Briefing', 'blocks' => [
+                ['p', "Each registered worker must receive, understand and comply with the Company's Safety Passport Rules before starting work. The subcontractor must brief all workers, obtain their signed acknowledgements, and submit the Worker Acknowledgement Register and briefing photos through the Contractor Portal for approval by the Main Contractor's 1st Tier (Manager). Only workers with approved briefing records will receive \"SP Rules Briefing Done\" status."],
             ]],
-            2 => ['title' => 'Declaration 2', 'blocks' => [
-                ['p', 'I will ensure the Safety Induction Content is communicated and briefed to all workers under my supervision.'],
+            2 => ['title' => 'Introduction', 'blocks' => [
+                ['p', "All contractors, subcontractors, workers and visitors must comply with the Company's Safety Passport requirements and site safety rules to prevent accidents, injuries and property damage. Applicable registration, safety briefing and authorisation requirements must be completed before commencing site activities. Golden Rule: No job is so important that it cannot be done safely."],
             ]],
-            3 => ['title' => 'Declaration 3', 'blocks' => [
-                ['p', 'I will ensure all workers are informed of emergency procedures, including evacuation routes and assembly points.'],
+            3 => ['title' => 'Safety Policy', 'blocks' => [
+                ['p', 'All personnel must follow established safety procedures, comply with instructions from supervisors and safety officers, immediately report unsafe conditions and stop work when conditions are unsafe. Non-compliance may result in removal from site.'],
             ]],
-            4 => ['title' => 'Declaration 4', 'blocks' => [
-                ['p', 'I will ensure all workers are aware of PPE requirements and will enforce correct PPE usage at all times.'],
+            4 => ['title' => 'Roles & Responsibilities', 'blocks' => [
+                ['p', 'Workers must perform their duties safely, use appropriate PPE and report hazards or incidents. Supervisors must ensure safe working conditions, conduct required safety briefings and monitor compliance. Contractors must provide adequate training, supervision and PPE while ensuring their workers comply with project safety requirements.'],
             ]],
-            5 => ['title' => 'Declaration 5', 'blocks' => [
-                ['p', 'I will ensure all workers are informed of hazard reporting procedures and will encourage immediate reporting of unsafe conditions.'],
+            5 => ['title' => 'Personal Protective Equipment (PPE)', 'blocks' => [
+                ['p', 'All personnel must wear the required PPE, including safety helmets, safety footwear and reflective safety vests where applicable, together with gloves, eye protection and other protective equipment based on work hazards. Damaged PPE must be replaced immediately. No Required PPE = No Site Entry.'],
             ]],
-            6 => ['title' => 'Declaration 6', 'blocks' => [
-                ['p', 'I will ensure all workers understand that they have the authority to stop work if it is unsafe.'],
+            6 => ['title' => 'Site Safety Rules', 'blocks' => [
+                ['p', 'All personnel must obtain permission before entering restricted areas, comply with safety signs and instructions, maintain good housekeeping and refrain from alcohol, drugs, fighting or other misconduct that may compromise workplace safety.'],
             ]],
-            7 => ['title' => 'Declaration 7', 'blocks' => [
-                ['p', 'I will ensure toolbox briefings or equivalent safety briefings are conducted regularly at site.'],
+            7 => ['title' => 'Hazard Awareness', 'blocks' => [
+                ['p', 'All personnel must remain alert to workplace hazards, including slips, trips, falls, working at height, electrical hazards, moving machinery, vehicles, sharp equipment and chemical exposure. Unsafe activities must be stopped and reported immediately.'],
             ]],
-            8 => ['title' => 'Declaration 8', 'blocks' => [
-                ['p', 'I will ensure all subcontractors and third parties under my control comply with site safety requirements.'],
+            8 => ['title' => 'Emergency Procedures', 'blocks' => [
+                ['p', 'During an emergency, all personnel must stop work, notify their supervisor or safety officer, follow emergency instructions, evacuate calmly to the designated assembly point and only return when authorized.'],
             ]],
-            9 => ['title' => 'Declaration 9', 'blocks' => [
-                ['p', 'I will ensure all safety-related communications and updates from the Safety Passport System are distributed to relevant workers.'],
+            9 => ['title' => 'Fire Safety', 'blocks' => [
+                ['p', 'In the event of fire, personnel must raise the alarm, follow designated evacuation routes and proceed to the assembly point. Fire extinguishers may only be used by trained personnel when it is safe to do so.'],
             ]],
-            10 => ['title' => 'Declaration 10', 'blocks' => [
-                ['p', 'I understand that failure to comply with safety requirements may result in access restriction, suspension, or termination of work activities.'],
+            10 => ['title' => 'Incident & Near Miss Reporting', 'blocks' => [
+                ['p', 'All injuries, incidents, near misses, property damage and unsafe conditions must be reported immediately to the supervisor or safety officer to enable appropriate investigation, corrective action and prevention of recurrence.'],
             ]],
-            11 => ['title' => 'Declaration 11', 'blocks' => [
-                ['p', 'I acknowledge that this declaration forms part of the official digital safety compliance record within the system.'],
+            11 => ['title' => 'Housekeeping', 'blocks' => [
+                ['p', 'All personnel must maintain clean and safe work areas, store tools and equipment properly, dispose of waste appropriately and keep walkways and emergency access routes clear at all times. A Clean Site = A Safe Site.'],
             ]],
-            12 => ['title' => 'Declaration 12', 'blocks' => [
-                ['p', 'I confirm that all information declared is accurate, complete and made in good faith.'],
+            12 => ['title' => 'Safety Compliance', 'blocks' => [
+                ['p', 'All personnel must comply with applicable safety rules, procedures and instructions. Violations may result in warnings, work suspension, removal from site or other appropriate action in accordance with company requirements and applicable laws.'],
+            ]],
+            13 => ['title' => 'Contractor Responsibility', 'blocks' => [
+                ['p', 'Contractors must ensure all workers are properly registered under the project workforce, informed of the Safety Passport requirements, provided with necessary training and supervision, and required to acknowledge and comply with applicable safety rules before commencing work.'],
+            ]],
+            14 => ['title' => 'Final Message', 'blocks' => [
+                ['p', "Safety is everyone's responsibility. Work Safe. Go Home Safe."],
             ]],
         ];
     }
@@ -90,7 +94,39 @@ class SafetyInductionDefaults
         }
     }
 
-    /** First visit: give the company the full default set (the 12 declarations). */
+    /**
+     * The 14 defaults are fixed for every company: create any that are missing and put back
+     * any that were edited or hidden. Custom topics are never touched.
+     *
+     * @return bool true when something changed (contractors then have to re-tick)
+     */
+    public static function ensure(int $companyId): bool
+    {
+        $changed = false;
+
+        DB::transaction(function () use ($companyId, &$changed) {
+            $existing = SafetyInductionTopic::where('company_id', $companyId)->whereNotNull('default_key')->get()->keyBy('default_key');
+
+            foreach (array_keys(self::topics()) as $i => $key) {
+                $def = self::topics()[$key];
+                $topic = $existing->get($key);
+
+                if (!$topic) {
+                    self::createTopic($companyId, $key, $i + 1);
+                    $changed = true;
+                } elseif ($topic->is_customised || !$topic->is_active || $topic->title !== $def['title'] || (int) $topic->sort_order !== $i + 1) {
+                    $topic->update(['title' => $def['title'], 'sort_order' => $i + 1, 'is_active' => true, 'is_customised' => false]);
+                    $topic->items()->delete();
+                    self::fillItems($topic, $def['blocks']);
+                    $changed = true;
+                }
+            }
+        });
+
+        return $changed;
+    }
+
+    /** First visit: give the company the 14 Safety Passport Rules. */
     public static function seedFor(int $companyId): void
     {
         DB::transaction(function () use ($companyId) {

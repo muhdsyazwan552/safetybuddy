@@ -1,9 +1,10 @@
 // Everything about one subcontractor company - staff, daily attendance, NC / CC,
-// safety induction and machinery. Shared by the admin, review and inspector portals;
+// Safety Passport and machinery. Shared by the admin, review and inspector portals;
 // the data comes from App\Support\SubconDetail.
 import React, { useState } from 'react';
 import dayjs from 'dayjs';
 import { storageUrl } from '@/Components/inspector/kit';
+import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
 
 const fmtDate = (d) => (d ? dayjs(d).format('DD MMM YYYY') : '-');
 
@@ -34,7 +35,7 @@ export const SubconSummary = ({ staff = [], machinery, cases, attendance, induct
     { key: 'staff', label: 'Staff', value: staff.length, sub: `${staff.filter(s => (s.status || 'active') === 'active').length} active` },
     { key: 'attendance', label: 'Present Today', value: presentToday, sub: `${attendance.length} day record(s)` },
     { key: 'cases', label: 'Open NC / CC', value: openCases, sub: `${cases.length} total`, alert: openCases > 0 },
-    { key: 'induction', label: 'Safety Induction', value: `${induction.done}/${induction.total}`, sub: induction.complete ? 'Complete' : 'Incomplete', alert: !induction.complete },
+    { key: 'induction', label: 'Safety Passport', value: `${induction.done}/${induction.total}`, sub: induction.complete ? 'Complete' : 'Incomplete', alert: !induction.complete },
     { key: 'machinery', label: 'Machinery', value: machinery.length, sub: expiredCf ? `${expiredCf} CF expired` : 'No expired CF', alert: expiredCf > 0 },
   ];
   return (
@@ -56,7 +57,7 @@ export const SubconTabs = ({ tab, onChange, counts }) => {
     ['staff', 'Staff'],
     ['attendance', 'Daily Attendance'],
     ['cases', 'NC / CC'],
-    ['induction', 'Safety Induction'],
+    ['induction', 'Safety Passport'],
     ['machinery', 'Machinery'],
   ];
   return (
@@ -266,7 +267,7 @@ export const InductionTab = ({ induction }) => {
             </div>
           ))}
         </div>
-      ) : <EmptyState>No safety induction topics configured.</EmptyState>}
+      ) : <EmptyState>No Safety Passport rules configured.</EmptyState>}
     </div>
   );
 };
@@ -292,7 +293,7 @@ export const MachineryTab = ({ machinery }) => {
               <td className="px-6 py-3 text-sm text-gray-600">{m.operator_name || '-'}</td>
               <td className="whitespace-nowrap px-6 py-3 text-sm"><ExpiryBadge date={m.cf_expiry} /></td>
               <td className="px-6 py-3 text-sm">
-                {m.cf_url ? <a href={m.cf_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">View CF</a> : <span className="text-red-600">Not attached</span>}
+                {m.cf_url ? <a href={m.cf_url} target="_blank" rel="noreferrer" className={tableViewActionClass} title="View certificate" aria-label={`View certificate for ${m.name}`}><TableViewIcon /></a> : <span className="text-red-600">Not attached</span>}
               </td>
             </tr>
           ))}
@@ -305,7 +306,7 @@ export const MachineryTab = ({ machinery }) => {
 /** Read-only staff list with contact and certifications. */
 export const StaffTab = ({ staff = [] }) => {
   const [q, setQ] = useState('');
-  const rows = staff.filter(s => [s.name, s.role, s.email, s.contact].some(v => v?.toLowerCase().includes(q.toLowerCase())));
+  const rows = staff.filter(s => [s.code, s.name, s.role, s.email, s.contact].some(v => v?.toLowerCase().includes(q.toLowerCase())));
 
   if (!staff.length) return <EmptyState>No staff registered by this subcontractor.</EmptyState>;
 
@@ -322,6 +323,7 @@ export const StaffTab = ({ staff = [] }) => {
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800">{(s.name || '?').charAt(0).toUpperCase()}</span>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-gray-900">{s.name}</div>
+                {s.code && <div className="truncate text-xs font-semibold text-gray-500">{s.code}</div>}
                 <div className="truncate text-xs text-gray-500">
                   {s.role || '-'}{s.contact ? <> &middot; <a href={`tel:${s.contact}`} className="text-blue-600">{s.contact}</a></> : null}{s.email ? ` · ${s.email}` : ''}
                 </div>
@@ -333,6 +335,13 @@ export const StaffTab = ({ staff = [] }) => {
                   {c.title} <ExpiryBadge date={c.expiry_date} />
                 </a>
               ))}
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${s.is_safetypassport ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}`}>Passport {s.is_safetypassport ? 'Yes' : 'No'}</span>
+              {(s.status === 'pending' || s.supervisor_approved_at || s.manager_approved_at) && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
+                  title={`Supervisor: ${s.supervisor_approved_at ? `${s.supervisor_approved_name || 'approved'} ${String(s.supervisor_approved_at).slice(0, 10)}` : 'waiting'} | Manager: ${s.manager_approved_at ? `${s.manager_approved_name || 'approved'} ${String(s.manager_approved_at).slice(0, 10)}` : 'waiting'}`}>
+                  Sup {s.supervisor_approved_at ? '✓' : '…'} · Mgr {s.manager_approved_at ? '✓' : '…'}
+                </span>
+              )}
               <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${(s.status || 'active') === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>{s.status || 'active'}</span>
             </div>
           </li>

@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { Plus, MapPin, CalendarDays, Building2, UserRound, ChevronDown, Users } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { EmptyState } from '@/Components/inspector/kit';
+import PdfButton from '@/Components/shared/PdfButton';
 
 const STATUS = {
     open: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -10,6 +12,7 @@ const STATUS = {
     inprogress: 'bg-blue-50 text-blue-700 border-blue-200',
     closed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
+const STATUS_LABEL = { open: 'Submitted', inprogress: 'Reviewed', 'in progress': 'Reviewed', closed: 'Approved' };
 
 function Row({ label, children }) {
     if (!children) return null;
@@ -36,7 +39,7 @@ function IncidentCard({ item }) {
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
                         <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS[status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                            {item.status || 'open'}
+                            {STATUS_LABEL[status] || item.status || 'Submitted'}
                         </span>
                         {item.mine && <span className="text-[10px] font-bold text-brand-700">Reported by you</span>}
                     </div>
@@ -52,19 +55,21 @@ function IncidentCard({ item }) {
 
             {open && (
                 <div className="space-y-3 border-t border-gray-100 bg-gray-50 p-4">
+                    <ReviewProgress kind="incident" status={item.status} />
                     <Row label="Description">{item.description}</Row>
                     <Row label="Responsible person">{item.responsible}</Row>
                     <Row label="Injury / body part">{[item.injury, item.body_part].filter(Boolean).join(' · ')}</Row>
                     <Row label="Immediate cause">{item.immediate_cause}</Row>
                     <Row label="Immediate action">{item.immediate_action}</Row>
                     <Row label="Corrective action">{item.corrective}</Row>
+                    <PdfButton href={`/pdf/incident/${item.id}`} />
                 {item.responses?.length > 0 && (
                     <div>
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Supervisor / Manager responses</p>
+                        <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Supervisor review and approval</p>
                         <ul className="mt-1 space-y-2">
                             {item.responses.map((r) => (
-                                <li key={r.id} className={`rounded-xl px-3 py-2 text-sm ${r.type === 'closed' ? 'bg-emerald-50 text-emerald-900' : r.type === 'reopened' ? 'bg-amber-50 text-amber-900' : 'bg-sky-50 text-sky-900'}`}>
-                                    <p className="text-[11px] font-bold uppercase tracking-wide opacity-70">{r.type === 'closed' ? 'Closed' : r.type === 'reopened' ? 'Reopened' : 'Response'} · {r.by}{r.role ? ` (${r.role})` : ''} · {r.at}</p>
+                                <li key={r.id} className={`rounded-xl px-3 py-2 text-sm ${['closed', 'approved'].includes(r.type) ? 'bg-emerald-50 text-emerald-900' : r.type === 'reopened' ? 'bg-amber-50 text-amber-900' : 'bg-sky-50 text-sky-900'}`}>
+                                    <p className="text-[11px] font-bold uppercase tracking-wide opacity-70">{['closed', 'approved'].includes(r.type) ? 'Approved' : r.type === 'reopened' ? 'Reopened' : 'Reviewed'} · {r.by}{r.role ? ` (${r.role})` : ''} · {r.at}</p>
                                     {r.message && <p className="mt-0.5 whitespace-pre-wrap">{r.message}</p>}
                                 </li>
                             ))}

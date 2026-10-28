@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
-import {
+import { Lock,
     Plus, Pencil, Trash2, Eye, EyeOff, ChevronUp, ChevronDown, RotateCcw, Save, X, GripVertical, BookOpen,
     ListChecks, Heading, Type, Quote, ShieldCheck, Loader2, History, FileText, CheckCircle2,
 } from 'lucide-react';
@@ -171,7 +171,7 @@ function TopicEditor({ draft, setDraft, onSave, onCancel, onReset, saving, error
     );
 }
 
-export default function Safety_Induction({ topics = [], missingDefaults = [], defaultCount = 13 }) {
+export default function Safety_Induction({ topics = [], defaultCount = 14 }) {
     const { errors } = usePage().props;
     const [tab, setTab] = useState('edit');
     const [openId, setOpenId] = useState(null);
@@ -183,7 +183,7 @@ export default function Safety_Induction({ topics = [], missingDefaults = [], de
     const stats = useMemo(() => ({
         total: topics.length,
         shown: topics.filter((t) => t.is_active).length,
-        customised: topics.filter((t) => t.is_customised || !t.default_key).length,
+        custom: topics.filter((t) => !t.default_key).length,
     }), [topics]);
 
     const startEdit = (t) => {
@@ -229,57 +229,35 @@ export default function Safety_Induction({ topics = [], missingDefaults = [], de
             onError: (errs) => setError(Object.values(errs)[0] || 'Could not save. Please check the fields.'),
             onFinish: () => setSaving(false),
         };
-        if (editingId === 'new') router.post('/safety-induction/topics', payload, opts);
-        else router.put(`/safety-induction/topics/${editingId}`, payload, opts);
+        if (editingId === 'new') router.post('/safety-passport/topics', payload, opts);
+        else router.put(`/safety-passport/topics/${editingId}`, payload, opts);
     };
 
-    const move = (index, dir) => {
+    const move = (id, dir) => {
+        const ids = topics.filter((t) => !t.default_key).map((t) => t.id);
+        const index = ids.indexOf(id);
         const j = index + dir;
-        if (j < 0 || j >= topics.length) return;
-        const ids = topics.map((t) => t.id);
+        if (index < 0 || j < 0 || j >= ids.length) return;
         [ids[index], ids[j]] = [ids[j], ids[index]];
-        router.post('/safety-induction/reorder', { ids }, { preserveScroll: true });
+        router.post('/safety-passport/reorder', { ids }, { preserveScroll: true });
     };
 
-    const toggle = (t) => router.patch(`/safety-induction/topics/${t.id}/toggle`, {}, { preserveScroll: true });
+    const toggle = (t) => router.patch(`/safety-passport/topics/${t.id}/toggle`, {}, { preserveScroll: true });
 
     const remove = async (t) => {
         const ok = await showAlert.confirmDelete(
-            t.default_key
-                ? `"${t.title}" is one of the 13 default topics. You can bring it back later with "Restore missing defaults".`
-                : `"${t.title}" will be permanently removed.`,
+            `"${t.title}" will be permanently removed.`,
             'Delete this topic?',
             { confirmText: 'Yes, delete' }
         );
-        if (ok) router.delete(`/safety-induction/topics/${t.id}`, { preserveScroll: true });
+        if (ok) router.delete(`/safety-passport/topics/${t.id}`, { preserveScroll: true });
     };
-
-    const resetTopic = async (t) => {
-        const ok = await showAlert.confirm(
-            'Your changes to this topic will be replaced with the original text from the Safety Passport default.',
-            'Restore default text?',
-            { confirmText: 'Yes, restore', danger: true }
-        );
-        if (!ok) return;
-        router.post(`/safety-induction/topics/${t.id}/reset`, {}, { preserveScroll: true, onSuccess: () => cancel() });
-    };
-
-    const resetAll = async () => {
-        const ok = await showAlert.confirmDelete(
-            `Every topic, including the ones you added or edited, will be replaced by the ${defaultCount} default topics.`,
-            'Reset everything to default?',
-            { confirmText: 'Yes, reset all' }
-        );
-        if (ok) router.post('/safety-induction/reset-all', {}, { preserveScroll: true, onSuccess: () => cancel() });
-    };
-
-    const restoreMissing = () => router.post('/safety-induction/restore-missing', {}, { preserveScroll: true });
 
     const visible = topics.filter((t) => t.is_active);
 
     return (
-        <AppLayout title="Safety Induction">
-            <Head title="Safety Induction" />
+        <AppLayout title="Safety Passport">
+            <Head title="Safety Passport" />
 
             <div className="mx-auto max-w-5xl space-y-5 pb-10">
                 {/* header */}
@@ -289,15 +267,15 @@ export default function Safety_Induction({ topics = [], missingDefaults = [], de
                         <div className="flex items-start gap-4">
                             <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-brand-500 text-ink-900"><ShieldCheck className="h-6 w-6" /></span>
                             <div>
-                                <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Performance settings</p>
-                                <h1 className="text-2xl font-extrabold">Safety Induction</h1>
+                                <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400"></p>
+                                <h1 className="text-2xl font-extrabold">Safety Passport</h1>
                                 <p className="mt-1 max-w-xl text-sm text-gray-300">
-                                    The Safety Passport Rules contractors must read before they sign their declaration. Starts with the {defaultCount} default topics — edit, add, hide or reorder them to suit your projects.
+                                    Set your safety rules and requirements. Contractors must review and formally declare their commitment to comply through the Contractor Portal.
                                 </p>
                             </div>
                         </div>
                         <div className="grid shrink-0 grid-cols-3 gap-2 text-center">
-                            {[['Topics', stats.total], ['Shown', stats.shown], ['Customised', stats.customised]].map(([l, v]) => (
+                            {[['Topics', stats.total], ['Shown', stats.shown], ['Added by you', stats.custom]].map(([l, v]) => (
                                 <div key={l} className="rounded-2xl bg-white/10 px-4 py-3">
                                     <p className="text-2xl font-extrabold text-brand-400">{v}</p>
                                     <p className="text-[11px] text-gray-300">{l}</p>
@@ -305,6 +283,15 @@ export default function Safety_Induction({ topics = [], missingDefaults = [], de
                             ))}
                         </div>
                     </div>
+                </div>
+
+                {/* sampling objective */}
+                <div className="rounded-3xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-slate-700">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-amber-800">Safety Passport Sampling &ndash; Objective</p>
+                    <p className="mt-1.5">
+                        To verify that workers are registered under the project workforce and have acknowledged the Safety Passport rules through the
+                        Contractor Portal. Unregistered workers are considered to have unverified awareness and commitment to comply with project safety requirements.
+                    </p>
                 </div>
 
                 {/* toolbar */}
@@ -317,14 +304,6 @@ export default function Safety_Induction({ topics = [], missingDefaults = [], de
                         ))}
                     </div>
                     <div className="flex flex-wrap gap-2">
-                        {missingDefaults.length > 0 && (
-                            <button onClick={restoreMissing} className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50">
-                                <History className="h-4 w-4" /> Restore {missingDefaults.length} missing default{missingDefaults.length > 1 ? 's' : ''}
-                            </button>
-                        )}
-                        <button onClick={resetAll} className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 hover:bg-gray-50">
-                            <RotateCcw className="h-4 w-4" /> Reset all to default
-                        </button>
                         <button onClick={startNew} className="sb-create">
                             <Plus className="h-4 w-4" strokeWidth={3} /> Add topic
                         </button>
@@ -345,6 +324,8 @@ export default function Safety_Induction({ topics = [], missingDefaults = [], de
                         )}
 
                         {topics.map((t, index) => {
+                            const customCount = topics.filter((x) => !x.default_key).length;
+                            const customIdx = topics.filter((x) => !x.default_key).findIndex((x) => x.id === t.id);
                             const open = openId === t.id;
                             const editing = editingId === t.id;
                             return (
@@ -356,16 +337,19 @@ export default function Safety_Induction({ topics = [], missingDefaults = [], de
                                                 <span className="block truncate text-[15px] font-extrabold text-gray-900">{t.title}</span>
                                                 {t.items[0] && <span className="block max-w-xl truncate text-xs font-normal text-gray-500">{t.items[0].content}</span>}
                                                 <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                                                    {t.default_key ? (t.is_customised ? <Badge tone="yellow">Customised</Badge> : <Badge tone="green">Default</Badge>) : <Badge tone="dark">Custom</Badge>}
+                                                    {t.default_key ? <Badge tone="green">Default · locked</Badge> : <Badge tone="dark">Custom</Badge>}
                                                     {!t.is_active && <Badge tone="red">Hidden</Badge>}
                                                     <span className="text-[11px] text-gray-400">{t.items.length} lines</span>
                                                 </span>
                                             </span>
                                         </button>
 
+                                        {t.default_key ? (
+                                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-500" title="Default rules are fixed"><Lock className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Locked</span></span>
+                                        ) : (
                                         <div className="flex shrink-0 items-center gap-1">
-                                            <button onClick={() => move(index, -1)} disabled={index === 0} className="hidden h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 sm:flex" title="Move up"><ChevronUp className="h-4 w-4" /></button>
-                                            <button onClick={() => move(index, 1)} disabled={index === topics.length - 1} className="hidden h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 sm:flex" title="Move down"><ChevronDown className="h-4 w-4" /></button>
+                                            <button onClick={() => move(t.id, -1)} disabled={customIdx === 0} className="hidden h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 sm:flex" title="Move up"><ChevronUp className="h-4 w-4" /></button>
+                                            <button onClick={() => move(t.id, 1)} disabled={customIdx === customCount - 1} className="hidden h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 sm:flex" title="Move down"><ChevronDown className="h-4 w-4" /></button>
                                             <button onClick={() => toggle(t)} className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100" title={t.is_active ? 'Hide from contractors' : 'Show to contractors'}>
                                                 {t.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                                             </button>
@@ -374,6 +358,7 @@ export default function Safety_Induction({ topics = [], missingDefaults = [], de
                                             </button>
                                             <button onClick={() => remove(t)} className="flex h-9 w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-50" title="Delete"><Trash2 className="h-4 w-4" /></button>
                                         </div>
+                                        )}
                                     </div>
 
                                     {editing && draft ? (
@@ -382,8 +367,6 @@ export default function Safety_Induction({ topics = [], missingDefaults = [], de
                                             setDraft={setDraft}
                                             onSave={save}
                                             onCancel={cancel}
-                                            onReset={() => resetTopic(t)}
-                                            canReset={!!t.default_key}
                                             saving={saving}
                                             error={error || errors?.title || errors?.items}
                                         />

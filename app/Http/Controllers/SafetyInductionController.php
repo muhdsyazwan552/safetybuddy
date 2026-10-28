@@ -15,9 +15,9 @@ use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * Performance Settings > Safety Induction (Safety Passport Rules).
- * The Manager starts from the 12 default declarations of Appendix B and can edit,
- * add, reorder, hide or reset any of them.
+ * Performance Settings > Safety Passport Rules.
+ * The 14 default rules are fixed for every company (read only). The Manager can add, edit,
+ * hide, delete and reorder their own extra topics.
  */
 class SafetyInductionController extends Controller
 {
@@ -28,7 +28,10 @@ class SafetyInductionController extends Controller
 
     private function ownTopic(int $id): SafetyInductionTopic
     {
-        return SafetyInductionTopic::where('company_id', $this->companyId())->findOrFail($id);
+        $topic = SafetyInductionTopic::where('company_id', $this->companyId())->findOrFail($id);
+        abort_unless($topic->default_key === null, 403, 'The default Safety Passport rules are fixed and cannot be changed.');
+
+        return $topic;
     }
 
     /** Subcontractors must re-tick when the induction content changes. */
@@ -41,13 +44,14 @@ class SafetyInductionController extends Controller
     {
         $companyId = $this->companyId();
 
-        // first visit → copy the default declarations for this company
-        if (!SafetyInductionTopic::where('company_id', $companyId)->exists()) {
-            SafetyInductionDefaults::seedFor($companyId);
+        // the 14 default rules are the same for every company (missing / edited ones are put back)
+        if (SafetyInductionDefaults::ensure($companyId)) {
+            $this->resync();
         }
 
         $topics = SafetyInductionTopic::with('items')
             ->where('company_id', $companyId)
+            ->where(fn ($query) => $query->whereNull('default_key')->orWhere('default_key', '<=', 14))
             ->orderBy('sort_order')
             ->orderBy('id')
             ->get()
@@ -63,17 +67,9 @@ class SafetyInductionController extends Controller
                 ])->values(),
             ])->values();
 
-        // default topics that were deleted and can be restored
-        $present = $topics->pluck('default_key')->filter()->all();
-        $missing = collect(SafetyInductionDefaults::topics())
-            ->reject(fn ($d, $key) => in_array($key, $present, true))
-            ->map(fn ($d, $key) => ['key' => $key, 'title' => $d['title']])
-            ->values();
-
         return Inertia::render('WSIS/Safety_Induction', [
-            'title' => 'Safety Induction',
+            'title' => 'Safety Passport',
             'topics' => $topics,
-            'missingDefaults' => $missing,
             'defaultCount' => count(SafetyInductionDefaults::topics()),
         ]);
     }
@@ -175,72 +171,12 @@ class SafetyInductionController extends Controller
         DB::transaction(function () use ($data) {
             foreach (array_values($data['ids']) as $i => $id) {
                 SafetyInductionTopic::where('company_id', $this->companyId())
+                    ->whereNull('default_key')
                     ->where('id', $id)
                     ->update(['sort_order' => $i + 1]);
             }
         });
 
         return back();
-    }
-
-    /** Put one default topic back to its Appendix A wording. */
-    public function reset(int $id): RedirectResponse
-    {
-        $topic = $this->ownTopic($id);
-        $default = SafetyInductionDefaults::topics()[$topic->default_key] ?? null;
-
-        if (!$default) {
-            return back()->with('error', 'This is a custom topic, so there is no default to restore.');
-        }
-
-        DB::transaction(function () use ($topic, $default) {
-            $topic->update(['title' => $default['title'], 'is_active' => true, 'is_customised' => false]);
-            $topic->items()->delete();
-            SafetyInductionDefaults::fillItems($topic, $default['blocks']);
-        });
-
-        $this->resync();
-
-        return back()->with('success', 'Topic restored to the default text.');
-    }
-
-    /** Bring back default topics that were deleted (customised topics stay untouched). */
-    public function restoreMissing(): RedirectResponse
-    {
-        $companyId = $this->companyId();
-        $present = SafetyInductionTopic::where('company_id', $companyId)->pluck('default_key')->filter()->all();
-        $order = (int) SafetyInductionTopic::where('company_id', $companyId)->max('sort_order');
-
-        $count = 0;
-        DB::transaction(function () use ($companyId, $present, &$order, &$count) {
-            foreach (array_keys(SafetyInductionDefaults::topics()) as $key) {
-                if (in_array($key, $present, true)) {
-                    continue;
-                }
-                SafetyInductionDefaults::createTopic($companyId, $key, ++$order);
-                $count++;
-            }
-        });
-
-        $this->resync();
-
-        return back()->with('success', $count ? "$count default topic(s) restored." : 'All default topics are already present.');
-    }
-
-    /** Wipe everything and start again from the 13 default topics. */
-    public function resetAll(): RedirectResponse
-    {
-        $companyId = $this->companyId();
-
-        DB::transaction(function () use ($companyId) {
-            $ids = SafetyInductionTopic::where('company_id', $companyId)->pluck('id');
-            SafetyInductionItem::whereIn('topic_id', $ids)->delete();
-            SafetyInductionTopic::where('company_id', $companyId)->delete();
-            SafetyInductionDefaults::seedFor($companyId);
-        });
-
-        $this->resync();
-
-        return back()->with('success', 'All topics restored to the ' . count(SafetyInductionDefaults::topics()) . ' default declarations.');
     }
 }

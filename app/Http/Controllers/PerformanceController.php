@@ -89,7 +89,7 @@ class PerformanceController extends Controller
         ];
     }
 
-    private function names(Collection $rows): array
+    public function names(Collection $rows): array
     {
         $projects = Project::whereIn('id', $rows->pluck('project_id')->unique())->pluck('name', 'id');
         $subcons = DB::table('subcon_company')->whereIn('id', $rows->pluck('subcon_company_id')->unique())->pluck('name', 'id');
@@ -109,7 +109,7 @@ class PerformanceController extends Controller
 
     // ------------------------------------------------------------------ row builders
 
-    private function dailyRow(InspectionReport $r, $projects, $subcons, bool $full = false): array
+    public function dailyRow(InspectionReport $r, $projects, $subcons, bool $full = false): array
     {
         $settings = $this->usableSnapshot($r->settings_snapshot) ?: PerformanceSetting::forCompany($r->company_id)->snapshot();
         $calc = Spgpnc::score($r->sp_sampled === null ? null : (int) $r->sp_sampled, $r->sp_not_registered === null ? null : (int) $r->sp_not_registered,
@@ -163,7 +163,7 @@ class PerformanceController extends Controller
         return $out;
     }
 
-    private function monthlyRow(MonthlyReport $m, $projects, $subcons, bool $full = false): array
+    public function monthlyRow(MonthlyReport $m, $projects, $subcons, bool $full = false): array
     {
         $settings = $this->usableSnapshot($m->settings_snapshot) ?: PerformanceSetting::forCompany($m->company_id)->snapshot();
 

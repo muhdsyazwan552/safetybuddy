@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ComplianceMetrics;
 use App\Models\Company;
 use App\Models\CompanyStaff;
 use App\Models\SubconCompany;
@@ -11,7 +12,6 @@ use App\Models\Role;
 use App\Models\Project;
 use App\Models\ProjectAssign;
 use App\Models\User;
-use App\Models\ComplianceMetrics;
 use App\Models\ToolboxTopic;
 use App\Models\ToolboxTalks;
 use App\Models\Inspection;
@@ -19,6 +19,7 @@ use App\Models\NoConformance;
 use App\Models\ClientComplaint;
 use App\Models\Incident;
 use App\Models\Manhour;
+use App\Services\CompanySeatLimits;
 
 
 use Illuminate\Support\Facades\Auth;
@@ -59,7 +60,8 @@ class ContentController extends Controller
         return Inertia::render('WSIS/Employee', [
             'title' => 'Manage Employee',
             'staff' => $staff,
-            'roles' => $roles
+            'roles' => $roles,
+            'seatLimits' => CompanySeatLimits::snapshot((int) $companyId),
         ]);
     }
 
@@ -106,6 +108,23 @@ class ContentController extends Controller
         ] + $detail);
     }
 
+
+    /** PDF: company details, Safety Passport status and every staff member with their details. */
+    public function executorReport($id)
+    {
+        $company = \App\Support\SubconDetail::find($id, Auth::user()->company_id);
+        $detail = \App\Support\SubconDetail::for($company);
+
+        $filename = 'executor-' . ($company->code ? str_replace('/', '-', $company->code) : $company->id) . '.pdf';
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.executor_company', [
+            'company' => $company,
+            'staff' => $detail['staff'],
+            'induction' => $detail['induction'],
+            'machinery' => $detail['machinery'],
+            'generatedAt' => now()->format('d M Y H:i'),
+        ])->setPaper('a4', 'landscape')->stream($filename);
+    }
 
     public function executorProjDetails($id)
     {
@@ -602,6 +621,8 @@ class ContentController extends Controller
                 'id' => $entry->id,
                 'work_date' => $entry->work_date->format('Y-m-d'),
                 'created_at' => $entry->created_at?->format('Y-m-d H:i:s'),
+                'project_id' => $entry->project_id,
+                'subcon_company_id' => $entry->subcon_company_id,
                 'project_name' => $entry->project?->name,
                 'subcontractor_name' => $entry->subcontractor?->name,
                 'worker_count' => $entry->worker_count,

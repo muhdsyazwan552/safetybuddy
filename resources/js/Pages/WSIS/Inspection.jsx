@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
 import Toolbox from './Toolbox';
 import { showAlert } from '@/Helpers/alert';
 
@@ -196,8 +197,11 @@ const Inspection = ({
       if (!item.evaluation) {
         validationErrors.push(`Item ${index + 1}: Evaluation is required`);
       }
-      if (!item.description) {
-        validationErrors.push(`Item ${index + 1}: Description is required`);
+      if (item.evaluation && item.evaluation !== 'good' && !item.description?.trim()) {
+        validationErrors.push(`Item ${index + 1}: Notes / observations are required`);
+      }
+      if (item.evaluation && item.evaluation !== 'good' && !item.photos?.length) {
+        validationErrors.push(`Item ${index + 1}: Add at least one evidence photo`);
       }
     });
 
@@ -207,27 +211,26 @@ const Inspection = ({
     }
 
     // Prepare data for submission
-    const formData = {
-      project_id: data.project_id,
-      inspection_date: data.inspection_date,
-      inspection_items: inspectionItems.map(item => ({
-        subcon_company_id: item.company_id, // renamed — this is the subcon company
-        location: item.location,
-        topic_id: item.topic_id,
-        evaluation: item.evaluation,
-        description: item.description,
-      }))
-    };
+    const formData = new FormData();
+    formData.append('project_id', data.project_id);
+    formData.append('inspection_date', data.inspection_date);
+    inspectionItems.forEach((item, index) => {
+      formData.append(`inspection_items[${index}][subcon_company_id]`, item.company_id);
+      formData.append(`inspection_items[${index}][location]`, item.location);
+      formData.append(`inspection_items[${index}][topic_id]`, item.topic_id);
+      formData.append(`inspection_items[${index}][evaluation]`, item.evaluation);
+      formData.append(`inspection_items[${index}][description]`, item.description || '');
+      (item.photos || []).forEach((photo, n) => formData.append(`inspection_items[${index}][photos][${n}]`, photo));
+    });
 
     try {
       const response = await fetch('/inspections/multiple', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
           'X-Requested-With': 'XMLHttpRequest',
         },
-        body: JSON.stringify(formData),
+        body: formData,
       });
 
       const result = await response.json();
@@ -376,7 +379,7 @@ const Inspection = ({
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Link href={`/site-visits/${v.key}`} className="font-semibold text-blue-600 hover:text-blue-800">View</Link>
+                          <Link href={`/site-visits/${v.key}`} className={tableViewActionClass} title="View site visit" aria-label="View site visit"><TableViewIcon /></Link>
                         </td>
                       </tr>
                     );
@@ -640,7 +643,7 @@ const Inspection = ({
 
                             <div className="mb-4">
                               <label className={`block text-sm font-medium text-gray-700 mb-2 ${requiredFieldStyle}`}>
-                                Description
+                                Notes / observations{item.evaluation && item.evaluation !== 'good' ? ' *' : ''}
                               </label>
                               <textarea
                                 value={item.description}
@@ -648,12 +651,11 @@ const Inspection = ({
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
                                 rows="3"
                                 placeholder="Enter detailed inspection description..."
-                                required
                               ></textarea>
                             </div>
 
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-2">Inspection Photos</label>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">Evidence photos{item.evaluation && item.evaluation !== 'good' ? ' *' : ''}</label>
                               <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-green-400 transition-colors">
                                 <input
                                   type="file"
@@ -814,9 +816,11 @@ const Inspection = ({
                             <div className="flex justify-end space-x-4">
                               <Link
                                 href={route('inspections.show', inspection.id)}
-                                className="text-blue-600 hover:text-blue-800"
+                                className={tableViewActionClass}
+                                title="View inspection"
+                                aria-label="View inspection"
                               >
-                                View
+                                <TableViewIcon />
                               </Link>
                               <Link
                                 href={route('inspections.edit', inspection.id)}

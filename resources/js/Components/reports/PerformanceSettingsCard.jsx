@@ -46,7 +46,7 @@ export default function PerformanceSettingsCard({ settings }) {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 className="text-lg font-bold text-gray-800">SPGPNC &amp; BSPR settings</h2>
-                    <p className="text-sm text-gray-500">Benchmarks, penalties and ranking used by the daily and monthly inspection reports. Existing reports keep the settings they were created with.</p>
+                    <p className="text-sm text-gray-500">Enable Safety Metrics to measure your company's safety compliance performance based on inspection results. You can use the default settings or customise them to suit your company's requirements. If disabled, inspections can still be conducted, but SPGPNC scores, penalties, and BSPR ratings will not be generated.</p>
                 </div>
                 <Link href="/performance/learn-more" className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700">
                     <BookOpen className="h-4 w-4" /> Learn more

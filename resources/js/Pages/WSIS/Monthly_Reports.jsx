@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Head } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
 
 const MonthlyReport = ({ title }) => {
   // Sample report data
@@ -142,10 +143,13 @@ const MonthlyReport = ({ title }) => {
                     </div>
                     <div className="flex gap-2">
                       <button 
-                        className="text-blue-600 hover:text-blue-800 text-sm"
+                        type="button"
+                        className={tableViewActionClass}
                         onClick={() => setViewingReport(report)}
+                        title="View report"
+                        aria-label="View report"
                       >
-                        View
+                        <TableViewIcon />
                       </button>
                       <a 
                         href={report.download_url} 

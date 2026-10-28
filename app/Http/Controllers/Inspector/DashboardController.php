@@ -408,7 +408,7 @@ class DashboardController extends Controller
         } elseif ($toolbox) {
             // not conducted: attendance + Safety Passport sampling are still recorded
             $rules += [
-                'attendees' => 'nullable|array',
+                'attendees' => 'required|array|min:1',
                 'attendees.*' => 'integer',
                 'sp_not_registered' => 'nullable|integer|min:0|max:100000',
             ];
@@ -421,12 +421,15 @@ class DashboardController extends Controller
                 'inspections.*.evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
                 'inspections.*.inspection_date' => 'required|date',
                 'inspections.*.location' => 'required|string|max:255',
-                'inspections.*.description' => 'nullable|string',
-                'inspections.*.photos' => 'nullable|array',
+                'inspections.*.description' => 'required_unless:inspections.*.evaluation,good|string',
+                'inspections.*.photos' => 'required_unless:inspections.*.evaluation,good|array',
                 'inspections.*.photos.*' => 'image|max:2048',
             ];
         }
-        $request->validate($rules);
+        $request->validate($rules, [
+            'attendees.required' => 'Select at least one person for Safety Passport sampling.',
+            'attendees.min' => 'Select at least one person for Safety Passport sampling.',
+        ]);
 
         if ((int) $user->role_id === 2) {
             // company admin: any project of their own company
@@ -566,8 +569,8 @@ class DashboardController extends Controller
                 'inspections.*.evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
                 'inspections.*.inspection_date' => 'required|date',
                 'inspections.*.location' => 'required|string|max:255',
-                'inspections.*.description' => 'nullable|string',
-                'inspections.*.photos' => 'nullable|array',
+                'inspections.*.description' => 'required_unless:inspections.*.evaluation,good|string',
+                'inspections.*.photos' => 'required_unless:inspections.*.evaluation,good|array',
                 'inspections.*.photos.*' => 'image|max:2048',
             ]);
 
@@ -857,16 +860,19 @@ class DashboardController extends Controller
         $inspection = Inspection::findOrFail($id);
         $this->authorizeOwnEdit($inspection);
 
+        $existingPhotos = json_decode((string) $inspection->photo, true);
+        $existingPhotos = is_array($existingPhotos) ? $existingPhotos : array_filter([$inspection->photo]);
+
         $validated = $request->validate([
             'project_id' => 'required|exists:projects,id',
             'subcon_company_id' => 'nullable|exists:subcon_company,id',
             'topic_inspection_id' => 'nullable|exists:toolbox_topic,id',
             'evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
-            'description' => 'nullable|string',
+            'description' => 'required_unless:evaluation,good|string',
             'inspection_date' => 'required|date',
             'location' => 'nullable|string|max:255',
             'inspectee_id' => 'nullable|exists:subcon_staff,id',
-            'photos' => 'nullable|array',
+            'photos' => [\Illuminate\Validation\Rule::requiredIf(fn () => $request->input('evaluation') !== 'good' && count($existingPhotos) === 0), 'array'],
             'photos.*' => 'image|max:2048',
         ]);
 
@@ -1047,7 +1053,7 @@ class DashboardController extends Controller
             ];
 
             // attendance + Safety Passport sampling are recorded even when the talk was not conducted
-            $rules['attendees'] = 'nullable|array';
+            $rules['attendees'] = 'required|array|min:1';
             $rules['attendees.*'] = 'integer';
             $rules['sp_not_registered'] = 'nullable|integer|min:0|max:100000';
 
@@ -1060,7 +1066,10 @@ class DashboardController extends Controller
                 $rules['img_attendance'] = 'nullable|image|max:2048';
             }
 
-            $validated = $request->validate($rules);
+            $validated = $request->validate($rules, [
+                'attendees.required' => 'Select at least one person for Safety Passport sampling.',
+                'attendees.min' => 'Select at least one person for Safety Passport sampling.',
+            ]);
 
             \Log::info('Validation passed', $validated);
 
@@ -1212,7 +1221,7 @@ class DashboardController extends Controller
         $rules = [
             'project_id' => 'required|exists:projects,id',
             'inspection_date' => 'required|date',
-            'attendees' => 'nullable|array',
+            'attendees' => 'required|array|min:1',
             'attendees.*' => 'integer',
             'sp_not_registered' => 'nullable|integer|min:0|max:100000',
         ];
@@ -1225,7 +1234,10 @@ class DashboardController extends Controller
             $rules['img_attendance'] = 'nullable|image|max:2048';
         }
 
-        $validated = $request->validate($rules);
+        $validated = $request->validate($rules, [
+            'attendees.required' => 'Select at least one person for Safety Passport sampling.',
+            'attendees.min' => 'Select at least one person for Safety Passport sampling.',
+        ]);
 
         $attendeeIds = !empty($validated['attendees'])
             ? \App\Support\ToolboxAttendees::validIds((int) $validated['project_id'], $validated['attendees'], Auth::user()->company_id)

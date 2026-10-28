@@ -6,7 +6,9 @@ import {
     AlertTriangle, MessageSquareWarning, CheckCircle2, RotateCcw, Loader2, X, ChevronRight, ClipboardList,
 } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { EVAL, EvalBadge, StatusBadge, SectionCard, InfoRow, fmtDate, storageUrl } from '@/Components/inspector/kit';
+import PdfButton from '@/Components/shared/PdfButton';
 
 function StatusPanel({ record, type, reviewer }) {
     const [comment, setComment] = useState('');
@@ -38,6 +40,7 @@ function StatusPanel({ record, type, reviewer }) {
             icon={isNc ? AlertTriangle : MessageSquareWarning}
             tone={open && isNc ? 'danger' : 'default'}
         >
+            <ReviewProgress kind="case" record={record} className="mb-4" />
             <div className="flex flex-wrap items-center gap-3">
                 <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase ${open ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
                     {open ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -169,6 +172,7 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
                         <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white"><ArrowLeft className="h-4 w-4" /></span>
                         Back to inspections
                     </Link>
+                    {inspection.status === 'approved' && <PdfButton href={`/pdf/inspection/${inspection.id}`} className="ml-auto mr-2" />}
                     <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 active:scale-95 transition">
                         <Printer className="h-4 w-4" /> Print
                     </button>

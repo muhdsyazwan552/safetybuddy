@@ -28,6 +28,15 @@ export default function LearnMore({ portal, settings: s, links }) {
                     <p className="text-sm font-semibold text-brand-800">Configured benchmarks, penalties and ranking criteria</p>
                 </div>
 
+                <div className="rounded-xl border border-gray-200 bg-white p-5 text-sm leading-6 text-slate-700 shadow-sm">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-brand-800">Safety Metrics &ndash; Objective</p>
+                    <p className="mt-1.5">
+                        Enable Safety Metrics to measure your company&apos;s safety compliance performance based on inspection results. You can use the default
+                        settings or customise them to suit your company&apos;s requirements. If disabled, inspections can still be conducted, but SPGPNC scores,
+                        penalties, and BSPR ratings will not be generated.
+                    </p>
+                </div>
+
                 <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
                     <table className="min-w-full text-left text-sm">
                         <thead className="bg-ink-900 text-white">

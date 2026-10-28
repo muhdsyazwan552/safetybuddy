@@ -1,8 +1,8 @@
 // resources/js/Pages/SubconPublic/Components/InductionPanel.jsx
-// Safety induction the company leader must tick. Incomplete => company stays INACTIVE.
+// Safety Passport rules the company leader must tick. Incomplete => company stays INACTIVE.
 import React, { useState } from 'react';
 import { router } from '@inertiajs/react';
-import { Check, ChevronDown, Lock, ShieldCheck, ShieldAlert, Loader2, ListChecks } from 'lucide-react';
+import { Check, ChevronDown, Lock, ShieldCheck, ShieldAlert, Loader2, FileDown } from 'lucide-react';
 import { showAlert } from '@/Helpers/alert';
 
 function Blocks({ items }) {
@@ -37,9 +37,10 @@ export default function InductionPanel({ induction, isLeader, publicToken, leade
     const { topics = [], total = 0, done = 0, complete = false } = induction;
     const [open, setOpen] = useState(null);
     const [busy, setBusy] = useState(null);
+    const [read, setRead] = useState([]);
     const pct = total ? Math.round((done / total) * 100) : 100;
 
-    const base = `/subcon/${publicToken}/induction`;
+    const base = `/subcon/${publicToken}/safety-passport`;
 
     const toggle = (t) => {
         if (!isLeader) return;
@@ -51,15 +52,10 @@ export default function InductionPanel({ induction, isLeader, publicToken, leade
         });
     };
 
-    const tickAll = async () => {
-        const ok = await showAlert.confirm(
-            `You confirm that you have read, understood and agree with all ${total} items of the safety induction / declarations for ${companyName}.`,
-            'Acknowledge every item?',
-            { confirmText: 'Yes, I confirm them all' }
-        );
-        if (!ok) return;
-        setBusy('all');
-        router.post(`${base}/acknowledge-all`, { leader_key: leaderKey }, { preserveScroll: true, onFinish: () => setBusy(null) });
+    // a rule can only be ticked after its title and content were opened and read
+    const toggleOpen = (id) => {
+        setOpen(open === id ? null : id);
+        setRead((r) => (r.includes(id) ? r : [...r, id]));
     };
 
     return (
@@ -72,12 +68,12 @@ export default function InductionPanel({ induction, isLeader, publicToken, leade
                     </span>
                     <div>
                         <p className={`text-base font-extrabold ${complete ? 'text-emerald-800' : 'text-amber-900'}`}>
-                            {complete ? 'Safety induction complete — company is ACTIVE' : 'Safety induction incomplete — company is INACTIVE'}
+                            {complete ? 'Safety Passport complete — company is ACTIVE' : 'Safety Passport incomplete — company is INACTIVE'}
                         </p>
                         <p className={`mt-0.5 text-sm ${complete ? 'text-emerald-700' : 'text-amber-800'}`}>
                             {complete
-                                ? 'Every item has been acknowledged by the company leader.'
-                                : 'The company stays inactive until the leader ticks every item below.'}
+                                ? 'Every rule has been acknowledged by the company leader.'
+                                : 'The company stays inactive until the leader ticks every rule below.'}
                         </p>
                     </div>
                 </div>
@@ -91,47 +87,58 @@ export default function InductionPanel({ induction, isLeader, publicToken, leade
                 </div>
             </div>
 
+            {total > 0 && (
+                <div className="flex justify-end">
+                    <a
+                        href={`${base}/pdf`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-2 rounded-2xl bg-ink-900 px-4 py-2.5 text-sm font-bold text-brand-400 active:scale-95 transition"
+                    >
+                        <FileDown className="h-4 w-4" /> Download Safety Passport (PDF)
+                    </a>
+                </div>
+            )}
+
             {!isLeader && (
                 <p className="flex items-center gap-2 rounded-2xl bg-sky-50 px-4 py-3 text-sm text-sky-900">
                     <Lock className="h-4 w-4 shrink-0 text-sky-500" />
-                    Only the company leader can tick the safety induction. You can read every topic here.
+                    Only the company leader can acknowledge the Safety Passport rules. You can read every rule here.
                 </p>
             )}
 
             {isLeader && !complete && total > 0 && (
-                <div className="flex justify-end">
-                    <button onClick={tickAll} disabled={busy === 'all'} className="inline-flex items-center gap-2 rounded-2xl bg-ink-900 px-4 py-2.5 text-sm font-bold text-brand-400 active:scale-95 transition disabled:opacity-50">
-                        {busy === 'all' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ListChecks className="h-4 w-4" />} Tick all
-                    </button>
-                </div>
+                <p className="flex items-center gap-2 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    <ShieldAlert className="h-4 w-4 shrink-0 text-amber-600" />
+                    Open each rule and read its title and content, then tick it. The tick unlocks after you open the rule.
+                </p>
             )}
 
             {/* topics */}
             <div className="space-y-2.5">
                 {topics.map((t, idx) => {
                     const isOpen = open === t.id;
+                    const canTick = isLeader && (t.acked || read.includes(t.id));
                     return (
                         <div key={t.id} className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition ${t.acked ? 'border-emerald-200' : 'border-gray-200'}`}>
                             <div className="flex items-center gap-3 px-4 py-3">
                                 <button
                                     type="button"
                                     onClick={() => toggle(t)}
-                                    disabled={!isLeader || busy === t.id}
+                                    disabled={!canTick || busy === t.id}
+                                    title={isLeader && !canTick ? 'Open and read this rule first' : undefined}
                                     aria-label={t.acked ? 'Untick topic' : 'Tick topic'}
                                     className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border-2 transition ${
                                         t.acked ? 'border-emerald-500 bg-emerald-500 text-white' : 'border-gray-300 bg-white text-transparent'
-                                    } ${isLeader ? 'cursor-pointer hover:border-emerald-500' : 'cursor-not-allowed opacity-70'}`}
+                                    } ${canTick ? 'cursor-pointer hover:border-emerald-500' : 'cursor-not-allowed opacity-60'}`}
                                 >
                                     {busy === t.id ? <Loader2 className="h-4 w-4 animate-spin text-gray-500" /> : <Check className="h-5 w-5" strokeWidth={3} />}
                                 </button>
 
-                                <button type="button" onClick={() => setOpen(isOpen ? null : t.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                                <button type="button" onClick={() => toggleOpen(t.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-ink-900 text-xs font-extrabold text-brand-400">{idx + 1}</span>
                                     <span className="min-w-0 flex-1">
                                         <span className="block truncate text-[15px] font-extrabold text-gray-900">{t.title}</span>
-                                        {!isOpen && t.items?.[0] && (
-                                            <span className="mt-0.5 line-clamp-2 block text-xs font-normal leading-snug text-gray-500">{t.items[0].content}</span>
-                                        )}
                                     </span>
                                     <ChevronDown className={`h-5 w-5 shrink-0 text-gray-400 transition ${isOpen ? 'rotate-180' : ''}`} />
                                 </button>
@@ -144,7 +151,7 @@ export default function InductionPanel({ induction, isLeader, publicToken, leade
                         </div>
                     );
                 })}
-                {topics.length === 0 && <p className="rounded-2xl bg-white p-6 text-center text-sm text-gray-400">No safety induction topics are configured yet.</p>}
+                {topics.length === 0 && <p className="rounded-2xl bg-white p-6 text-center text-sm text-gray-400">No Safety Passport rules are configured yet.</p>}
             </div>
         </div>
     );

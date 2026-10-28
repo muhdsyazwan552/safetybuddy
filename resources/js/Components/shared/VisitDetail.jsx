@@ -3,6 +3,8 @@ import React from 'react';
 import { Link } from '@inertiajs/react';
 import { ArrowLeft, CalendarDays, UserRound, MapPin, HardHat, ClipboardCheck, Building2, Users } from 'lucide-react';
 import { EvalBadge, StatusBadge, SectionCard, InfoRow, fmtDate } from '@/Components/inspector/kit';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
+import PdfButton from '@/Components/shared/PdfButton';
 
 export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspectionHref, children }) {
     const t = visit.talk;
@@ -28,6 +30,12 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                 </div>
             </div>
 
+            <ReviewProgress kind="visit" status={visit.status} />
+
+            {visit.status === 'approved' && /^(talk|insp)-[0-9]+$/.test(visit.key) && (
+                <div className="flex justify-end"><PdfButton href={`/pdf/visit/${visit.key}`} label="Full site visit PDF" /></div>
+            )}
+
             {children}
 
             {/* 1 · Toolbox talk */}
@@ -41,6 +49,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                                 {t.conducted ? 'Conducted' : 'Not conducted'}
                             </span>
                             <StatusBadge value={t.status} />
+                            {t.status === 'approved' && t.id && <PdfButton href={`/pdf/toolbox/${t.id}`} className="ml-auto" />}
                         </div>
 
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -107,6 +116,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                                     </div>
                                 </div>
                                 {i.description && <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">{i.description}</p>}
+                                {i.status === 'approved' && <div className="mt-3"><PdfButton href={`/pdf/inspection/${i.id}`} /></div>}
                                 {i.photos?.length > 0 && (
                                     <div className="mt-3 flex gap-2 overflow-x-auto">
                                         {i.photos.map((p) => (

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { showAlert } from '@/Helpers/alert';
+import PdfButton from '@/Components/shared/PdfButton';
 
 const NonConformance = ({ title, auth, nonConformances = [] }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -206,13 +209,16 @@ const NonConformance = ({ title, auth, nonConformances = [] }) => {
                     </td>
                     <td className="px-6 py-4 text-right text-sm font-medium">
                       <button
-                        className="text-blue-600 hover:text-blue-800 mr-4"
+                        type="button"
+                        className={tableViewActionClass}
                         onClick={() => {
                           setViewingReport(nc);
                           setCommentText(''); // Reset comment when opening modal
                         }}
+                        title="View non-conformance"
+                        aria-label="View non-conformance"
                       >
-                        View
+                        <TableViewIcon />
                       </button>
                     </td>
                   </tr>
@@ -276,6 +282,9 @@ const NonConformance = ({ title, auth, nonConformances = [] }) => {
                   </svg>
                 </button>
               </div>
+
+              {viewingReport.status === 'closed' && <div className="mb-4 flex justify-end"><PdfButton href={`/pdf/case/nc/${viewingReport.id}`} /></div>}
+              <ReviewProgress kind="case" record={viewingReport} className="mb-4" />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">
                 <div><p className="text-gray-500 font-medium">Project</p><p>{viewingReport.inspection?.project?.name ?? '-'}</p></div>

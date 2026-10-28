@@ -27,7 +27,7 @@ const NAVIGATION = [  // Changed to uppercase constant
   {
     category: 'Performance Metric Setting',
     items: [
-      { name: 'Safety Induction', href: '/safety-induction', icon: FaBookOpen },
+      { name: 'Safety Passport', href: '/safety-passport', icon: FaBookOpen },
       { name: 'Compliance & Penalty', href: '/compliance-metrics', icon: FaCogs },
     ],
   },
@@ -113,12 +113,10 @@ export default function Sidebar({
     <>
       <div className={`flex items-center ${compact ? 'justify-center' : 'justify-between'} px-4 h-16 shrink-0 border-b border-white/10`}>
         <Link href="/dashboard" className="flex items-center gap-3 min-w-0">
-          <img src="/images/sbc-logo.png" alt="Safety Buddy" className="h-10 w-10 rounded-full shrink-0 ring-2 ring-brand-500" />
-          {!compact && (
-            <span className="leading-tight min-w-0">
-              <span className="block text-base font-extrabold text-white truncate">Safety Buddy</span>
-              <span className="block text-[10px] font-semibold tracking-wider text-brand-400 uppercase truncate">Control. Performance. Report.</span>
-            </span>
+          {compact ? (
+            <img src="/images/sbc-logo.png" alt="Safety Buddy" className="h-10 w-10 rounded-full shrink-0 ring-2 ring-brand-500" />
+          ) : (
+            <img src="/images/sbc-header.png" alt="Safety Buddy" className="h-14 w-auto max-w-full object-contain" />
           )}
         </Link>
         {!compact && (

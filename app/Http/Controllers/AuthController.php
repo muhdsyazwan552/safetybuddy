@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 
 use App\Models\User;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -49,12 +51,21 @@ class AuthController extends Controller
             $user = Auth::user();
             $role_id = $user->role_id;
 
+            if ($role_id == 2 && $user->email_verification_required && ! $user->hasVerifiedEmail()) {
+                Auth::logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+                $request->session()->put('verification_email', $user->email);
+
+                return redirect()->route('verification.notice');
+            }
+
             Log::debug('User role detected', ['role_id' => $role_id, 'user_id' => $user->id]);
 
             // Role-based redirection
             $redirectPath = $this->getRedirectPathByRole($role_id);
 
-            return redirect()->intended($redirectPath);
+            return $role_id == 2 ? redirect()->to($redirectPath) : redirect()->intended($redirectPath);
         }
 
         Log::debug('Authentication failed', ['email' => $credentials['email']]);
@@ -73,10 +84,11 @@ class AuthController extends Controller
             return '/admin/dashboard';
         }
 
-        // Role 2 (company admin) goes straight to the dashboard.
-        // The /module page is currently hidden from the login flow.
+        // Company accounts go straight to the dashboard when their package is active.
         if ($role_id == 2) {
-            return '/dashboard';
+            return \App\Http\Controllers\SubscriptionPlanController::hasActiveSafety((int) Auth::user()->company_id)
+                ? '/dashboard'
+                : '/plans';
         }
 
         // Manager (3) and Supervisor (4) use the review portal
@@ -115,44 +127,52 @@ class AuthController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users',
+            'name' => 'required|string|max:150',
+            'email' => 'required|email|max:50|unique:users',
             'password' => 'required|confirmed|min:8',
-            'account_type' => 'required|in:personal,company',
             'phone' => 'required|string|max:20',
             'address' => 'required|string',
             'terms' => 'accepted'
         ]);
 
-        $companyId = null;
-
-        // If registering as a company, create company record first
-        if ($validated['account_type'] === 'company') {
-            $company = \App\Models\Company::create([
+        $user = DB::transaction(function () use ($validated) {
+            $companyId = \App\Support\SeriesCodes::createCompany([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'address' => $validated['address'],
-                // Add other fields like registration_no if needed
-            ]);
+                'contact' => $validated['phone'],
+                'status' => 'active',
+            ])->id;
 
-            $companyId = $company->id;
+            return User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
+                'phone' => $validated['phone'],
+                'address' => $validated['address'],
+                'company_id' => $companyId,
+                'role_id' => 2,
+                'email_verification_required' => true,
+            ]);
+        });
+
+        if ($request->hasSession()) {
+            $request->session()->put('verification_email', $user->email);
+            $request->session()->forget('verification_delivery_failed');
         }
 
-        // Now create the user (admin or personal)
-        $user = User::create([
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
-
-            'phone' => $validated['phone'],
-            'address' => $validated['address'],
-            'company_id' => $companyId,
-            'role_id' => ($validated['account_type'] === 'company') ? 1 : null, // Set 'Manager' or 'Admin' role
-        ]);
+        try {
+            event(new Registered($user));
+        } catch (\Throwable $exception) {
+            report($exception);
+            if ($request->hasSession()) {
+                $request->session()->put('verification_delivery_failed', true);
+            }
+        }
 
         return response()->json([
             'success' => true,
-            'redirect' => '/login'
+            'redirect' => route('verification.notice')
         ]);
     }
 
@@ -174,5 +194,12 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/login');
+    }
+
+    public function apiLogout(Request $request)
+    {
+        $request->user()?->currentAccessToken()?->delete();
+
+        return response()->json(['success' => true]);
     }
 }

@@ -25,7 +25,10 @@ class ToolboxSp
     {
         $attendeeIds = array_values(array_unique(array_map('intval', $attendeeIds)));
         if (!$attendeeIds) {
-            return ['rows' => [], 'sampled' => null, 'not_registered' => null];
+            throw ValidationException::withMessages([
+                'attendees' => 'Select at least one person for Safety Passport sampling.',
+                'attendee_ids' => 'Select at least one person for Safety Passport sampling.',
+            ]);
         }
 
         $byCompany = DB::table('subcon_staff')->whereIn('id', $attendeeIds)->get(['id', 'company_id'])

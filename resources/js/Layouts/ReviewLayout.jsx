@@ -6,7 +6,7 @@ import { Link, usePage } from '@inertiajs/react';
 import Toast from '@/Components/Toast';
 import { confirmLogout } from '@/Helpers/logout';
 import {
-    LayoutDashboard, ClipboardCheck, AlertTriangle, LogOut, Settings, Siren, BarChart3, X, Users, ChevronLeft, MoreHorizontal, FolderKanban,
+    LayoutDashboard, ClipboardCheck, AlertTriangle, LogOut, Settings, Siren, BarChart3, X, Users, ChevronLeft, MoreHorizontal, FolderKanban, ShieldCheck,
 } from 'lucide-react';
 
 const TABS = [
@@ -20,11 +20,12 @@ const MORE = [
     { name: 'Projects', href: '/review/projects', icon: FolderKanban },
     { name: 'Reports', href: '/review/reports', icon: BarChart3 },
     { name: 'Subcontractors', href: '/review/subcons', icon: Users },
+    { name: 'Staff approval', href: '/review/staff-approval', icon: Users },
     { name: 'My profile', href: '/profile', icon: Settings },
 ];
 
 // pages that show the bottom tab bar instead of a back button
-const TOP_LEVEL = ['/review/dashboard', '/review/visits', '/review/cases', '/review/incidents', '/review/reports', '/review/subcons', '/review/projects', '/review/performance', '/review/inspections', '/review/toolbox', '/profile'];
+const TOP_LEVEL = ['/review/dashboard', '/review/visits', '/review/cases', '/review/incidents', '/review/reports', '/review/subcons', '/review/projects', '/review/performance', '/review/inspections', '/review/toolbox', '/review/staff-approval', '/profile'];
 
 export default function ReviewLayout({ title = 'Review', children }) {
     const { url, props } = usePage();

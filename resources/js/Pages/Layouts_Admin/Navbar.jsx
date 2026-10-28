@@ -1,4 +1,4 @@
-import { FaBars, FaUserCircle, FaChevronDown, FaSignOutAlt, FaHome, FaUser, FaBuilding } from 'react-icons/fa';
+import { FaBars, FaUserCircle, FaChevronDown, FaSignOutAlt, FaHome } from 'react-icons/fa';
 import { useState, useRef, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import { FiAlignLeft } from 'react-icons/fi';
@@ -15,7 +15,6 @@ export default function Navbar({
   const dropdownRef = useRef(null);
   const { auth, title } = usePage().props;
   const user = auth?.user;
-  const company = user?.company_id ? user.company : null;
 
   // Check if user role is 2 (company)
   const isCompanyUser = user?.role_id === 2;
@@ -45,6 +44,11 @@ export default function Navbar({
   const handleLogout = (e) => {
     e.preventDefault();
     confirmLogout();
+  };
+
+  const openAccountPage = (url) => {
+    setIsDropdownOpen(false);
+    router.get(url);
   };
 
   return (
@@ -97,50 +101,22 @@ export default function Navbar({
         </button>
 
         {isDropdownOpen && (
-          <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-1.5rem)] bg-white text-gray-800 rounded-md shadow-xl py-1 z-50">
+          <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl bg-white text-gray-800 shadow-xl ring-1 ring-black/5 z-50">
             {/* User Info Section */}
-            <div className="px-4 py-2 border-b bg-gray-50 rounded-t-md">
-              <p className="text-sm font-semibold text-gray-900">
+            <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+              <p className="text-sm font-bold text-gray-900">
                 {isCompanyUser ? user?.company?.name : user?.name}
               </p>
               <p className="text-xs text-gray-500">
                 {isCompanyUser ? 'Company Account' : `Role: ${user?.role?.name || 'User'}`}
               </p>
-              {!isCompanyUser && user?.email && (
-                <p className="text-xs text-gray-400 mt-1 truncate">
-                  {user.email}
-                </p>
-              )}
-              {isCompanyUser && company?.email && (
-                <p className="text-xs text-gray-400 mt-1 truncate">
-                  {company.email}
-                </p>
-              )}
             </div>
 
-            {/* Profile & Account Section */}
+            {/* Settings */}
             <div>
               <button
-                onClick={() => router.get('/profile')}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center transition-colors duration-150"
-              >
-                <FaUser className="mr-2 text-blue-500" />
-                Profile
-              </button>
-              
-              {isCompanyUser && (
-                <button
-                  onClick={() => router.get('/company-details')}
-                  className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center transition-colors duration-150"
-                >
-                  <FaBuilding className="mr-2 text-purple-500" />
-                  Company Details
-                </button>
-              )}
-              
-              <button
-                onClick={() => router.get('/settings')}
-                className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center transition-colors duration-150"
+                onClick={() => openAccountPage('/settings')}
+                className="flex w-full items-center px-4 py-2.5 text-left text-sm text-gray-700 transition-colors duration-150 hover:bg-gray-50"
               >
                 <FaUserCircle className="mr-2 text-gray-500" />
                 Settings
@@ -148,12 +124,12 @@ export default function Navbar({
             </div>
 
             {/* Divider */}
-            <div className="border-t my-1"></div>
+            <div className="border-t border-gray-200"></div>
 
             {/* Logout Button */}
             <button
               onClick={handleLogout}
-              className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center transition-colors duration-150"
+              className="flex w-full items-center px-4 py-3 text-left text-sm text-red-600 transition-colors duration-150 hover:bg-red-50"
             >
               <FaSignOutAlt className="mr-2" />
               Logout

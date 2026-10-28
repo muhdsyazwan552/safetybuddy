@@ -4,6 +4,7 @@ import { ArrowLeft, Printer, CheckCircle2 } from 'lucide-react';
 import ReportShell from '@/Components/reports/ReportShell';
 import MonthlyReportView from '@/Components/reports/MonthlyReportView';
 import { Panel } from '@/Components/reports/parts';
+import PdfButton from '@/Components/shared/PdfButton';
 
 function Approval({ m, can_verify, can_approve }) {
     const [busy, setBusy] = useState(false);
@@ -60,6 +61,7 @@ export default function MonthlyShow({ portal, report, can_verify, can_approve })
             <Head title={`Monthly report ${report.report_no}`} />
             <div className="mb-4 flex items-center justify-between">
                 <Link href={back} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500"><ArrowLeft className="h-4 w-4" /> Back to reports</Link>
+                <PdfButton href={`/pdf/monthly/${report.id}`} className="ml-auto mr-2" />
                 <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-bold text-gray-700 print:hidden">
                     <Printer className="h-4 w-4" /> Print
                 </button>

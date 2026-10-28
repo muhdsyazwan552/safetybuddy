@@ -83,6 +83,7 @@ export default function Details({ company, stats = {}, subscriptions = [] }) {
                             <div className="min-w-0">
                                 <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Company profile</p>
                                 <h1 className="truncate text-xl font-extrabold sm:text-2xl">{data.name || 'Unnamed company'}</h1>
+                                {company.code && <p className="mt-1 text-sm font-bold text-brand-400">{company.code}</p>}
                                 <div className="mt-1.5 flex flex-wrap items-center gap-2 text-xs text-gray-300">
                                     {data.registration_no && <span className="inline-flex items-center gap-1"><Hash className="h-3.5 w-3.5 text-brand-400" />{data.registration_no}</span>}
                                     {company.status && (

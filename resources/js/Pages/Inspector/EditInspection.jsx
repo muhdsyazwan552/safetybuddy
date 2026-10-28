@@ -41,6 +41,10 @@ export default function EditInspection({ inspection, projects = [], subconCompan
     const save = () => {
         const e = {};
         ['project_id', 'evaluation', 'inspection_date'].forEach((k) => { if (!String(item[k] || '').trim()) e[k] = 'Required'; });
+        if (item.evaluation && item.evaluation !== 'good') {
+            if (!item.description.trim()) e.description = 'Notes / observations are required.';
+            if (photos.length === 0 && parsePhotos(inspection.photo).length === 0) e.photos = 'Add at least one evidence photo.';
+        }
         if (Object.keys(e).length) { setErrors(e); return; }
 
         setSaving(true);

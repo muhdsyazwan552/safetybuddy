@@ -4,8 +4,10 @@ import { ArrowLeft, CalendarDays, MapPin, Siren, FileText, Users, ShieldAlert, L
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import { SectionCard, InfoRow } from '@/Components/inspector/kit';
 import { incidentTone } from './Incidents';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
+import PdfButton from '@/Components/shared/PdfButton';
 
-function ResponsePanel({ i, can_respond, can_reopen }) {
+function ResponsePanel({ i, can_review, can_reopen }) {
     const [text, setText] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
@@ -23,15 +25,15 @@ function ResponsePanel({ i, can_respond, can_reopen }) {
     };
 
     return (
-        <SectionCard title={`Responses (${i.responses.length})`} icon={MessageSquare}>
+        <SectionCard title={`Supervisor review and approval (${i.responses.length})`} icon={MessageSquare}>
             {i.responses.length === 0 ? (
-                <p className="text-sm text-gray-500">No response has been given yet.</p>
+                <p className="text-sm text-gray-500">Awaiting supervisor review.</p>
             ) : (
                 <ol className="space-y-3">
                     {i.responses.map((r) => (
-                        <li key={r.id} className={`rounded-2xl px-4 py-3 ${r.type === 'closed' ? 'bg-emerald-50' : r.type === 'reopened' ? 'bg-amber-50' : 'bg-sky-50'}`}>
+                        <li key={r.id} className={`rounded-2xl px-4 py-3 ${['closed', 'approved'].includes(r.type) ? 'bg-emerald-50' : r.type === 'reopened' ? 'bg-amber-50' : 'bg-sky-50'}`}>
                             <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                                {r.type === 'closed' ? 'Closed' : r.type === 'reopened' ? 'Reopened' : 'Response'} · {r.by}{r.role ? ` (${r.role})` : ''} · {r.at}
+                                {['closed', 'approved'].includes(r.type) ? 'Approved' : r.type === 'reopened' ? 'Reopened' : 'Reviewed'} · {r.by}{r.role ? ` (${r.role})` : ''} · {r.at}
                             </p>
                             {r.message && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{r.message}</p>}
                         </li>
@@ -39,25 +41,25 @@ function ResponsePanel({ i, can_respond, can_reopen }) {
                 </ol>
             )}
 
-            {can_respond && !closed && (
+            {can_review && !closed && (
                 <div className="mt-4 space-y-3">
                     <textarea
                         rows={3}
                         value={text}
                         onChange={(e) => setText(e.target.value)}
-                        placeholder="Write your response or the closing remark…"
+                        placeholder={i.status === 'open' ? 'Write your review…' : 'Write your approval remark…'}
                         className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20"
                     />
                     {error && <p className="text-xs font-medium text-red-500">{error}</p>}
                     <div className="flex flex-wrap gap-2">
-                        <button type="button" disabled={busy || text.trim().length < 3} onClick={() => act('respond')} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">
-                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send response
-                        </button>
-                        <button type="button" disabled={busy || text.trim().length < 3} onClick={() => act('close')} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">
-                            <CheckCircle2 className="h-4 w-4" /> Close incident
-                        </button>
+                        {i.status === 'open' && <button type="button" disabled={busy || text.trim().length < 3} onClick={() => act('respond')} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">
+                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit review
+                        </button>}
+                        {i.status === 'inprogress' && <button type="button" disabled={busy || text.trim().length < 3} onClick={() => act('close')} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">
+                            <CheckCircle2 className="h-4 w-4" /> Approve incident
+                        </button>}
                     </div>
-                    <p className="text-xs text-gray-400">Closing needs a closing remark. The inspector who reported it can read every response.</p>
+                    <p className="text-xs text-gray-400">The inspector who reported it can read the review and approval remarks.</p>
                 </div>
             )}
 
@@ -72,7 +74,7 @@ function ResponsePanel({ i, can_respond, can_reopen }) {
     );
 }
 
-export default function IncidentShow({ incident: i, can_verify, can_approve }) {
+export default function IncidentShow({ incident: i, can_review_incident, can_reopen_incident }) {
     const tone = incidentTone(i.status);
     const isImage = i.attachment && /\.(png|jpe?g|webp|gif)$/i.test(i.attachment);
 
@@ -80,9 +82,12 @@ export default function IncidentShow({ incident: i, can_verify, can_approve }) {
         <ReviewLayout title="Incident">
             <Head title={`Incident #${i.id}`} />
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
-                <Link href="/review/incidents" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
-                    <ArrowLeft className="h-4 w-4" /> Back to incidents
-                </Link>
+                <div className="flex items-center justify-between gap-3">
+                    <Link href="/review/incidents" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                        <ArrowLeft className="h-4 w-4" /> Back to incidents
+                    </Link>
+                    <PdfButton href={`/pdf/incident/${i.id}`} />
+                </div>
 
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
                     <div className="flex items-start justify-between gap-3">
@@ -98,6 +103,8 @@ export default function IncidentShow({ incident: i, can_verify, can_approve }) {
                         <span className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase ${tone.badge}`}>{tone.label}</span>
                     </div>
                 </div>
+
+                <ReviewProgress kind="incident" status={i.status} />
 
                 <SectionCard title="Basic information" icon={Siren}>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -141,7 +148,7 @@ export default function IncidentShow({ incident: i, can_verify, can_approve }) {
                     </SectionCard>
                 )}
 
-                <ResponsePanel i={i} can_respond={can_verify} can_reopen={can_approve} />
+                <ResponsePanel i={i} can_review={can_review_incident} can_reopen={can_reopen_incident} />
 
                 {i.attachment && (
                     <SectionCard title="Evidence" icon={ShieldAlert}>

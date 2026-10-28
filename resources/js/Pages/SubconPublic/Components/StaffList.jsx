@@ -1,7 +1,7 @@
 // resources/js/Pages/SubconPublic/Components/StaffList.jsx
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pencil, Trash2, ChevronRight, CheckCircle2, AlertCircle, Phone, Mail, BriefcaseBusiness } from 'lucide-react';
-import { completeness, initials, formatDate, timeAgo, isNewThisWeek, isActiveStatus } from './staffUtils';
+import { completeness, initials, formatDate, timeAgo, isNewThisWeek, isActiveStatus, isPendingStatus } from './staffUtils';
 
 function CompleteBadge({ info }) {
     return info.isComplete ? (
@@ -35,7 +35,15 @@ function CompletenessBar({ info }) {
     );
 }
 
-function StatusPill({ status }) {
+function StatusPill({ status, briefing }) {
+    if (isPendingStatus(status)) {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-800" title="Becomes active once the Supervisor and the Manager both approve">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                Pending
+            </span>
+        );
+    }
     const active = isActiveStatus(status);
     return (
         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${active ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}`}>
@@ -68,10 +76,46 @@ function Avatar({ name, size = 'h-11 w-11 text-sm' }) {
     );
 }
 
-export default function StaffList({ staffs, onOpen, onEdit, onDelete, canEdit, canDelete, isLeader = false, onToggleStatus, viewMode = 'cards', query = '' }) {
-    if (staffs.length === 0) {
+const PAGE_SIZE = 12;
+
+function Pager({ page, pages, total, start, onPage }) {
+    if (pages <= 1) return null;
+    return (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+            <span className="text-xs font-semibold text-gray-500">{start + 1}–{Math.min(start + PAGE_SIZE, total)} of {total}</span>
+            <div className="flex flex-wrap items-center gap-1.5">
+                <button type="button" disabled={page === 1} onClick={() => onPage(page - 1)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 disabled:opacity-40">Prev</button>
+                {Array.from({ length: pages }, (_, k) => k + 1).map((p) => (
+                    <button
+                        key={p}
+                        type="button"
+                        onClick={() => onPage(p)}
+                        className={`h-9 min-w-9 rounded-xl border px-2 text-xs font-bold ${p === page ? 'border-ink-900 bg-ink-900 text-brand-400' : 'border-gray-200 bg-white text-gray-700'}`}
+                    >
+                        {p}
+                    </button>
+                ))}
+                <button type="button" disabled={page === pages} onClick={() => onPage(page + 1)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-bold text-gray-700 disabled:opacity-40">Next</button>
+            </div>
+        </div>
+    );
+}
+
+export default function StaffList({ staffs: allStaffs, onOpen, onEdit, onDelete, canEdit, canDelete, isLeader = false, onToggleStatus, viewMode = 'cards', query = '' }) {
+    const [page, setPage] = useState(1);
+
+    // search / filters change the list: go back to the first page
+    useEffect(() => { setPage(1); }, [allStaffs.length, query]);
+
+    if (allStaffs.length === 0) {
         return null;
     }
+
+    const pages = Math.max(1, Math.ceil(allStaffs.length / PAGE_SIZE));
+    const current = Math.min(page, pages);
+    const start = (current - 1) * PAGE_SIZE;
+    const staffs = allStaffs.slice(start, start + PAGE_SIZE);
+    const pager = <Pager page={current} pages={pages} total={allStaffs.length} start={start} onPage={setPage} />;
 
     const Mark = ({ text }) => {
         const q = query.trim();
@@ -89,8 +133,9 @@ export default function StaffList({ staffs, onOpen, onEdit, onDelete, canEdit, c
 
     if (viewMode === 'cards') {
         return (
+            <>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {staffs.map((s) => {
+                {staffs.map((s, n) => {
                     const info = completeness(s);
                     return (
                         <div
@@ -103,15 +148,17 @@ export default function StaffList({ staffs, onOpen, onEdit, onDelete, canEdit, c
                                 <Avatar name={s.name} />
                                 <div className="min-w-0 flex-1">
                                     <p className="flex flex-wrap items-center gap-2 text-[15px] font-extrabold text-gray-900">
+                                        <span className="text-xs font-extrabold text-gray-400">{start + n + 1}.</span>
                                         <span className="truncate"><Mark text={s.name} /></span>
                                         {isNewThisWeek(s) && <span className="rounded-full bg-brand-500 px-2 py-0.5 text-[10px] font-extrabold text-ink-900">NEW</span>}
                                     </p>
+                                    {s.code && <p className="text-[11px] font-semibold text-gray-500"><Mark text={s.code} /></p>}
                                     <p className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-gray-500">
                                         <BriefcaseBusiness className="h-3.5 w-3.5 shrink-0" />
                                         {s.role ? <Mark text={s.role} /> : <span className="font-semibold text-red-500">No role</span>}
                                     </p>
                                 </div>
-                                <StatusPill status={s.status} />
+                                <StatusPill status={s.status} briefing={s.sp_briefing_status} />
                             </div>
 
                             <div className="relative mt-3 space-y-1.5 text-xs">
@@ -137,10 +184,14 @@ export default function StaffList({ staffs, onOpen, onEdit, onDelete, canEdit, c
 
                             {isLeader && (canEdit || canDelete) ? (
                                 <div className="relative -mx-4 -mb-4 mt-4 flex items-center gap-2 rounded-b-3xl border-t border-brand-200 bg-brand-100/60 px-4 py-3">
-                                    <label className="mr-auto flex items-center gap-2 text-[11px] font-bold text-ink-900">
-                                        <StatusSwitch active={isActiveStatus(s.status)} onChange={() => onToggleStatus?.(s)} label="Toggle active" />
-                                        {isActiveStatus(s.status) ? 'Active' : 'Inactive'}
-                                    </label>
+                                    {isPendingStatus(s.status) ? (
+                                        <span className="mr-auto text-[11px] font-bold text-amber-800">Pending Supervisor &amp; Manager approval</span>
+                                    ) : (
+                                        <label className="mr-auto flex items-center gap-2 text-[11px] font-bold text-ink-900">
+                                            <StatusSwitch active={isActiveStatus(s.status)} onChange={() => onToggleStatus?.(s)} label="Toggle active" />
+                                            {isActiveStatus(s.status) ? 'Active' : 'Inactive'}
+                                        </label>
+                                    )}
                                     {canEdit && (
                                         <button onClick={() => onEdit(s)} className="inline-flex items-center gap-1.5 rounded-xl bg-ink-900 px-3 py-2 text-xs font-bold text-brand-400 active:scale-95 transition">
                                             <Pencil className="h-3.5 w-3.5" /> Edit
@@ -163,11 +214,14 @@ export default function StaffList({ staffs, onOpen, onEdit, onDelete, canEdit, c
                     );
                 })}
             </div>
+            {pager}
+            </>
         );
     }
 
     // Table view
     return (
+        <>
         <div className="overflow-x-auto rounded-3xl border border-gray-100 bg-white shadow-sm">
             <table className="min-w-full divide-y divide-gray-100 text-sm">
                 <thead className="bg-gray-50 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
@@ -187,12 +241,13 @@ export default function StaffList({ staffs, onOpen, onEdit, onDelete, canEdit, c
                         const info = completeness(s);
                         return (
                             <tr key={s.id} className={`cursor-pointer transition hover:bg-gray-50 ${info.isComplete ? '' : 'bg-amber-50/40'}`} onClick={() => onOpen(s)}>
-                                <td className="px-4 py-3 text-gray-400">{i + 1}</td>
+                                <td className="px-4 py-3 text-gray-400">{start + i + 1}</td>
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-3">
                                         <Avatar name={s.name} size="h-9 w-9 text-xs" />
                                         <div className="min-w-0">
                                             <p className="truncate font-bold text-gray-900"><Mark text={s.name} /> {isNewThisWeek(s) && <span className="ml-1 rounded-full bg-brand-500 px-1.5 py-0.5 text-[9px] font-extrabold text-ink-900">NEW</span>}</p>
+                                            {s.code && <p className="truncate text-[11px] font-semibold text-gray-500"><Mark text={s.code} /></p>}
                                             <p className="truncate text-xs text-gray-500"><Mark text={s.email} /></p>
                                         </div>
                                     </div>
@@ -204,13 +259,13 @@ export default function StaffList({ staffs, onOpen, onEdit, onDelete, canEdit, c
                                     <CompletenessBar info={{ ...info, missing: [] }} />
                                 </td>
                                 <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                                    {isLeader ? (
+                                    {isLeader && !isPendingStatus(s.status) ? (
                                         <div className="flex items-center gap-2">
                                             <StatusSwitch active={isActiveStatus(s.status)} onChange={() => onToggleStatus?.(s)} label="Toggle active" />
                                             <span className="text-xs font-bold text-gray-600">{isActiveStatus(s.status) ? 'Active' : 'Inactive'}</span>
                                         </div>
                                     ) : (
-                                        <StatusPill status={s.status} />
+                                        <StatusPill status={s.status} briefing={s.sp_briefing_status} />
                                     )}
                                 </td>
                                 <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">
@@ -230,5 +285,7 @@ export default function StaffList({ staffs, onOpen, onEdit, onDelete, canEdit, c
                 </tbody>
             </table>
         </div>
+        {pager}
+        </>
     );
 }

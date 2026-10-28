@@ -64,3 +64,6 @@ export function isNewThisWeek(staff) {
 
 // status values in the database are not consistent in case ("active", "Inactive")
 export const isActiveStatus = (status) => String(status || 'active').trim().toLowerCase() === 'active';
+
+// 'pending' = SP Rules briefing not approved yet (the worker becomes active after approval)
+export const isPendingStatus = (status) => String(status || '').trim().toLowerCase() === 'pending';

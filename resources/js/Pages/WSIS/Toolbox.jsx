@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react'; // Add usePage here
 import AppLayout from '@/Pages/WSIS/Layout';
+import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
 import { showAlert } from '@/Helpers/alert';
 import AttendeePicker from '@/Components/shared/AttendeePicker';
 import SpPerSubcon, { spGroups } from '@/Components/shared/SpPerSubcon';
@@ -19,6 +20,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
   const [successMessage, setSuccessMessage] = useState('');
   const dropdownRef = useRef(null);
   const [toolboxTalks, setToolboxTalks] = useState(talksFromLaravel || []);
+  const [viewingTalk, setViewingTalk] = useState(null);
 
   // Form handling
   const { data, setData, post, processing, errors, reset } = useForm({
@@ -119,6 +121,11 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
 
   const handleSubmit = (e) => {
     e.preventDefault();
+
+    if (data.attendee_ids.length === 0) {
+      showAlert.warning('Select at least one person for Safety Passport sampling.', 'Safety Passport sampling');
+      return;
+    }
 
     if (data.conducted === 'yes' && data.categories.length === 0) {
       showAlert.warning('Select at least one toolbox category for this talk.', 'Category required');
@@ -286,7 +293,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                   </h3>
 
                   <div className="mb-6">
-                    <label className="block text-sm font-medium text-gray-700 mb-3">Was the toolbox talk conducted?</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Do you want to conduct a Toolbox Talk?</label>
                     <div className="flex space-x-6">
                       <label className="flex items-center p-3 border-2 border-transparent rounded-lg cursor-pointer transition-all duration-200 hover:border-blue-200 bg-gray-50">
                         <input
@@ -297,7 +304,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                           onChange={() => setData('conducted', 'yes')}
                           className="h-4 w-4 text-blue-600 focus:ring-blue-500"
                         />
-                        <span className="ml-3 text-sm font-medium text-gray-700">Yes</span>
+                        <span className="ml-3 text-sm font-medium text-gray-700">Yes &ndash; Proceed with Toolbox Talk.</span>
                       </label>
                       <label className="flex items-center p-3 border-2 border-transparent rounded-lg cursor-pointer transition-all duration-200 hover:border-gray-200 bg-gray-50">
                         <input
@@ -308,7 +315,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                           onChange={() => setData('conducted', 'no')}
                           className="h-4 w-4 text-gray-600 focus:ring-gray-500"
                         />
-                        <span className="ml-3 text-sm font-medium text-gray-700">No</span>
+                        <span className="ml-3 text-sm font-medium text-gray-700">No &ndash; Skip to Safety Passport Sampling.</span>
                       </label>
                     </div>
                   </div>
@@ -631,8 +638,8 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-4">
-                      <button className="text-blue-600 hover:text-blue-800">
-                        View
+                      <button type="button" className={tableViewActionClass} onClick={() => setViewingTalk(talk)} title="View toolbox talk" aria-label="View toolbox talk">
+                        <TableViewIcon />
                       </button>
                       <button className="text-green-600 hover:text-green-800">
                         Edit
@@ -670,6 +677,27 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
         </div>
       </div>
     </div>
+    {viewingTalk && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation" onClick={() => setViewingTalk(null)}>
+        <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-label="Toolbox talk details" onClick={(event) => event.stopPropagation()}>
+          <div className="flex items-start justify-between gap-4">
+            <h2 className="text-xl font-bold text-gray-800">Toolbox talk details</h2>
+            <button type="button" onClick={() => setViewingTalk(null)} className="rounded p-1 text-gray-500 hover:bg-gray-100" aria-label="Close details">✕</button>
+          </div>
+          <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
+            {[
+              ['Date', viewingTalk.date ? new Date(viewingTalk.date).toLocaleDateString('en-GB') : '—'],
+              ['Project', viewingTalk.project || '—'],
+              ['Inspector', viewingTalk.staffinpection || viewingTalk.name || '—'],
+              ['Conducted', viewingTalk.status === 'yes' ? 'Yes' : 'No'],
+              ['Total attended', viewingTalk.attendance ?? '—'],
+              ['Safety Passport compliance', viewingTalk.sp_compliance == null ? '—' : `${Number(viewingTalk.sp_compliance).toFixed(0)}%`],
+            ].map(([label, value]) => <div key={label}><dt className="font-semibold text-gray-500">{label}</dt><dd className="mt-1 text-gray-900">{value}</dd></div>)}
+            <div className="sm:col-span-2"><dt className="font-semibold text-gray-500">Categories</dt><dd className="mt-1 text-gray-900">{viewingTalk.topics?.join(', ') || '—'}</dd></div>
+          </dl>
+        </div>
+      </div>
+    )}
     </Shell>
   );
 };

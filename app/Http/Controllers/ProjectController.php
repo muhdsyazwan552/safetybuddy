@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -200,8 +201,8 @@ class ProjectController extends Controller
             'address' => 'required|string'
         ]);
 
-        // a new executor stays Inactive until its leader completes the safety induction
-        Executor::create([
+        // a new executor stays Inactive until its leader acknowledges the Safety Passport rules
+        \App\Support\SeriesCodes::createSubconCompany((int) $user->company_id, [
             'name' => $validated['name'],
             'email' => $validated['email'],
             'contact' => $validated['contact'],
@@ -217,7 +218,7 @@ class ProjectController extends Controller
     public function storeExStaff(Request $request)
 {
     $validated = $request->validate([
-        'company_id' => 'required|exists:subcon_company,id',
+        'company_id' => ['required', \Illuminate\Validation\Rule::exists('subcon_company', 'id')->where('company_id', Auth::user()->company_id)],
         'name' => 'required|string|max:255',
         'role' => 'required|string|max:255',
         'email' => 'nullable|email|max:255|unique:subcon_staff,email',
@@ -225,7 +226,7 @@ class ProjectController extends Controller
         'status' => 'required|in:active,inactive',
     ]);
 
-    $staff = SubconStaff::create([
+    $staff = \App\Support\SeriesCodes::createSubconStaff((int) $validated['company_id'], [
         'company_id' => $validated['company_id'],
         'name' => $validated['name'],
         'role' => $validated['role'],
@@ -249,12 +250,13 @@ class ProjectController extends Controller
 
     public function update(Request $request, Executor $executor)
     {
+        abort_unless((int) $executor->company_id === (int) Auth::user()->company_id, 403);
+
         $validated = $request->validate([
-            'name' => 'sometimes|string|max:255',
-            'short_name' => 'sometimes|string|max:10',
-            'contact_email' => 'sometimes|email',
-            'phone' => 'sometimes|string|max:20',
-            'address' => 'sometimes|string'
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'contact' => ['required', 'string', 'max:20'],
+            'address' => ['required', 'string'],
         ]);
 
         $executor->update($validated);
@@ -264,6 +266,26 @@ class ProjectController extends Controller
 
     public function destroy(Executor $executor)
     {
+        abort_unless((int) $executor->company_id === (int) Auth::user()->company_id, 403);
+
+        $hasAssignments = DB::table('project_assign')
+            ->whereIn('entity_type', ['compsub', 'subcon'])
+            ->where('entity_id', $executor->id)
+            ->exists();
+        $hasStaff = $executor->subconStaff()->exists();
+        $historyTables = [
+            'subcon_induction_acks', 'subcon_machineries', 'manhours', 'manhour_attendances',
+            'incident', 'inspections', 'inspection_reports', 'monthly_reports', 'toolbox_talk_sp',
+        ];
+        $hasHistory = collect($historyTables)->contains(fn ($table) => Schema::hasTable($table)
+            && Schema::hasColumn($table, 'subcon_company_id')
+            && DB::table($table)->where('subcon_company_id', $executor->id)->exists());
+        if ($hasAssignments || $hasStaff || $hasHistory) {
+            throw ValidationException::withMessages([
+                'company' => 'This executor has staff, project assignments, or recorded history. Remove those links before deleting the company.',
+            ]);
+        }
+
         $executor->delete();
         return redirect()->back()->with('success', 'Executor deleted successfully');
     }

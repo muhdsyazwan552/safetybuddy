@@ -4,9 +4,10 @@ import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import {
     CalendarDays, UserRound, HardHat, ClipboardCheck, MapPin, Building2, Pencil, Check, X, Users,
-    AlertTriangle, CheckCircle2, Clock, ShieldCheck, Send, Image as ImageIcon,
+    AlertTriangle, CheckCircle2, Clock, ShieldCheck, Image as ImageIcon,
 } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { EVAL, EvalBadge, StatusBadge, fmtDate } from '@/Components/inspector/kit';
 
 const EDITABLE = ['pending_verification', 'rejected'];
@@ -26,6 +27,12 @@ export default function VisitShow({ visit, me = null, user }) {
     const canEdit = (x) => isMine(x) && EDITABLE.includes(x.status);
     const ownVisit = isMine(visit);
     const inspections = visit.inspections || [];
+    const editableItems = [
+        ...(t && canEdit(t) ? [{ key: 'talk', label: 'Edit toolbox talk', href: `/inspector/toolbox-talks/${t.id}/edit` }] : []),
+        ...inspections.flatMap((i, index) => canEdit(i) ? [{
+            key: `inspection-${i.id}`, label: `Edit inspection ${index + 1}`, href: `/inspector/inspections/${i.id}/edit`,
+        }] : []),
+    ];
     const meaning = { ...(MEANING[visit.status] || MEANING.pending_verification) };
     if (visit.status === 'rejected' && !ownVisit) {
         meaning.title = `Returned to ${visit.by || 'the inspector'}`;
@@ -71,8 +78,23 @@ export default function VisitShow({ visit, me = null, user }) {
                             <p className="text-sm opacity-90">{meaning.text}</p>
                         </div>
                     </div>
-                    <Progress status={visit.status} />
                 </section>
+
+                <ReviewProgress kind="visit" status={visit.status} />
+
+                {editableItems.length > 0 && (
+                    <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <h2 className="text-sm font-extrabold text-gray-900">Edit site visit</h2>
+                        <p className="mt-1 text-xs text-gray-500">Choose the part you want to update.</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {editableItems.map((item) => (
+                                <Link key={item.key} href={item.href} className="inline-flex items-center gap-1.5 rounded-xl bg-ink-900 px-3 py-2 text-xs font-bold text-white hover:bg-ink-700">
+                                    <Pencil className="h-3.5 w-3.5" /> {item.label}
+                                </Link>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 {/* What needs fixing */}
                 {returned.length > 0 && (
@@ -229,39 +251,6 @@ export default function VisitShow({ visit, me = null, user }) {
                 </Link>
             </div>
         </InspectorLayout>
-    );
-}
-
-/** Submitted -> Verified -> Approved, with the returned case shown on the step that sent it back. */
-function Progress({ status }) {
-    const reached = { pending_verification: 1, verified: 2, approved: 3, rejected: 1 }[status] || 1;
-    const steps = [
-        { label: 'Submitted', who: 'You', icon: Send },
-        { label: 'Verified', who: 'Supervisor', icon: ShieldCheck },
-        { label: 'Approved', who: 'Manager', icon: CheckCircle2 },
-    ];
-
-    return (
-        <ol className="mt-4 grid grid-cols-3 gap-1">
-            {steps.map((s, n) => {
-                const done = n < reached;
-                const returnedHere = status === 'rejected' && n === 1;
-                const current = !done && n === reached && status !== 'rejected';
-                return (
-                    <li key={s.label} className="relative flex flex-col items-center text-center">
-                        {n > 0 && <span className={`absolute right-1/2 top-4 -z-0 h-0.5 w-full ${done ? 'bg-current' : 'bg-black/10'}`} />}
-                        <span className={`relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 ${
-                            returnedHere ? 'border-red-500 bg-red-500 text-white'
-                                : done ? 'border-current bg-current' : current ? 'border-current bg-white' : 'border-black/10 bg-white text-gray-300'
-                        }`}>
-                            {returnedHere ? <X className="h-4 w-4" /> : done ? <Check className="h-4 w-4 text-white" /> : <s.icon className="h-4 w-4" />}
-                        </span>
-                        <span className="mt-1 text-xs font-bold">{returnedHere ? 'Returned' : s.label}</span>
-                        <span className="text-[10px] opacity-70">{s.who}</span>
-                    </li>
-                );
-            })}
-        </ol>
     );
 }
 

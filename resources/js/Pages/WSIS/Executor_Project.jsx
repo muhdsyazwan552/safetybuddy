@@ -4,17 +4,15 @@ import AppLayout from '@/Pages/WSIS/Layout';
 import { showAlert } from '@/Helpers/alert';
 import ShareSubconLink from '@/Components/shared/ShareSubconLink';
 
-const ExecutorManagement = ({ title, executors: initialExecutors }) => {
-  const { companies } = usePage().props;
-  const { errors } = usePage().props;
-  const [executorCompanies, setExecutorCompanies] = useState(initialExecutors || []);
-  const { flash } = usePage().props;
+const ExecutorManagement = ({ title }) => {
+  const { companies = [], flash } = usePage().props;
 
   // State for UI controls
   const [searchTerm, setSearchTerm] = useState('');
   const [entriesToShow, setEntriesToShow] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [showAddExecutorModal, setShowAddExecutorModal] = useState(false);
+  const [editingCompany, setEditingCompany] = useState(null);
   const [shareCompany, setShareCompany] = useState(null);
 
   // Show flash messages
@@ -28,18 +26,38 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
   }, [flash]);
 
   // Form handling
-  const { data, setData, post, processing, reset } = useForm({
+  const { data, setData, post, put, processing, reset, errors, clearErrors } = useForm({
     name: '',
     email: '',
     contact: '',
     address: ''
   });
 
+  const closeModal = () => {
+    setShowAddExecutorModal(false);
+    setEditingCompany(null);
+    reset();
+    clearErrors();
+  };
+
+  const handleEdit = (company) => {
+    clearErrors();
+    setEditingCompany(company);
+    setData({
+      name: company.name || '',
+      email: company.email || '',
+      contact: company.contact || '',
+      address: company.address || '',
+    });
+    setShowAddExecutorModal(true);
+  };
+
   // Filter companies based on search
   const filteredCompanies = companies.filter(company => {
     const search = searchTerm.toLowerCase();
     return (
       company.name?.toLowerCase().includes(search) ||
+      company.code?.toLowerCase().includes(search) ||
       company.email?.toLowerCase().includes(search) ||
       company.contact?.toLowerCase().includes(search)
     );
@@ -51,16 +69,18 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
   const paginatedCompanies = filteredCompanies.slice(startIndex, startIndex + entriesToShow);
 
   // Handle adding new executor
-  const handleAddExecutor = () => {
-    post(route('admin.company.store'), {
-      data,
+  const handleSaveExecutor = (event) => {
+    event.preventDefault();
+    const save = editingCompany ? put : post;
+    const url = editingCompany
+      ? route('admin.company.update', editingCompany.id)
+      : route('admin.company.store');
+    save(url, {
       onSuccess: () => {
-        reset();
-        setShowAddExecutorModal(false);
-        showAlert.success('Executor company created successfully!');
+        closeModal();
       },
       onError: (errors) => {
-        showAlert.error('Failed to create executor company');
+        showAlert.error(Object.values(errors).join('\n') || 'Could not save executor company.');
       },
       preserveScroll: true
     });
@@ -74,12 +94,13 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
     );
 
     if (confirmed) {
-      router.delete(`/admin/companies/${id}`, {
+      router.delete(route('admin.company.destroy', id), {
+        preserveScroll: true,
         onSuccess: () => {
           showAlert.success('Company deleted successfully!');
         },
-        onError: () => {
-          showAlert.error('Failed to delete company');
+        onError: (errors) => {
+          showAlert.error(Object.values(errors).join('\n') || 'Failed to delete company');
         }
       });
     }
@@ -172,6 +193,7 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
                             {getCompanyInitials(company.name)}
                           </div>
                           <div className="font-medium text-gray-900">{company.name}</div>
+                          {company.code && <div className="text-xs font-semibold text-gray-500">{company.code}</div>}
                         </div>
                       </td>
                       <td className="px-6 py-4">
@@ -195,7 +217,7 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-4">
+                        <div className="flex items-center justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => setShareCompany(company)}
@@ -209,24 +231,29 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
                           </button>
                           <Link
                             href={route('executor.staff', { id: company.id })}
-                            className="text-blue-600 hover:text-blue-800"
+                            className="rounded p-1 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-900"
+                            title="View details"
+                            aria-label={`View ${company.name} details`}
                           >
-                            View Detail
+                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z" /><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd" /></svg>
                           </Link>
                           <button
-                            className="text-green-600 hover:text-green-800"
-                            onClick={() => {
-                              // Handle edit
-                              showAlert.info('Edit functionality coming soon');
-                            }}
+                            type="button"
+                            className="rounded p-1 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-900"
+                            onClick={() => handleEdit(company)}
+                            title="Edit"
+                            aria-label={`Edit ${company.name}`}
                           >
-                            Edit
+                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" /></svg>
                           </button>
                           <button
-                            className="text-red-600 hover:text-red-800"
+                            type="button"
+                            className="rounded p-1 text-red-600 transition-colors hover:bg-red-50 hover:text-red-900"
                             onClick={() => handleDelete(company.id, company.name)}
+                            title="Delete"
+                            aria-label={`Delete ${company.name}`}
                           >
-                            Delete
+                            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
                           </button>
                         </div>
                       </td>
@@ -278,7 +305,7 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
           </div>
         </div>
 
-        {/* Add Executor Modal */}
+        {/* Create and edit executor company */}
         {showAddExecutorModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-md">
@@ -286,15 +313,13 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">Add New Executor Company</h2>
-                    <p className="text-sm text-gray-600 mt-1">Fill in the company details</p>
+                    <h2 className="text-xl font-bold text-gray-800">{editingCompany ? 'Edit Executor Company' : 'Add New Executor Company'}</h2>
+                    <p className="text-sm text-gray-600 mt-1">{editingCompany ? 'Update the company details' : 'Fill in the company details'}</p>
                   </div>
                   <button
                     className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
-                    onClick={() => {
-                      setShowAddExecutorModal(false);
-                      reset();
-                    }}
+                    onClick={closeModal}
+                    aria-label="Close company form"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -303,7 +328,7 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
                 </div>
               </div>
 
-              <div className="p-6">
+              <form className="p-6" onSubmit={handleSaveExecutor}>
                 {errors && Object.keys(errors).length > 0 && (
                   <div className="mb-4 p-4 bg-red-50 text-red-600 rounded-lg">
                     {Object.values(errors).map((error, index) => (
@@ -362,23 +387,21 @@ const ExecutorManagement = ({ title, executors: initialExecutors }) => {
 
                 <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
                   <button
-                    onClick={() => {
-                      setShowAddExecutorModal(false);
-                      reset();
-                    }}
+                    type="button"
+                    onClick={closeModal}
                     className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleAddExecutor}
+                    type="submit"
                     disabled={processing}
                     className="px-6 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-ink-900 rounded-lg hover:from-brand-400 hover:to-brand-500 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
                   >
-                    {processing ? 'Creating...' : 'Add Executor'}
+                    {processing ? 'Saving...' : editingCompany ? 'Save Changes' : 'Add Executor'}
                   </button>
                 </div>
-              </div>
+              </form>
             </div>
           </div>
         )}

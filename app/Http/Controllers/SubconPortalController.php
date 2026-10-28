@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
- * Public subcontractor portal – safety induction ticks, machinery and staff certifications.
+ * Public subcontractor portal – Safety Passport rules, machinery and staff certifications.
  *  - induction + machinery: company LEADER only (secret leader key)
  *  - certification upload: any staff of the company
  *  - certification removal: leader only
@@ -116,6 +116,22 @@ class SubconPortalController extends Controller
     // ------------------------------------------------------------------ NC / CC cases
 
     /** The leader gives the reason / corrective action for a case raised against the company. */
+    /** Leader only: one NC / CC case on its own page, with the reply box. */
+    public function showCase(Request $request, string $token, string $type, int $id)
+    {
+        $company = $this->leaderCompany($request, $token);
+
+        $case = \App\Support\CaseFeed::model($type)::with(\App\Support\CaseFeed::WITH)->findOrFail($id);
+        abort_unless((int) optional($case->inspection)->subcon_company_id === (int) $company->id, 404);
+
+        return \Inertia\Inertia::render('SubconPublic/CaseDetail', [
+            'company' => ['name' => $company->name, 'code' => $company->code],
+            'item' => \App\Support\CaseFeed::row($type, $case),
+            'public_token' => $token,
+            'leader_key' => $request->query('leader_key'),
+        ]);
+    }
+
     public function respondCase(Request $request, string $token, string $type, int $id): RedirectResponse
     {
         $company = $this->leaderCompany($request, $token);
@@ -135,7 +151,7 @@ class SubconPortalController extends Controller
         return back()->with('success', 'Your response was sent for review.');
     }
 
-    // ------------------------------------------------------------------ safety induction
+    // ------------------------------------------------------------------ Safety Passport
 
     public function toggleInduction(Request $request, string $token, int $topicId): RedirectResponse
     {
@@ -163,26 +179,11 @@ class SubconPortalController extends Controller
         return back()->with(
             $progress['complete'] ? 'success' : 'info',
             $progress['complete']
-                ? 'All safety induction topics are acknowledged. The company is now ACTIVE.'
-                : "Safety induction {$progress['done']}/{$progress['total']} – the company stays INACTIVE until every topic is ticked."
+                ? 'All Safety Passport rules are acknowledged. The company is ACTIVE.'
+                : "Safety Passport {$progress['done']}/{$progress['total']} – tick every rule to continue."
         );
     }
 
-    public function acknowledgeAll(Request $request, string $token): RedirectResponse
-    {
-        $company = $this->leaderCompany($request, $token);
-
-        foreach (SubconCompliance::topicsFor($company) as $topic) {
-            DB::table('subcon_induction_acks')->updateOrInsert(
-                ['subcon_company_id' => $company->id, 'topic_id' => $topic->id],
-                ['acknowledged_at' => now(), 'updated_at' => now(), 'created_at' => now()]
-            );
-        }
-
-        SubconCompliance::sync($company);
-
-        return back()->with('success', 'All safety induction topics are acknowledged. The company is now ACTIVE.');
-    }
 
     // ------------------------------------------------------------------ machinery
 
@@ -264,6 +265,44 @@ class SubconPortalController extends Controller
         $machine->delete();
 
         return back()->with('success', 'Machinery removed.');
+    }
+
+    // ------------------------------------------------------------------ Safety Passport reference PDF
+
+    /** Any staff or the leader: every Safety Passport rule with its full content, for reference. */
+    public function passportPdf(string $token)
+    {
+        $company = $this->company($token);
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.safety_passport', [
+            'company' => $company,
+            'topics' => SubconCompliance::topicsFor($company),
+            'generatedAt' => now()->format('d M Y H:i'),
+        ])->setPaper('a4', 'portrait')->stream('safety-passport.pdf');
+    }
+
+    // ------------------------------------------------------------------ staff PDF report
+
+    /** Leader only: PDF list of the staff, all or active only. */
+    public function staffReport(Request $request, string $token)
+    {
+        $company = $this->leaderCompany($request, $token);
+        $filter = $request->query('filter') === 'active' ? 'active' : 'all';
+
+        $staff = SubconStaff::where('company_id', $company->id)
+            ->when($filter === 'active', fn ($q) => $q->where('status', 'active'))
+            ->orderBy('serial_no')->orderBy('id')->get();
+
+        $approvers = \App\Models\CompanyStaff::whereIn('id', $staff->pluck('supervisor_approved_by')->merge($staff->pluck('manager_approved_by'))->filter()->unique())
+            ->pluck('name', 'id');
+
+        return \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.subcon_staff', [
+            'company' => $company,
+            'staff' => $staff,
+            'approvers' => $approvers,
+            'filter' => $filter,
+            'generatedAt' => now()->format('d M Y H:i'),
+        ])->setPaper('a4', 'landscape')->stream('staff-' . $filter . '-' . ($company->code ? str_replace('/', '-', $company->code) : $company->id) . '.pdf');
     }
 
     // ------------------------------------------------------------------ staff certifications

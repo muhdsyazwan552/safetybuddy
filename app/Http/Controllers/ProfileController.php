@@ -19,11 +19,19 @@ class ProfileController extends Controller
     public function edit(Request $request): Response
     {
         $user = $request->user()->loadMissing('role', 'company');
+        $isCompanyAdmin = (int) $user->role_id === 2 && $user->company;
+        $subscription = $isCompanyAdmin
+            ? SubscriptionPlanController::detailsForCompany((int) $user->company_id)
+            : null;
 
         return Inertia::render('Profile/Edit', [
             'title' => 'Settings',
-            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail && $user->email_verification_required,
             'status' => session('status'),
+            'company' => $isCompanyAdmin ? $user->company->only([
+                'id', 'code', 'name', 'registration_no', 'email', 'contact', 'address', 'status',
+            ]) : null,
+            'subscription' => $subscription,
             'account' => [
                 'role' => $user->role->display_name ?? $user->role->name ?? null,
                 'role_id' => $user->role_id,
@@ -41,11 +49,26 @@ class ProfileController extends Controller
     {
         $request->user()->fill($request->validated());
 
-        if ($request->user()->isDirty('email')) {
+        $emailChanged = $request->user()->isDirty('email');
+        if ($emailChanged) {
             $request->user()->email_verified_at = null;
         }
 
         $request->user()->save();
+
+        if ($emailChanged && $request->user()->email_verification_required) {
+            $request->session()->put('verification_email', $request->user()->email);
+            $request->session()->forget('verification_delivery_failed');
+
+            try {
+                $request->user()->sendEmailVerificationNotification();
+            } catch (\Throwable $exception) {
+                report($exception);
+                $request->session()->put('verification_delivery_failed', true);
+            }
+
+            return Redirect::route('verification.notice');
+        }
 
         return Redirect::route('profile.edit')->with('success', 'Profile updated');
     }

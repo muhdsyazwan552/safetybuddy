@@ -35,7 +35,7 @@ class SubconPublicController extends Controller
 
         $accessLevel = $role === 'leader' ? 'full' : 'limited';
 
-        // Active only while every safety-induction topic is acknowledged
+        // Active only while every Safety Passport rule is acknowledged
         $progress = SubconCompliance::sync($company);
         $company->refresh();
 
@@ -122,6 +122,7 @@ class SubconPublicController extends Controller
             'hours_per_worker' => \App\Support\ManhourAttendance::HOURS_PER_WORKER,
             'company' => [
                 'id' => $company->id,
+                'code' => $company->code,
                 'name' => $company->name,
                 'email' => $company->email,
                 'contact' => $company->contact,
@@ -172,25 +173,52 @@ class SubconPublicController extends Controller
             'email' => 'required|email|unique:subcon_staff,email',
             'contact' => 'nullable|string|max:20',
             'role' => 'nullable|string|max:100',
+            'passport_topics' => 'required|array',
+            'passport_topics.*' => 'integer',
+            'cert_title' => 'nullable|required_with:cert_file|string|max:255',
+            'cert_expiry' => 'nullable|date',
+            'cert_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120'],
+        ], [
+            'passport_topics.required' => 'Tick every Safety Passport item before registering.',
+            'cert_title.required_with' => 'Give the certification a name.',
         ]);
+
+        // every active Safety Passport item must be ticked
+        $required = \App\Support\SubconCompliance::topicsFor($company)->pluck('id')->map(fn ($id) => (int) $id);
+        if ($required->diff(array_map('intval', $validated['passport_topics']))->isNotEmpty()) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'passport_topics' => 'Tick every Safety Passport item before registering.',
+            ]);
+        }
 
         // Generate a temporary password
         $tempPassword = Str::random(10);
 
-        $staff = SubconStaff::create([
+        $staff = \App\Support\SeriesCodes::createSubconStaff((int) $company->id, [
             'company_id' => $company->id,
             'name' => $validated['name'],
             'email' => $validated['email'],
             'contact' => $validated['contact'] ?? null,
             'role' => $validated['role'] ?? 'Staff',
-            'status' => 'active',
+            'is_safetypassport' => true,
             'temp_password' => Hash::make($tempPassword),
         ]);
+
+        if ($request->hasFile('cert_file')) {
+            $file = $request->file('cert_file');
+            \App\Models\SubconStaffCertification::create([
+                'subcon_staff_id' => $staff->id,
+                'title' => trim($validated['cert_title']),
+                'expiry_date' => $validated['cert_expiry'] ?? null,
+                'file' => $file->store("subcon/{$company->id}/certifications", 'public'),
+                'original_name' => $file->getClientOriginalName(),
+            ]);
+        }
 
         // You can send email with temporary password here
         // Mail::to($staff->email)->send(new StaffInvitation($staff, $tempPassword));
 
-        return redirect()->back()->with('success', 'Staff member added successfully!');
+        return redirect()->back()->with('success', 'Staff registered. Status is Pending until the Supervisor and the Manager both approve.');
     }
 
     /**
@@ -213,6 +241,10 @@ class SubconPublicController extends Controller
         ]);
 
         unset($validated['leader_key']);
+        // a worker stays Pending until the Supervisor and the Manager approve - it cannot be switched by hand
+        if ($staff->status === 'pending') {
+            unset($validated['status']);
+        }
         $staff->update($validated);
 
         return redirect()->back()->with('success', 'Staff member updated successfully!');
@@ -228,6 +260,7 @@ class SubconPublicController extends Controller
             ->where('id', $staffId)
             ->firstOrFail();
 
+        \Illuminate\Support\Facades\DB::table('subcon_briefing_workers')->where('subcon_staff_id', $staff->id)->delete();
         $staff->delete();
 
         return redirect()->back()->with('success', 'Staff member removed successfully!');

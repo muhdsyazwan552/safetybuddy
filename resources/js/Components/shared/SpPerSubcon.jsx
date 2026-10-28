@@ -38,7 +38,7 @@ export default function SpPerSubcon({ staff = [], attendees = [], value = {}, on
     return (
         <div className="rounded-2xl border border-gray-200 bg-white p-4">
             <h3 className="text-base font-extrabold text-gray-900">Safety Passport sampling</h3>
-            <p className="mb-3 text-xs text-gray-500">Per subcontractor. The workers sampled are the staff you ticked; enter how many have no valid Safety Passport.</p>
+            <p className="mb-3 text-xs text-gray-500">To verify that workers are registered under the project workforce and have acknowledged the Safety Passport rules through the Contractor Portal. Unregistered workers are considered to have unverified awareness and commitment to comply with project safety requirements.</p>
 
             <div className="space-y-3">
                 {groups.map((g) => {

@@ -3,6 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, MapPin, FolderKanban, CheckCircle2, Loader2 } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import { SectionCard, InfoRow, EvalBadge, StatusBadge, fmtDate } from '@/Components/inspector/kit';
+import PdfButton from '@/Components/shared/PdfButton';
 
 function Actions({ i, can_verify, can_approve }) {
     const [busy, setBusy] = useState(false);
@@ -58,9 +59,12 @@ export default function InspectionShow({ inspection: i, can_verify, can_approve 
         <ReviewLayout title="Inspection">
             <Head title={`Inspection #${i.id}`} />
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
-                <Link href="/review/visits" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
-                    <ArrowLeft className="h-4 w-4" /> Back to site visits
-                </Link>
+                <div className="flex items-center justify-between gap-3">
+                    <Link href="/review/visits" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                        <ArrowLeft className="h-4 w-4" /> Back to site visits
+                    </Link>
+                    {i.status === 'approved' && <PdfButton href={`/pdf/inspection/${i.id}`} />}
+                </div>
 
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
                     <div className="flex items-start justify-between gap-3">

@@ -2,7 +2,7 @@
 // Side panel (bottom sheet on phones) showing one staff member's full record.
 import React, { useEffect } from 'react';
 import { X, Check, Minus, Pencil, Trash2, Phone, Mail, CalendarDays, Clock, BadgeCheck } from 'lucide-react';
-import { REQUIRED_FIELDS, completeness, formatDate, timeAgo, initials, isActiveStatus } from './staffUtils';
+import { REQUIRED_FIELDS, completeness, formatDate, timeAgo, initials, isActiveStatus, isPendingStatus } from './staffUtils';
 import CertificationsSection from './CertificationsSection';
 
 export default function StaffDrawer({ staff, onClose, onEdit, onDelete, canEdit, canDelete, isLeader = false, publicToken, leaderKey }) {
@@ -20,6 +20,7 @@ export default function StaffDrawer({ staff, onClose, onEdit, onDelete, canEdit,
 
     if (!staff) return null;
     const info = completeness(staff);
+    const pending = isPendingStatus(staff.status);
     const active = isActiveStatus(staff.status);
 
     return (
@@ -37,10 +38,11 @@ export default function StaffDrawer({ staff, onClose, onEdit, onDelete, canEdit,
                         </span>
                         <div className="min-w-0">
                             <h3 className="truncate text-lg font-extrabold">{staff.name}</h3>
+                            {staff.code && <p className="truncate text-xs font-bold text-brand-400">{staff.code}</p>}
                             <p className="truncate text-sm text-gray-300">{staff.role || 'No role set'}</p>
-                            <span className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-gray-300'}`}>
-                                <span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-emerald-400' : 'bg-gray-400'}`} />
-                                {active ? 'Active' : 'Inactive'}
+                            <span className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${pending ? 'bg-amber-400/20 text-amber-200' : active ? 'bg-emerald-500/20 text-emerald-300' : 'bg-white/10 text-gray-300'}`}>
+                                <span className={`h-1.5 w-1.5 rounded-full ${pending ? 'bg-amber-300' : active ? 'bg-emerald-400' : 'bg-gray-400'}`} />
+                                {pending ? 'Pending' : active ? 'Active' : 'Inactive'}
                             </span>
                         </div>
                     </div>
@@ -85,6 +87,28 @@ export default function StaffDrawer({ staff, onClose, onEdit, onDelete, canEdit,
                                     </li>
                                 );
                             })}
+                        </ul>
+                    </div>
+
+                    {/* safety passport + approval */}
+                    <div>
+                        <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Safety Passport</p>
+                        <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 text-sm">
+                            {[
+                                ['Safety Passport (all items ticked)', staff.is_safetypassport ? 'Yes' : null],
+                                ['Supervisor approval', staff.supervisor_approved_at ? formatDate(staff.supervisor_approved_at) : null],
+                                ['Manager approval', staff.manager_approved_at ? formatDate(staff.manager_approved_at) : null],
+                            ].map(([label, value]) => (
+                                <li key={label} className="flex items-center gap-3 px-4 py-3">
+                                    <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${value ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'}`}>
+                                        {value ? <Check className="h-4 w-4" strokeWidth={3} /> : <Clock className="h-4 w-4" />}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{label}</p>
+                                        <p className={`text-sm font-semibold ${value ? 'text-gray-900' : 'text-amber-700'}`}>{value ? (value === 'Yes' ? value : `Approved ${value}`) : label === 'Safety Passport (all items ticked)' ? 'No' : 'Waiting'}</p>
+                                    </div>
+                                </li>
+                            ))}
                         </ul>
                     </div>
 

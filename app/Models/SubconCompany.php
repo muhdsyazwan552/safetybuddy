@@ -15,12 +15,20 @@ class SubconCompany extends Model
 
     protected $fillable = [
         'name',
+        'code',
+        'code_prefix',
+        'serial_no',
         'email',
         'contact',
         'address',
         'status',
         'company_id',
-        'public_token'
+        'public_token',
+        'briefing_approved_at'
+    ];
+
+    protected $casts = [
+        'briefing_approved_at' => 'datetime',
     ];
 
 
