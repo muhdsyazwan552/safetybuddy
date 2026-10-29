@@ -337,26 +337,28 @@ export default function Safety_Induction({ topics = [], defaultCount = 14 }) {
                                                 <span className="block truncate text-[15px] font-extrabold text-gray-900">{t.title}</span>
                                                 {t.items[0] && <span className="block max-w-xl truncate text-xs font-normal text-gray-500">{t.items[0].content}</span>}
                                                 <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                                                    {t.default_key ? <Badge tone="green">Default · locked</Badge> : <Badge tone="dark">Custom</Badge>}
+                                                    {t.default_key === 1 ? <Badge tone="green">Default · locked</Badge> : t.default_key ? <Badge tone="green">Default</Badge> : <Badge tone="dark">Custom</Badge>}
                                                     {!t.is_active && <Badge tone="red">Hidden</Badge>}
                                                     <span className="text-[11px] text-gray-400">{t.items.length} lines</span>
                                                 </span>
                                             </span>
                                         </button>
 
-                                        {t.default_key ? (
-                                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-500" title="Default rules are fixed"><Lock className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Locked</span></span>
+                                        {t.default_key === 1 ? (
+                                            <span className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-gray-100 px-3 py-2 text-xs font-bold text-gray-500" title="This rule is fixed"><Lock className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Locked</span></span>
                                         ) : (
                                         <div className="flex shrink-0 items-center gap-1">
+                                            {!t.default_key && <>
                                             <button onClick={() => move(t.id, -1)} disabled={customIdx === 0} className="hidden h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 sm:flex" title="Move up"><ChevronUp className="h-4 w-4" /></button>
                                             <button onClick={() => move(t.id, 1)} disabled={customIdx === customCount - 1} className="hidden h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100 disabled:opacity-30 sm:flex" title="Move down"><ChevronDown className="h-4 w-4" /></button>
+                                            </>}
                                             <button onClick={() => toggle(t)} className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100" title={t.is_active ? 'Hide from contractors' : 'Show to contractors'}>
                                                 {t.is_active ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                                             </button>
                                             <button onClick={() => (editing ? cancel() : startEdit(t))} className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-ink-900 px-3 text-xs font-bold text-brand-400" title="Edit">
                                                 <Pencil className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Edit</span>
                                             </button>
-                                            <button onClick={() => remove(t)} className="flex h-9 w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-50" title="Delete"><Trash2 className="h-4 w-4" /></button>
+                                            {!t.default_key && <button onClick={() => remove(t)} className="flex h-9 w-9 items-center justify-center rounded-xl text-red-500 hover:bg-red-50" title="Delete"><Trash2 className="h-4 w-4" /></button>}
                                         </div>
                                         )}
                                     </div>

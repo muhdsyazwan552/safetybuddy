@@ -16,8 +16,8 @@ use Inertia\Response;
 
 /**
  * Performance Settings > Safety Passport Rules.
- * The 14 default rules are fixed for every company (read only). The Manager can add, edit,
- * hide, delete and reorder their own extra topics.
+ * Rule 1 of the 14 defaults is fixed for every company (read only). The Manager can edit and hide
+ * rules 2-14, and add, edit, hide, delete and reorder their own extra topics.
  */
 class SafetyInductionController extends Controller
 {
@@ -26,10 +26,20 @@ class SafetyInductionController extends Controller
         return (int) Auth::user()->company_id;
     }
 
+    /** A topic the Manager may edit / hide: custom ones and defaults 2-14 (not topic 1). */
+    private function editableTopic(int $id): SafetyInductionTopic
+    {
+        $topic = SafetyInductionTopic::where('company_id', $this->companyId())->findOrFail($id);
+        abort_if($topic->default_key === SafetyInductionDefaults::LOCKED_KEY, 403, 'Safety Passport rule 1 is fixed and cannot be changed.');
+
+        return $topic;
+    }
+
+    /** A topic the Manager may delete / reorder: custom ones only. */
     private function ownTopic(int $id): SafetyInductionTopic
     {
         $topic = SafetyInductionTopic::where('company_id', $this->companyId())->findOrFail($id);
-        abort_unless($topic->default_key === null, 403, 'The default Safety Passport rules are fixed and cannot be changed.');
+        abort_unless($topic->default_key === null, 403, 'The default Safety Passport rules cannot be deleted.');
 
         return $topic;
     }
@@ -121,7 +131,7 @@ class SafetyInductionController extends Controller
 
     public function update(Request $request, int $id): RedirectResponse
     {
-        $topic = $this->ownTopic($id);
+        $topic = $this->editableTopic($id);
         $data = $request->validate($this->rules());
 
         DB::transaction(function () use ($topic, $data) {
@@ -140,8 +150,8 @@ class SafetyInductionController extends Controller
 
     public function toggle(int $id): RedirectResponse
     {
-        $topic = $this->ownTopic($id);
-        $topic->update(['is_active' => !$topic->is_active]);
+        $topic = $this->editableTopic($id);
+        $topic->update(['is_active' => !$topic->is_active, 'is_customised' => true]);
         $this->resync();
 
         return back()->with('success', $topic->is_active ? 'Topic is now shown to contractors.' : 'Topic is hidden from contractors.');

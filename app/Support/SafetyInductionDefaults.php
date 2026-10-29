@@ -12,7 +12,10 @@ use Illuminate\Support\Facades\DB;
  */
 class SafetyInductionDefaults
 {
-    private const MAP = ['p' => 'paragraph', 'h' => 'subheading', 'b' => 'bullet', 'hl' => 'highlight'];
+    /** Topic 1 (the briefing rule) is fixed; topics 2-14 can be edited or hidden by the Manager. */
+    public const LOCKED_KEY = 1;
+
+    private const MAP =['p' => 'paragraph', 'h' => 'subheading', 'b' => 'bullet', 'hl' => 'highlight'];
 
     public static function topics(): array
     {
@@ -95,8 +98,8 @@ class SafetyInductionDefaults
     }
 
     /**
-     * The 14 defaults are fixed for every company: create any that are missing and put back
-     * any that were edited or hidden. Custom topics are never touched.
+     * Create any of the 14 defaults that are missing and put topic 1 back if it was edited or
+     * hidden. Edits to topics 2-14 and custom topics are never touched.
      *
      * @return bool true when something changed (contractors then have to re-tick)
      */
@@ -114,11 +117,14 @@ class SafetyInductionDefaults
                 if (!$topic) {
                     self::createTopic($companyId, $key, $i + 1);
                     $changed = true;
-                } elseif ($topic->is_customised || !$topic->is_active || $topic->title !== $def['title'] || (int) $topic->sort_order !== $i + 1) {
+                } elseif ($key === self::LOCKED_KEY && ($topic->is_customised || !$topic->is_active || $topic->title !== $def['title'] || (int) $topic->sort_order !== $i + 1)) {
                     $topic->update(['title' => $def['title'], 'sort_order' => $i + 1, 'is_active' => true, 'is_customised' => false]);
                     $topic->items()->delete();
                     self::fillItems($topic, $def['blocks']);
                     $changed = true;
+                } elseif ($key !== self::LOCKED_KEY && (int) $topic->sort_order !== $i + 1) {
+                    // editable defaults keep the Manager's wording; only the position is fixed
+                    $topic->update(['sort_order' => $i + 1]);
                 }
             }
         });

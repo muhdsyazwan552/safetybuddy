@@ -491,6 +491,7 @@ class ContentController extends Controller
                 'involvedStaff:id,name,role',
                 'responses',
             ])
+            ->where('company_id', Auth::user()->company_id)
             ->when($request->year,  fn($q) => $q->whereYear('incident_date',  $request->year))
             ->when($request->month, fn($q) => $q->whereMonth('incident_date', $request->month));
 
