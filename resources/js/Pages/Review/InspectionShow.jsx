@@ -56,13 +56,13 @@ function Actions({ i, can_verify, can_approve }) {
     );
 }
 
-export default function InspectionShow({ inspection: i, can_verify, can_approve }) {
+// The page content, shared with the inspector's inspection page.
+// backHref: where "back" goes; caseHref: link of an NC / CC (null = the user has no case page, shown as text)
+export function InspectionDetail({ inspection: i, backHref = null, caseHref = (type, id) => `/review/cases/${type}/${id}`, children }) {
     return (
-        <ReviewLayout title="Inspection">
-            <Head title={`Inspection #${i.id}`} />
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
-                    <Link href={`/review/visits/${i.visit_key || `insp-${i.id}`}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                    <Link href={backHref || `/review/visits/${i.visit_key || `insp-${i.id}`}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
                         <ArrowLeft className="h-4 w-4" /> Back to toolbox talk & inspection
                     </Link>
                     {i.status === 'approved' && <PdfButton href={`/pdf/inspection/${i.id}`} />}
@@ -119,14 +119,28 @@ export default function InspectionShow({ inspection: i, can_verify, can_approve 
                 {(i.nc || i.cc) && (
                     <SectionCard title="Linked case">
                         <div className="flex flex-wrap gap-3">
-                            {i.nc && <Link href={`/review/cases/nc/${i.nc.id}`} className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">Non-conformance {i.nc.series_code || `#${i.nc.id}`} · {i.nc.status}</Link>}
-                            {i.cc && <Link href={`/review/cases/cc/${i.cc.id}`} className="rounded-xl bg-purple-50 px-4 py-2.5 text-sm font-bold text-purple-700">Client complaint {i.cc.series_code || `#${i.cc.id}`} · {i.cc.status}</Link>}
+                            {i.nc && (caseHref
+                                ? <Link href={caseHref('nc', i.nc.id)} className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">Non-conformance {i.nc.series_code} · {i.nc.status}</Link>
+                                : <span className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">Non-conformance {i.nc.series_code} · {i.nc.status}</span>)}
+                            {i.cc && (caseHref
+                                ? <Link href={caseHref('cc', i.cc.id)} className="rounded-xl bg-purple-50 px-4 py-2.5 text-sm font-bold text-purple-700">Client complaint {i.cc.series_code} · {i.cc.status}</Link>
+                                : <span className="rounded-xl bg-purple-50 px-4 py-2.5 text-sm font-bold text-purple-700">Client complaint {i.cc.series_code} · {i.cc.status}</span>)}
                         </div>
                     </SectionCard>
                 )}
 
-                <Actions i={i} can_verify={can_verify} can_approve={can_approve} />
+                {children}
             </div>
+    );
+}
+
+export default function InspectionShow({ inspection: i, can_verify, can_approve }) {
+    return (
+        <ReviewLayout title="Inspection">
+            <Head title={`Inspection ${i.series_code || ''}`.trim()} />
+            <InspectionDetail inspection={i}>
+                <Actions i={i} can_verify={can_verify} can_approve={can_approve} />
+            </InspectionDetail>
         </ReviewLayout>
     );
 }

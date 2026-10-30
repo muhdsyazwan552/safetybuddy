@@ -9,7 +9,8 @@ import PdfButton from '@/Components/shared/PdfButton';
 
 const pctOf = (sampled, notReg) => (sampled > 0 ? Math.round(((sampled - notReg) / sampled) * 10000) / 100 : null);
 
-export default function ToolboxShow({ talk: t }) {
+// The page content, shared with the inspector's toolbox talk page
+export function ToolboxDetail({ talk: t, backHref = null, children }) {
     const sampled = Number(t.sp_sampled) || 0;
     const notReg = Number(t.sp_not_registered) || 0;
     const registered = Math.max(0, sampled - notReg);
@@ -17,11 +18,9 @@ export default function ToolboxShow({ talk: t }) {
     const good = pct !== null && pct >= 80;
 
     return (
-        <ReviewLayout title="Toolbox talk">
-            <Head title={`Toolbox talk ${t.series_code || `#${t.id}`}`} />
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
-                    <Link href={`/review/visits/talk-${t.id}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                    <Link href={backHref || `/review/visits/talk-${t.id}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
                         <ArrowLeft className="h-4 w-4" /> Back to toolbox talk & inspection
                     </Link>
                     {t.status === 'approved' && <PdfButton href={`/pdf/toolbox/${t.id}`} />}
@@ -131,7 +130,16 @@ export default function ToolboxShow({ talk: t }) {
                         </div>
                     </SectionCard>
                 )}
+                {children}
             </div>
+    );
+}
+
+export default function ToolboxShow({ talk }) {
+    return (
+        <ReviewLayout title="Toolbox talk">
+            <Head title={`Toolbox talk ${talk.series_code || `#${talk.id}`}`} />
+            <ToolboxDetail talk={talk} />
         </ReviewLayout>
     );
 }

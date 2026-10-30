@@ -47,28 +47,8 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
-
-        $emailChanged = $request->user()->isDirty('email');
-        if ($emailChanged) {
-            $request->user()->email_verified_at = null;
-        }
-
-        $request->user()->save();
-
-        if ($emailChanged && $request->user()->email_verification_required) {
-            $request->session()->put('verification_email', $request->user()->email);
-            $request->session()->forget('verification_delivery_failed');
-
-            try {
-                $request->user()->sendEmailVerificationNotification();
-            } catch (\Throwable $exception) {
-                report($exception);
-                $request->session()->put('verification_delivery_failed', true);
-            }
-
-            return Redirect::route('verification.notice');
-        }
+        // name and phone only; the email cannot be edited
+        $request->user()->fill($request->validated())->save();
 
         return Redirect::route('profile.edit')->with('success', 'Profile updated');
     }

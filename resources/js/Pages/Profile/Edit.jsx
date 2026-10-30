@@ -80,7 +80,6 @@ const STRENGTH = [
 function ProfileForm({ user }) {
     const { data, setData, patch, processing, errors, recentlySuccessful, isDirty, reset } = useForm({
         name: user.name || '',
-        email: user.email || '',
         phone: user.phone || '',
     });
 
@@ -95,9 +94,10 @@ function ProfileForm({ user }) {
                 <Field label="Full name" error={errors.name} icon={User}>
                     <input className={`${inputClass} pl-12`} value={data.name} onChange={(e) => setData('name', e.target.value)} autoComplete="name" required />
                 </Field>
-                <Field label="Email address" error={errors.email} icon={Mail}>
-                    <input type="email" className={`${inputClass} pl-12`} value={data.email} onChange={(e) => setData('email', e.target.value)} autoComplete="email" required />
+                <Field label="Email address" icon={Mail}>
+                    <input type="email" className={`${inputClass} pl-12 cursor-not-allowed select-none !bg-gray-100 !text-gray-400 opacity-60`} value={user.email || ''} readOnly disabled aria-readonly="true" />
                 </Field>
+                <p className="-mt-2 pl-1 text-xs text-gray-400">The email is your login and cannot be changed.</p>
                 <Field label="Phone" error={errors.phone} icon={Phone}>
                     <input type="tel" inputMode="tel" className={`${inputClass} pl-12`} value={data.phone} onChange={(e) => setData('phone', e.target.value)} placeholder="+60 12-345 6789" autoComplete="tel" />
                 </Field>
@@ -326,38 +326,46 @@ export default function Edit({ account = {}, company = null, subscription = null
             <Head title={company ? 'Profile & company' : 'Settings'} />
 
             <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
-                {/* Hero */}
-                <div className="relative mb-5 overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg sm:p-7">
-                    <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-brand-500/20 blur-2xl" />
-                    <div className="relative flex items-center gap-4 sm:gap-5">
-                        <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-brand-500 text-3xl font-extrabold text-ink-900 shadow-lg sm:h-20 sm:w-20 sm:text-4xl">
-                            {initial}
-                        </span>
-                        <div className="min-w-0">
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">My account</p>
-                            <h1 className="truncate text-xl font-extrabold sm:text-2xl">{user.name}</h1>
-                            <p className="truncate text-sm text-gray-300">{user.email}</p>
+                {/* Hero: avatar, name and the account facts in one card */}
+                <div className="relative mb-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-xl shadow-ink-900/30 ring-1 ring-white/10 sm:p-7">
+                    {/* soft light blobs and a fine dot pattern */}
+                    <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-brand-500/25 blur-3xl" />
+                    <div className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-sky-400/10 blur-3xl" />
+                    <div className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+
+                    <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
+                        <div className="relative shrink-0">
+                            <span className="flex h-20 w-20 items-center justify-center rounded-[1.75rem] bg-gradient-to-br from-brand-400 to-brand-600 text-4xl font-extrabold text-ink-900 shadow-xl shadow-brand-500/30 ring-4 ring-white/10 sm:h-24 sm:w-24 sm:text-5xl">
+                                {initial}
+                            </span>
+                            <span className={`absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full ring-4 ring-ink-900 ${account.email_verified ? 'bg-emerald-500' : 'bg-amber-500'}`} title={account.email_verified ? 'Email verified' : 'Email not verified'}>
+                                <ShieldCheck className="h-4 w-4 text-white" />
+                            </span>
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-brand-400">My account</p>
+                            <h1 className="mt-1 truncate text-2xl font-extrabold tracking-tight sm:text-3xl">{user.name}</h1>
+                            <p className="mt-1 flex items-center gap-2 truncate text-sm text-gray-300"><Mail className="h-4 w-4 shrink-0 text-gray-500" />{user.email}</p>
                             {account.role && (
-                                <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold text-brand-400">
-                                    <BadgeCheck className="h-3.5 w-3.5" /> {account.role}
+                                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-brand-400/30 bg-brand-400/10 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide text-brand-400">
+                                    <BadgeCheck className="h-4 w-4" /> {account.role}
                                 </span>
                             )}
                         </div>
                     </div>
-                </div>
 
-                {/* Account facts */}
-                <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-                    {details.map((d) => (
-                        <div key={d.label} className="rounded-2xl border border-gray-100 bg-white p-3.5 shadow-sm">
-                            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-400">
-                                <d.icon className="h-3.5 w-3.5" /> {d.label}
-                            </p>
-                            <p className={`mt-1 truncate text-sm font-extrabold ${d.ok === false ? 'text-amber-600' : d.ok ? 'text-emerald-600' : 'text-gray-900'}`}>{d.value}</p>
-                        </div>
-                    ))}
+                    <div className="relative mt-6 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 lg:grid-cols-4">
+                        {details.map((d) => (
+                            <div key={d.label} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3.5 backdrop-blur">
+                                <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                    <d.icon className="h-3.5 w-3.5 text-brand-400" /> {d.label}
+                                </p>
+                                <p className={`mt-1.5 truncate text-sm font-extrabold ${d.ok === false ? 'text-amber-300' : d.ok ? 'text-emerald-400' : 'text-white'}`}>{d.value}</p>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-
                 {mustVerifyEmail && !account.email_verified && (
                     <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">
                         <span>Your email address is not verified.</span>

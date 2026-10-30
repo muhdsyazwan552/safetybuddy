@@ -688,14 +688,15 @@ class DashboardController extends Controller
             ->where('entity_id', $staff->id)
             ->pluck('project_id');
 
-        // Load all relationships with snake_case names
         $inspection = Inspection::with([
             'project',
             'subconCompany',
             'topic',
             'inspector',
-            'non_conformance',    // Changed from 'nonConformance'
-            'client_complaint'    // Changed from 'clientComplaint'
+            'verifier:id,name',
+            'approver:id,name',
+            'non_conformance',
+            'client_complaint',
         ])->whereIn('project_id', $assignedProjectIds)
           ->findOrFail($id);
 
@@ -711,7 +712,7 @@ class DashboardController extends Controller
         }
 
         return Inertia::render('Inspector/ShowInspection', [
-            'inspection' => $inspection,
+            'inspection' => \App\Support\DetailRows::inspection($inspection),
             'can_edit' => $this->canEdit($inspection),
             'user' => $user,
         ]);
@@ -976,12 +977,12 @@ class DashboardController extends Controller
                 ->where('entity_id', $staff->id)
                 ->pluck('project_id');
 
-            $toolboxTalk = ToolboxTalks::with(['project', 'companyStaff', 'topics', 'categories:id,name', 'attendees:id,name,role,company_id'])
+            $toolboxTalk = ToolboxTalks::with(['project', 'CompanyStaff', 'categories:id,name', 'attendees:id,name,role,company_id', 'verifier:id,name', 'approver:id,name'])
                 ->whereIn('project_id', $assignedProjectIds)
                 ->findOrFail($id);
 
             return Inertia::render('Inspector/ShowToolboxTalk', [
-                'toolboxTalk' => $toolboxTalk,
+                'talk' => \App\Support\DetailRows::toolbox($toolboxTalk),
                 'can_edit' => $this->canEdit($toolboxTalk),
                 'user' => $user,
             ]);
