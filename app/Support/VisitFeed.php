@@ -47,6 +47,7 @@ class VisitFeed
 
         return [
             'id' => $i->id,
+            'series_code' => $i->code,
             'by_id' => $i->inspection_by,
             'topic' => optional($i->topic)->name,
             'evaluation' => $i->evaluation,
@@ -110,6 +111,7 @@ class VisitFeed
                 'by_id' => $t->inspection_by,
                 'talk' => [
                     'id' => $t->id,
+                    'series_code' => $t->code,
                     'by_id' => $t->inspection_by,
                     'conducted' => $t->conducted === 'yes',
                     'attended' => (int) $t->total_attended,

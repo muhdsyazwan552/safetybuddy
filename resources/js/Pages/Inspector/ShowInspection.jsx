@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { Pencil, Printer, Trash2, MapPin, CalendarDays, Building2, UserRound, Tag, FolderKanban, Image as ImageIcon, AlertTriangle, MessageSquareWarning, X } from 'lucide-react';
+import { Pencil, Trash2, MapPin, CalendarDays, Building2, UserRound, Tag, FolderKanban, Image as ImageIcon, AlertTriangle, MessageSquareWarning, X } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
 import {
@@ -71,7 +71,7 @@ export default function ShowInspection({ inspection, user, can_edit = false }) {
                     <div className="pl-2">
                         <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                                <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Inspection #{inspection.id}</p>
+                                <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">{inspection.code || `Inspection #${inspection.id}`}</p>
                                 <h1 className="mt-1 text-xl font-extrabold leading-tight">{inspection.project?.name || '-'}</h1>
                             </div>
                             <div className="flex shrink-0 flex-col items-end gap-1.5">
@@ -88,6 +88,8 @@ export default function ShowInspection({ inspection, user, can_edit = false }) {
                         </div>
                     </div>
                 </div>
+
+                <ReviewProgress kind="visit" status={inspection.status} />
 
                 {/* Details */}
                 <SectionCard title="Details" icon={FolderKanban}>
@@ -138,9 +140,6 @@ export default function ShowInspection({ inspection, user, can_edit = false }) {
                         <Pencil className="h-4 w-4" /> Edit
                     </Link>
                 )}
-                <button onClick={() => window.print()} className={ghostBtn}>
-                    <Printer className="h-4 w-4" /> Print
-                </button>
                 {can_edit && (
                     <button
                         onClick={() => setConfirm(true)}

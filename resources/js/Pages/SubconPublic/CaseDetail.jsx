@@ -22,7 +22,7 @@ export default function CaseDetail({ company, item, public_token, leader_key }) 
                             <ArrowLeft className="h-5 w-5" />
                         </a>
                         <div className="min-w-0 leading-tight">
-                            <p className="truncate text-[15px] font-extrabold">{kind} #{item.id}</p>
+                            <p className="truncate text-[15px] font-extrabold">{item.series_code || `${kind} #${item.id}`}</p>
                             <p className="truncate text-[11px] font-semibold text-brand-400">{company.name}{company.code ? ` · ${company.code}` : ''}</p>
                         </div>
                     </div>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import {
-    ArrowLeft, Printer, MapPin, CalendarDays, Building2, UserRound, Tag, FolderKanban, Image as ImageIcon,
+    ArrowLeft, MapPin, CalendarDays, Building2, UserRound, Tag, FolderKanban, Image as ImageIcon,
     AlertTriangle, MessageSquareWarning, CheckCircle2, RotateCcw, Loader2, X, ChevronRight, ClipboardList,
 } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
@@ -173,9 +173,6 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
                         Back to inspections
                     </Link>
                     {inspection.status === 'approved' && <PdfButton href={`/pdf/inspection/${inspection.id}`} className="ml-auto mr-2" />}
-                    <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-bold text-gray-700 active:scale-95 transition">
-                        <Printer className="h-4 w-4" /> Print
-                    </button>
                 </div>
 
                 {/* hero */}
@@ -184,7 +181,7 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
                     <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-brand-500/20 blur-2xl" />
                     <div className="relative flex flex-col gap-4 pl-2 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Inspection #{inspection.id}</p>
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">{inspection.code || `Inspection #${inspection.id}`}</p>
                             <h1 className="mt-1 text-2xl font-extrabold leading-tight">{inspection.project?.name || '-'}</h1>
                             <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-300">
                                 <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-brand-400" />{fmtDate(inspection.inspection_date, { day: 'numeric', month: 'long', year: 'numeric' })}</span>
@@ -202,6 +199,7 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
                 <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
                     {/* main column */}
                     <div className="space-y-5 lg:col-span-2">
+                        <ReviewProgress kind="visit" status={inspection.status} />
                         <SectionCard title="Inspection details" icon={FolderKanban}>
                             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                 <InfoRow label="Project">{inspection.project?.name}</InfoRow>

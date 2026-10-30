@@ -51,3 +51,32 @@ export default function ReviewProgress({ kind, status, record, className = '' })
         </section>
     );
 }
+
+/** Compact Submitted -> Review (supervisor) -> Approved (manager) indicator for one inspection / talk in a list. */
+export function ReviewSteps({ status, className = '' }) {
+    const state = (status || 'pending_verification').toLowerCase();
+    const returned = state === 'rejected';
+    const reviewed = ['verified', 'approved'].includes(state);
+    const approved = state === 'approved';
+    const steps = [
+        { label: 'Submit', done: true },
+        { label: returned ? 'Returned' : 'Review', done: reviewed, bad: returned, active: !reviewed && !returned },
+        { label: 'Approve', done: approved, active: reviewed && !approved },
+    ];
+
+    return (
+        <ol className={`flex items-center gap-1 ${className}`} aria-label="Review progress">
+            {steps.map((s, i) => (
+                <li key={i} className="flex items-center gap-1">
+                    {i > 0 && <span className={`h-0.5 w-3 ${s.done ? 'bg-emerald-500' : 'bg-gray-200'}`} aria-hidden="true" />}
+                    <span className={`inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        s.bad ? 'bg-red-100 text-red-700' : s.done ? 'bg-emerald-100 text-emerald-700' : s.active ? 'bg-blue-100 text-blue-700 ring-1 ring-blue-300' : 'bg-gray-100 text-gray-400'
+                    }`}>
+                        {s.bad ? <RotateCcw className="h-3 w-3" /> : s.done ? <Check className="h-3 w-3" /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+                        {s.label}
+                    </span>
+                </li>
+            ))}
+        </ol>
+    );
+}

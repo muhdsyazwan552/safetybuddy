@@ -2,12 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSeriesCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class NoConformance extends Model
 {
-    use HasFactory;
+    use HasFactory, HasSeriesCode;
+
+    public static function seriesType(): string
+    {
+        return 'nc';
+    }
 
     protected $table = 'non_conformances';
 

@@ -2,12 +2,18 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSeriesCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ClientComplaint extends Model
 {
-    use HasFactory;
+    use HasFactory, HasSeriesCode;
+
+    public static function seriesType(): string
+    {
+        return 'cc';
+    }
 
     protected $table = 'client_complaints';
 

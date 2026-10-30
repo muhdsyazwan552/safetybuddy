@@ -10,7 +10,6 @@ import { EllipsisHorizontalIcon } from "@heroicons/react/20/solid";
 import {
   ArrowUpTrayIcon,
   ArrowUturnLeftIcon,
-  PrinterIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import clsx from "clsx";
@@ -137,20 +136,6 @@ export function SelectedRowsActions({ table, height }) {
                     >
                       <CiViewTable className="size-4.5" />
                       <span>Save as view</span>
-                    </button>
-                  )}
-                </MenuItem>
-                <MenuItem>
-                  {({ focus }) => (
-                    <button
-                      className={clsx(
-                        "flex h-9 w-full items-center space-x-3 px-3 tracking-wide outline-hidden transition-colors ",
-                        focus &&
-                          "bg-gray-100 text-gray-800 dark:bg-dark-600 dark:text-dark-100",
-                      )}
-                    >
-                      <PrinterIcon className="size-4.5" />
-                      <span>Print</span>
                     </button>
                   )}
                 </MenuItem>

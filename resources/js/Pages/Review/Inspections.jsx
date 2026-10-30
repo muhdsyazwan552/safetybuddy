@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { ReviewSteps } from '@/Components/shared/ReviewProgress';
 import { Head, Link, router } from '@inertiajs/react';
 import { MapPin, CalendarDays, Building2, CheckCircle2, Loader2 } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
@@ -28,7 +29,7 @@ export function InspectionReviewCard({ item, can_verify, can_approve }) {
         <div className={`overflow-hidden rounded-3xl border shadow-sm ${tone.card}`}>
             <div className="flex items-start justify-between gap-3 p-4">
                 <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Inspection #{item.id}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">{item.code || `Inspection #${item.id}`}</p>
                     <p className="truncate text-[15px] font-bold text-gray-900">{item.topic?.name || '-'}</p>
                     <p className="truncate text-xs text-gray-500">{item.project?.name}</p>
                 </div>
@@ -37,6 +38,7 @@ export function InspectionReviewCard({ item, can_verify, can_approve }) {
                     <StatusBadge value={item.status} />
                 </div>
             </div>
+            <div className="border-t border-gray-100 px-4 py-2.5"><ReviewSteps status={item.status} /></div>
             <div className={`space-y-2 border-t p-4 text-sm ${tone.line}`}>
                 <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs text-gray-500">
                     <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-4 w-4" />{fmtDate(item.inspection_date)}</span>

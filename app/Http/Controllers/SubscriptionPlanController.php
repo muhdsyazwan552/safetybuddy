@@ -257,6 +257,7 @@ class SubscriptionPlanController extends Controller
             'manager_limit' => ['required', 'integer', 'min:0'],
             'supervisor_limit' => ['required', 'integer', 'min:0'],
             'inspector_limit' => ['required', 'integer', 'min:0'],
+            'contractor_limit' => ['required', 'integer', 'min:0'],
             'daily_pdf_limit' => ['nullable', 'integer', 'min:0'],
             'monthly_pdf_limit' => ['nullable', 'integer', 'min:0'],
         ]);

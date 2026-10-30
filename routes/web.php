@@ -193,6 +193,7 @@ Route::middleware(['auth', 'role:2'])->group(function () {
         ->name('executor.report');
     // Toolbox Talks live inside the combined Toolbox & Inspection page (first section)
     Route::get('/toolbox-talks', fn () => redirect('/inspection#toolbox'))->name('toolbox');
+    Route::get('/toolbox-talks/{id}', [ContentController::class, 'toolboxShow'])->where('id', '[0-9]+')->name('toolbox.show');
 
     Route::post('/staff', [StaffController::class, 'store'])->name('staff.store');
     Route::put('/staff/{id}', [StaffController::class, 'update'])->name('staff.update');

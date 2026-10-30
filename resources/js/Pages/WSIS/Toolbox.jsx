@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Head, Link, useForm, usePage } from '@inertiajs/react'; // Add usePage here
+import SeriesCode from '@/Components/shared/SeriesCode';
+import { StatusBadge } from '@/Components/inspector/kit';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react'; // Add usePage here
 import AppLayout from '@/Pages/WSIS/Layout';
-import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
+import TableViewIcon, { tableViewActionClass, TableEditIcon, TableDeleteIcon, tableEditActionClass, tableDeleteActionClass } from '@/Components/shared/TableViewIcon';
 import { showAlert } from '@/Helpers/alert';
 import AttendeePicker from '@/Components/shared/AttendeePicker';
 import SpPerSubcon, { spGroups } from '@/Components/shared/SpPerSubcon';
@@ -20,7 +22,6 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
   const [successMessage, setSuccessMessage] = useState('');
   const dropdownRef = useRef(null);
   const [toolboxTalks, setToolboxTalks] = useState(talksFromLaravel || []);
-  const [viewingTalk, setViewingTalk] = useState(null);
 
   // Form handling
   const { data, setData, post, processing, errors, reset } = useForm({
@@ -107,6 +108,7 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
   // Filter toolbox talks
   const filteredToolboxTalks = toolboxTalks.filter(talk => {
     const matchesSearch =
+      (talk.series_code ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (talk.name ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (talk.project ?? '').toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -596,10 +598,10 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Category
                 </th>
-                <th scope="col" className="px-0 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  TOTAL ATTENDED
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  STATUS
                 </th>
-                <th scope="col" className="px-0 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   CONDUCTED
                 </th>
                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -614,19 +616,16 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                     {new Date(talk.date).toLocaleDateString('en-GB')}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-800">
-                    {talk.project}
+                    <SeriesCode code={talk.series_code} className="block" />{talk.project}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     {talk.staffinpection || 'Unknown Inspector'}
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-800">
-                    {talk.topics.join(', ') || '-'}
+                  <td className="max-w-[16rem] px-6 py-4 text-sm text-gray-800">
+                    <span className="block truncate" title={talk.topics.join(', ')}>{talk.topics.join(', ') || '-'}</span>
                   </td>
-                  <td className="px-12 py-4 text-sm text-gray-800">
-                    {talk.attendance || '-'}
-                    {talk.sp_compliance !== null && talk.sp_compliance !== undefined && (
-                      <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-bold text-gray-600" title="Safety Passport compliance">SP {Number(talk.sp_compliance).toFixed(0)}%</span>
-                    )}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <StatusBadge value={talk.review_status} />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs rounded-full ${talk.status === 'yes'
@@ -638,17 +637,20 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-4">
-                      <button type="button" className={tableViewActionClass} onClick={() => setViewingTalk(talk)} title="View toolbox talk" aria-label="View toolbox talk">
+                      <button type="button" className={tableViewActionClass} onClick={() => router.visit(`/toolbox-talks/${talk.id}`)} title="View toolbox talk" aria-label="View toolbox talk">
                         <TableViewIcon />
                       </button>
-                      <button className="text-green-600 hover:text-green-800">
-                        Edit
+                      <button type="button" className={tableEditActionClass} title="Edit toolbox talk" aria-label="Edit toolbox talk">
+                        <TableEditIcon />
                       </button>
                       <button
-                        className="text-red-600 hover:text-red-800"
+                        type="button"
+                        className={tableDeleteActionClass}
                         onClick={() => handleDelete(talk.id)}
+                        title="Delete toolbox talk"
+                        aria-label="Delete toolbox talk"
                       >
-                        Delete
+                        <TableDeleteIcon />
                       </button>
                     </div>
                   </td>
@@ -677,27 +679,6 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
         </div>
       </div>
     </div>
-    {viewingTalk && (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation" onClick={() => setViewingTalk(null)}>
-        <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-2xl" role="dialog" aria-modal="true" aria-label="Toolbox talk details" onClick={(event) => event.stopPropagation()}>
-          <div className="flex items-start justify-between gap-4">
-            <h2 className="text-xl font-bold text-gray-800">Toolbox talk details</h2>
-            <button type="button" onClick={() => setViewingTalk(null)} className="rounded p-1 text-gray-500 hover:bg-gray-100" aria-label="Close details">✕</button>
-          </div>
-          <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
-            {[
-              ['Date', viewingTalk.date ? new Date(viewingTalk.date).toLocaleDateString('en-GB') : '—'],
-              ['Project', viewingTalk.project || '—'],
-              ['Inspector', viewingTalk.staffinpection || viewingTalk.name || '—'],
-              ['Conducted', viewingTalk.status === 'yes' ? 'Yes' : 'No'],
-              ['Total attended', viewingTalk.attendance ?? '—'],
-              ['Safety Passport compliance', viewingTalk.sp_compliance == null ? '—' : `${Number(viewingTalk.sp_compliance).toFixed(0)}%`],
-            ].map(([label, value]) => <div key={label}><dt className="font-semibold text-gray-500">{label}</dt><dd className="mt-1 text-gray-900">{value}</dd></div>)}
-            <div className="sm:col-span-2"><dt className="font-semibold text-gray-500">Categories</dt><dd className="mt-1 text-gray-900">{viewingTalk.topics?.join(', ') || '—'}</dd></div>
-          </dl>
-        </div>
-      </div>
-    )}
     </Shell>
   );
 };

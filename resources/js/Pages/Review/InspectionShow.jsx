@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, MapPin, FolderKanban, CheckCircle2, Loader2 } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
@@ -69,7 +70,7 @@ export default function InspectionShow({ inspection: i, can_verify, can_approve 
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Inspection #{i.id}</p>
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">{i.series_code || `Inspection #${i.id}`}</p>
                             <h1 className="mt-1 text-xl font-extrabold leading-tight">{i.topic || '-'}</h1>
                             <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-300"><MapPin className="h-4 w-4 text-brand-400" />{i.location || '-'}</p>
                         </div>
@@ -79,6 +80,8 @@ export default function InspectionShow({ inspection: i, can_verify, can_approve 
                         </div>
                     </div>
                 </div>
+
+                <ReviewProgress kind="visit" status={i.status} />
 
                 <SectionCard title="Details" icon={FolderKanban}>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

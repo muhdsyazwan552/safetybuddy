@@ -5,7 +5,8 @@ import {
     ArrowUpRight, ArrowRight, Phone, Menu, X, ChevronDown, Check, Play, Quote, Star, ShieldCheck, ClipboardCheck,
     HardHat, AlertTriangle, MessageSquareWarning, BarChart3, Clock3, Users, Handshake, FileText, Smartphone,
     BadgeCheck, Gauge, Building2, Briefcase, GraduationCap, Newspaper, LifeBuoy, MapPin, Mail, Plus, Minus,
-    CalendarDays, Sparkles, HardDrive,
+    CalendarDays, Sparkles, HardDrive, SlidersHorizontal, MonitorCheck, Gavel, Trophy, TrendingUp, Siren, LayoutDashboard,
+    RefreshCw, Eye,
 } from 'lucide-react';
 
 /* ──────────────────────────────────────────────────────────────
@@ -14,43 +15,61 @@ import {
 const CONTACT = { phone: '+60 16-886 5619', email: 'hello@safetybuddy.my', address: 'Kuala Lumpur, Malaysia' };
 
 const NAV = [
-    { label: 'About', href: '#about' },
-    { label: 'Features', href: '#features' },
-    { label: 'Pricing', href: '#pricing' },
+    { label: 'Framework', href: '#cmeri' },
     { label: 'Modules', href: '#modules' },
+    { label: 'Pricing', href: '#pricing' },
     { label: 'Guides', href: '#guides' },
     { label: 'Contact', href: '#contact' },
 ];
 
-const HERO_WORDS = ['safer', 'smarter', 'compliant', 'faster'];
+/** Sections kept in the code but hidden on the page (flip to true to show them again) */
+const SHOW = { about: false, serve: false, reviews: false };
 
-const CAPABILITIES = [
-    { icon: ClipboardCheck, label: 'Site inspections' },
-    { icon: HardHat, label: 'Toolbox talks' },
-    { icon: AlertTriangle, label: 'Non-conformance' },
-    { icon: MessageSquareWarning, label: 'Client complaints' },
-    { icon: BarChart3, label: 'Incident statistics' },
-    { icon: Clock3, label: 'Man-hour tracking' },
-    { icon: Gauge, label: 'Compliance metrics' },
-    { icon: FileText, label: 'Daily & monthly reports' },
-    { icon: Handshake, label: 'Subcontractor staff' },
+const TAGLINE = 'Control. Monitor. Measure. Enforce. Report. Improve.';
+
+/** The CMERI foundation – six core principles */
+const CMERI = [
+    { letter: 'C', title: 'Control', icon: SlidersHorizontal, tone: 'bg-blue-600', text: 'Establish safety requirements and compliance controls using the 4M framework (Man, Machine, Material and Method) and Safety Passport Rules.' },
+    { letter: 'M', title: 'Monitor', icon: MonitorCheck, tone: 'bg-emerald-600', text: 'Digitally monitor safety inspections, Toolbox Talks, workforce activities, incidents and Non-Conformance (NC) / Client Complaint (CC) records.' },
+    { letter: 'M', title: 'Measure', icon: BarChart3, tone: 'bg-amber-500', text: 'Evaluate actual safety performance using SPGPNC metrics and determine Best Safety Practices Ranking (BSPR).' },
+    { letter: 'E', title: 'Enforce', icon: ShieldCheck, tone: 'bg-orange-600', text: 'Apply approved corrective actions and performance penalties when actual results fall below established SPGPNC settings.' },
+    { letter: 'R', title: 'Report', icon: FileText, tone: 'bg-red-600', text: 'Generate structured Daily, Monthly and Incident Reports to support management evaluation and decision-making.' },
+    { letter: 'I', title: 'Improve', icon: TrendingUp, tone: 'bg-violet-600', text: 'Identify performance weaknesses, implement improvement actions and review or reset SPGPNC settings to strengthen safety standards continuously.' },
 ];
 
-const SERVICE_CHIPS = [
-    { icon: ClipboardCheck, title: 'Site Inspections', sub: 'Fast. Photo-backed. Traceable.' },
-    { icon: HardHat, title: 'Toolbox Talks', sub: 'Daily. Recorded. Signed off.' },
-    { icon: AlertTriangle, title: 'Non-Conformance', sub: 'Raised. Tracked. Closed.' },
-    { icon: BarChart3, title: 'Incident Statistics', sub: 'Clear. Monthly. Comparable.' },
-    { icon: Clock3, title: 'Man-hour Records', sub: 'Accurate. Per project.' },
-    { icon: Handshake, title: 'Subcontractors', sub: 'Registered. Complete. Ready.' },
+/** Three outcomes of the framework */
+const OUTCOMES = [
+    { icon: ShieldCheck, title: 'Safety Control', text: 'Set the right standards and responsibilities.' },
+    { icon: BarChart3, title: 'Safety Performance', text: 'Measure, enforce and drive accountability.' },
+    { icon: RefreshCw, title: 'Continuous Improvement', text: 'Use actual results to improve safety management practices.' },
 ];
+
+/** Key system modules */
+const KEY_MODULES = [
+    { icon: Users, title: 'Contractor Portal', text: 'Registration, workforce and machinery records, compliance declaration.', tone: 'text-sky-600 bg-sky-50' },
+    { icon: BadgeCheck, title: 'Safety Passport Rules', text: 'Set safety rules and obtain acknowledgement and compliance declaration.', tone: 'text-emerald-600 bg-emerald-50' },
+    { icon: HardDrive, title: 'Workforce & Machinery', text: 'Register personnel and equipment with safety information.', tone: 'text-orange-600 bg-orange-50' },
+    { icon: CalendarDays, title: 'Daily Attendance', text: 'Record daily workforce attendance and site activities.', tone: 'text-blue-600 bg-blue-50' },
+    { icon: HardHat, title: 'Toolbox Talk', text: 'Record safety briefings, attendance and evidence.', tone: 'text-violet-600 bg-violet-50' },
+    { icon: ClipboardCheck, title: 'Digital Safety Inspection', text: 'Conduct inspections, record findings and capture evidence.', tone: 'text-red-600 bg-red-50' },
+    { icon: AlertTriangle, title: 'Non-Conformance (NC)', text: 'Issue findings, monitor responses and verify corrective actions.', tone: 'text-rose-600 bg-rose-50' },
+    { icon: MessageSquareWarning, title: 'Client Complaint (CC)', text: 'Record complaints and monitor resolution.', tone: 'text-amber-600 bg-amber-50' },
+    { icon: Gauge, title: 'Safety Metrics (SPGPNC)', text: 'Set performance targets and measurement parameters.', tone: 'text-teal-600 bg-teal-50' },
+    { icon: Trophy, title: 'Best Safety Practices Ranking', text: 'Evaluate and rank contractor performance (Gold, Silver, Bronze).', tone: 'text-blue-700 bg-blue-50' },
+    { icon: Gavel, title: 'Penalty & Enforcement', text: 'Apply approved penalties based on performance results.', tone: 'text-orange-700 bg-orange-50' },
+    { icon: Siren, title: 'Incident Reporting & Statistics', text: 'Record incidents, monitor trends and support investigation.', tone: 'text-green-600 bg-green-50' },
+    { icon: Clock3, title: 'Man-Hour & LTIFR', text: 'Record working hours and calculate LTIFR.', tone: 'text-purple-600 bg-purple-50' },
+    { icon: FileText, title: 'Daily & Monthly Reports', text: 'Generate structured management reports.', tone: 'text-indigo-600 bg-indigo-50' },
+    { icon: LayoutDashboard, title: 'Dashboard', text: 'Centralised view of safety activities, performance and key statistics.', tone: 'text-slate-600 bg-slate-100' },
+];
+
 
 const VOICES = [
-    { name: 'Aisyah', role: 'Site Safety Officer', img: 'voice-1.jpg' },
-    { name: 'Daniel', role: 'Project Manager', img: 'voice-2.jpg' },
-    { name: 'Farid', role: 'Inspector', img: 'voice-3.jpg' },
-    { name: 'Mei Ling', role: 'HSE Coordinator', img: 'voice-4.jpg' },
-    { name: 'Kumar', role: 'Subcontractor Leader', img: 'voice-5.jpg' },
+    { name: 'Mei Ling', role: 'Admin', text: 'Sets up the company, projects, users and subscription.', img: 'voice-4.jpg' },
+    { name: 'Daniel', role: 'Manager', text: 'Reviews performance, approves actions and signs off reports.', img: 'voice-2.jpg' },
+    { name: 'Aisyah', role: 'Supervisor', text: 'Follows up findings and responds to incidents on site.', img: 'voice-1.jpg' },
+    { name: 'Farid', role: 'Inspector', text: 'Runs inspections and toolbox talks from the field.', img: 'voice-3.jpg' },
+    { name: 'Kumar', role: 'Contractor', text: 'Registers workforce and declares compliance via the Contractor Portal.', img: 'voice-5.jpg' },
 ];
 
 const VALUES = [
@@ -67,40 +86,28 @@ const SERVE = [
 ];
 
 const WHY = [
-    { icon: ShieldCheck, title: 'Compliance ready', text: 'Metrics and penalty settings follow your own standards.' },
-    { icon: Smartphone, title: 'Mobile inspector app', text: 'A fast, app-like experience for inspectors on site.' },
-    { icon: BadgeCheck, title: 'Clear accountability', text: 'Owners and statuses for every non-conformance.' },
-    { icon: Users, title: 'Subcontractor friendly', text: 'Staff register themselves with a simple shared link.' },
-];
-
-const ROLES = [
-    { icon: Building2, title: 'Company admin', text: 'Projects, assignments, metrics, reports and subscriptions.' },
-    { icon: ClipboardCheck, title: 'Inspector', text: 'Mobile inspections, toolbox talks and follow-ups.' },
-    { icon: Handshake, title: 'Subcon leader', text: 'Manage company staff records and keep them complete.' },
-    { icon: Users, title: 'Subcon staff', text: 'Register in seconds — no account needed.' },
+    { icon: ShieldCheck, title: 'Better Safety Compliance', text: 'Standardised requirements and documented compliance.' },
+    { icon: Users, title: 'Stronger Contractor Accountability', text: 'Clear responsibilities and traceable records.' },
+    { icon: Eye, title: 'Improved Visibility', text: 'Real-time overview of safety activities and performance.' },
+    { icon: BarChart3, title: 'Measurable Performance', text: 'SPGPNC and BSPR for objective evaluation.' },
+    { icon: FileText, title: 'Efficient Reporting', text: 'Digital Daily, Monthly and Incident Reports.' },
+    { icon: TrendingUp, title: 'Continuous Improvement', text: 'Identify weaknesses and implement better safety practices.' },
 ];
 
 const REVIEWS = [
     { text: 'We stopped chasing paper checklists. Everything from the site walk is in one place the same day.', name: 'Site Safety Officer', meta: 'Construction contractor' },
     { text: 'Toolbox talk attendance with photos gave us the evidence our client audit asked for.', name: 'HSE Coordinator', meta: 'Infrastructure project' },
-    { text: 'Closing non-conformances with comments keeps every subcontractor accountable.', name: 'Project Manager', meta: 'Building works' },
-    { text: 'The subcontractor registration link saved hours of back-and-forth with staff lists.', name: 'Safety Admin', meta: 'Mechanical & electrical' },
+    { text: 'Closing non-conformances with comments keeps every contractor accountable.', name: 'Project Manager', meta: 'Building works' },
+    { text: 'The contractor registration link saved hours of back-and-forth with staff lists.', name: 'Safety Admin', meta: 'Mechanical & electrical' },
     { text: 'Inspectors love that it feels like a mobile app, not a form.', name: 'Lead Inspector', meta: 'Facilities management' },
     { text: 'Monthly incident statistics are finally accurate and easy to explain to management.', name: 'Operations Director', meta: 'Engineering services' },
 ];
 
 const STEPS = [
     { title: 'Create your account', text: 'Register your company, sign in and choose a Safety Buddy package.' },
-    { title: 'Set up your company', text: 'Add projects, staff, subcontractors and your compliance metrics.' },
-    { title: 'Assign & invite', text: 'Assign inspectors to projects and share the registration link with subcontractors.' },
+    { title: 'Set up your company', text: 'Add projects, staff, contractors and your compliance metrics.' },
+    { title: 'Assign & invite', text: 'Assign inspectors to projects and share the registration link with contractors.' },
     { title: 'Inspect & report', text: 'Run inspections and toolbox talks on site, then pull reports in one click.' },
-];
-
-const MODULES = [
-    { code: 'SB360-WSIS', title: 'Workplace Safety Inspection System', text: 'Inspections, toolbox talks, non-conformance, incidents and reports.', icon: ShieldCheck, img: 'module-wsis.jpg' },
-    { code: 'SB360-PS', title: 'Products & Services', text: 'Showcase your products and services to the community.', icon: Briefcase, img: 'module-ps.jpg' },
-    { code: 'SB360-C', title: 'Careers', text: 'Post roles and find safety professionals.', icon: GraduationCap, img: 'module-careers.jpg' },
-    { code: 'SB360-N', title: 'News & Assist', text: 'Industry updates and help whenever you need it.', icon: Newspaper, img: 'module-news.jpg' },
 ];
 
 const GUIDES = [
@@ -110,8 +117,8 @@ const GUIDES = [
 ];
 
 const FAQ = [
-    { q: 'How quickly can we start?', a: 'Most companies are up and running within a day. We set up your company, projects and metrics, then you invite inspectors and subcontractors.' },
-    { q: 'Do subcontractor staff need an account?', a: 'No. Each subcontractor company gets a secure link where staff register themselves. Only the company leader can edit or remove staff.' },
+    { q: 'How quickly can we start?', a: 'Most companies are up and running within a day. We set up your company, projects and metrics, then you invite inspectors and contractors.' },
+    { q: 'Do contractor staff need an account?', a: 'No. Each contractor company gets a secure link where staff register themselves. Only the company leader can edit or remove staff.' },
     { q: 'Does it work on a phone?', a: 'Yes. Inspectors get a mobile app-style experience with large touch targets, camera upload and a quick-add button.' },
     { q: 'Can we use our own compliance standards?', a: 'Yes. Compliance metrics, evaluations and penalty settings are configurable per company.' },
     { q: 'Is our data safe?', a: 'Access is role-based and every company only sees its own projects, staff and records.' },
@@ -137,8 +144,9 @@ function Reveal({ children, delay = 0, y = 28, className = '' }) {
 }
 
 /** Photo with a styled fallback so the page looks good before real images are added */
-function Photo({ src, alt, className = '', imageClassName = '', loading = 'lazy', tone = 'dark', children }) {
+function Photo({ src, alt, className = '', imageClassName = '', loading = 'lazy', tone = 'dark', hideOnError = false, children }) {
     const [failed, setFailed] = useState(false);
+    if (failed && hideOnError) return null;
     const bg =
         tone === 'dark'
             ? 'bg-gradient-to-br from-ink-900 via-ink-800 to-ink-600'
@@ -190,39 +198,6 @@ function SectionTag({ children }) {
 const H2 = ({ children, className = '' }) => (
     <h2 className={`font-geist text-[34px] font-medium leading-[1.1] tracking-[-0.06em] text-ink-950 sm:text-5xl ${className}`}>{children}</h2>
 );
-
-function TypeWord({ words }) {
-    const [i, setI] = useState(0);
-    const [text, setText] = useState('');
-    const [del, setDel] = useState(false);
-
-    useEffect(() => {
-        const word = words[i];
-        const speed = del ? 55 : 110;
-        const t = setTimeout(() => {
-            if (!del) {
-                const next = word.slice(0, text.length + 1);
-                setText(next);
-                if (next === word) setTimeout(() => setDel(true), 1400);
-            } else {
-                const next = word.slice(0, text.length - 1);
-                setText(next);
-                if (next === '') {
-                    setDel(false);
-                    setI((i + 1) % words.length);
-                }
-            }
-        }, speed);
-        return () => clearTimeout(t);
-    }, [text, del, i, words]);
-
-    return (
-        <span className="text-white/55">
-            {text}
-            <span className="sb-caret" />
-        </span>
-    );
-}
 
 /** words go from grey → black as the section scrolls through the viewport */
 function ScrollWords({ text, className = '' }) {
@@ -284,14 +259,21 @@ export default function Landing({ subscriptionPlans = [] }) {
     const plans = useMemo(
         () => subscriptionPlans.map(plan => ({
             name: plan.name,
-            tag: `${plan.manager_limit} Manager · ${plan.supervisor_limit} Supervisor · ${plan.inspector_limit} Inspector${plan.inspector_limit > 1 ? 's' : ''}`,
+            seats: [
+                { n: plan.manager_limit, label: 'Manager' },
+                { n: plan.supervisor_limit, label: 'Supervisor' },
+                { n: plan.inspector_limit, label: 'Inspector' },
+                { n: plan.contractor_limit ?? 1, label: 'Contractor' },
+            ].map((s) => ({ n: s.n, label: s.n === 1 ? s.label : `${s.label}s` })),
             price: plan.price_yearly,
             popular: plan.code === 'PROFESSIONAL',
             items: [
-                plan.daily_pdf_limit === null ? 'Unlimited Daily Report PDFs' : `${plan.daily_pdf_limit} Daily Report PDFs / month (shared)`,
-                plan.monthly_pdf_limit === null ? 'Unlimited Monthly Report PDFs' : `${plan.monthly_pdf_limit} Monthly Report PDFs / month (shared)`,
-                'All Safety Buddy features', 'Contractor Portal', 'Unlimited projects and contractor companies',
-                'Unlimited safety inspections, toolbox talks and NCR/CC transactions',
+                plan.daily_pdf_limit === null ? 'Unlimited Daily Report PDFs' : `${plan.daily_pdf_limit} Daily Report PDFs per month (shared)`,
+                plan.monthly_pdf_limit === null ? 'Unlimited Monthly Report PDFs' : `${plan.monthly_pdf_limit} Monthly Report PDFs per month (shared)`,
+                'All Safety Buddy modules and features',
+                'Contractor Portal access',
+                'Unlimited projects and contractor companies',
+                'Unlimited inspections, toolbox talks and NCR / CC records',
             ],
         })),
         [subscriptionPlans]
@@ -299,7 +281,7 @@ export default function Landing({ subscriptionPlans = [] }) {
 
     return (
         <div className="font-geist min-h-screen bg-white text-ink-950 antialiased selection:bg-brand-300">
-            <Head title="Safety Buddy – Control. Performance. Report." />
+            <Head title="Safety Buddy CMERI – Control. Monitor. Measure. Enforce. Report. Improve." />
 
             {/* announcement bar */}
             <AnimatePresence>
@@ -307,7 +289,7 @@ export default function Landing({ subscriptionPlans = [] }) {
                     <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden bg-brand-500 text-ink-900">
                         <div className="relative mx-auto flex max-w-7xl items-center justify-center px-10 py-2.5 text-center text-xs font-medium sm:text-sm">
                             <span>
-                                Digitise inspections & toolbox talks for every project.{' '}
+                                An integrated digital safety management framework for every project.{' '}
                                 <Link href="/register-view" className="font-semibold underline underline-offset-2">Create your account</Link>
                             </span>
                             <button onClick={() => setBar(false)} className="absolute right-3 flex h-6 w-6 items-center justify-center rounded-full bg-ink-900/10 hover:bg-ink-900/20" aria-label="Close">
@@ -386,14 +368,18 @@ export default function Landing({ subscriptionPlans = [] }) {
 
                                 <Reveal delay={0.08}>
                                     <h1 className="text-[44px] font-medium leading-[1.03] tracking-[-0.06em] sm:text-6xl lg:text-[72px]">
-                                        Let’s make every<br /> site <TypeWord words={HERO_WORDS} />
+                                        What is<br /> <span className="text-brand-400">Safety Buddy CMERI?</span>
                                     </h1>
                                 </Reveal>
 
                                 <Reveal delay={0.16}>
-                                    <p className="mt-6 max-w-lg text-base text-white/80">
-                                        Inspections, toolbox talks, non-conformances and incident statistics in one place — so your team spends less time on paperwork and more time keeping people safe.
+                                    <p className="mt-6 inline-block rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-ink-900 sm:text-sm">
+                                        An Integrated Digital Safety Management Framework
                                     </p>
+                                    <p className="mt-5 max-w-xl text-base leading-relaxed text-white/85">
+                                        Safety Buddy — CMERI (SBC) is an integrated digital safety management framework that connects safety control, operational monitoring, performance measurement, enforcement, reporting and continuous improvement within one platform.
+                                    </p>
+                                    <p className="mt-4 text-sm font-bold uppercase tracking-widest text-brand-400">{TAGLINE}</p>
                                 </Reveal>
 
                                 <Reveal delay={0.24}>
@@ -407,10 +393,10 @@ export default function Landing({ subscriptionPlans = [] }) {
 
                                 <Reveal delay={0.32}>
                                     <div className="mt-14 flex flex-wrap items-center gap-6 text-white">
-                                        <p className="max-w-[170px] text-xs text-white/70">Everything your site safety team needs, on every device.</p>
+                                        <p className="max-w-[170px] text-xs text-white/70">One structured, measurable and accountable safety process.</p>
                                         {[
-                                            { k: '6', v: 'Core modules' },
-                                            { k: '4', v: 'User roles' },
+                                            { k: '6', v: 'Core principles' },
+                                            { k: '15', v: 'Key modules' },
                                             { k: '1', v: 'Shared platform' },
                                         ].map((s) => (
                                             <div key={s.v} className="flex items-center gap-3 rounded-2xl bg-white/10 px-4 py-3 backdrop-blur">
@@ -426,178 +412,94 @@ export default function Landing({ subscriptionPlans = [] }) {
                     </Photo>
                 </section>
 
-                {/* capability marquee */}
-                <section className="overflow-hidden py-10">
-                    <div className="sb-marquee-wrap relative">
-                        <div className="sb-marquee slow">
-                            {[...CAPABILITIES, ...CAPABILITIES, ...CAPABILITIES, ...CAPABILITIES].map((c, i) => (
-                                <div key={i} className="mx-8 flex shrink-0 items-center gap-2.5 text-xl font-medium text-gray-400">
-                                    <c.icon className="h-6 w-6" /> {c.label}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
+                {/* CMERI foundation */}
+                <section id="cmeri" className="mx-auto max-w-[1400px] scroll-mt-20 px-5 py-16 sm:px-8">
+                    <Reveal><SectionTag>The CMERI foundation</SectionTag></Reveal>
+                    <Reveal delay={0.05}><H2>Six core principles for a safer<br />and better managed workplace</H2></Reveal>
 
-                {/* intro + service chips */}
-                <section id="features" className="mx-auto max-w-[1400px] scroll-mt-20 px-5 py-16 sm:px-8">
-                    <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-                        <div>
-                            <Reveal><H2>We focus on the inspection.<br />You focus on the work.</H2></Reveal>
-                            <Reveal delay={0.1}>
-                                <p className="mt-5 max-w-xl text-base text-gray-500">
-                                    We simplify site safety management, letting you focus on what matters. Our platform gives every role the tools they need — from the site walk to the monthly report.
-                                </p>
-                            </Reveal>
-                        </div>
-                        <Reveal delay={0.15}>
-                            <Link href="/register-view" className="group inline-flex items-center gap-3 text-sm font-semibold">
-                                Create an account
-                                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-white transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
-                            </Link>
-                        </Reveal>
-                    </div>
-
-                    <div className="sb-marquee-wrap -mx-5 mt-12 overflow-hidden sm:-mx-8">
-                        <div className="sb-marquee">
-                            {[...SERVICE_CHIPS, ...SERVICE_CHIPS].map((c, i) => (
-                                <div key={i} className="mx-2 flex w-[290px] shrink-0 items-center gap-3 rounded-2xl border border-gray-200 bg-white p-4 transition hover:-translate-y-1 hover:shadow-lg">
-                                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-100"><c.icon className="h-5 w-5" /></span>
-                                    <div>
-                                        <p className="text-[15px] font-medium">{c.title}</p>
-                                        <p className="text-xs text-gray-500">{c.sub}</p>
+                    <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {CMERI.map((c, i) => (
+                            <Reveal key={c.title} delay={i * 0.07}>
+                                <div className="h-full rounded-3xl border border-gray-200 p-6 transition hover:-translate-y-1 hover:shadow-lg">
+                                    <div className="flex items-center gap-3">
+                                        <span className={`flex h-12 w-12 items-center justify-center rounded-2xl text-white ${c.tone}`}><c.icon className="h-6 w-6" /></span>
+                                        <span className="text-sm font-bold text-gray-300">0{i + 1}</span>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-
-                {/* voices */}
-                <section className="mx-auto max-w-[1400px] px-5 py-16 sm:px-8">
-                    <Reveal><H2>Safety is about people</H2></Reveal>
-                    <Reveal delay={0.1}><p className="mt-4 max-w-md text-gray-500">Hear from the people who use Safety Buddy every day. Their stories prove our promise of simpler, safer sites.</p></Reveal>
-
-                    <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-                        {VOICES.map((v, i) => (
-                            <Reveal key={v.name} delay={i * 0.07}>
-                                <div className="group cursor-pointer">
-                                    <Photo src={v.img} alt={v.name} className="aspect-[3/4] rounded-3xl">
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                                        <span className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-ink-900/70 text-white backdrop-blur transition group-hover:scale-110 group-hover:bg-brand-500 group-hover:text-ink-900">
-                                            <Play className="h-5 w-5 fill-current" />
-                                        </span>
-                                    </Photo>
-                                    <p className="mt-3 text-[15px] font-medium">{v.name}</p>
-                                    <p className="text-sm text-gray-500">{v.role}</p>
+                                    <p className="mt-5 text-2xl font-medium tracking-tight">{c.title}</p>
+                                    <p className="mt-2 text-sm leading-relaxed text-gray-500">{c.text}</p>
                                 </div>
                             </Reveal>
                         ))}
-                    </div>
-                </section>
-
-                {/* about with scroll-reveal text */}
-                <section id="about" className="mx-auto max-w-[1400px] scroll-mt-20 px-5 py-20 sm:px-8">
-                    <SectionTag>Know about us</SectionTag>
-                    <ScrollWords
-                        text="We help contractors run safer sites with precision. Our platform combines inspections, toolbox talks and reporting so every finding has an owner and every action is on record."
-                        className="max-w-5xl font-geist text-[30px] font-medium leading-[1.12] tracking-[-0.05em] sm:text-5xl"
-                    />
-
-                    <div className="mt-14 grid gap-6 lg:grid-cols-2">
-                        <Reveal>
-                            <Photo src="about.jpg" alt="Safety team on site" className="group aspect-[4/3] rounded-3xl" />
-                        </Reveal>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                            {VALUES.map((v, i) => (
-                                <Reveal key={v.title} delay={i * 0.08}>
-                                    <div className="h-full rounded-2xl bg-gray-50 p-5 transition hover:-translate-y-1 hover:bg-gray-100">
-                                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 text-sm font-bold text-ink-900">{i + 1}</span>
-                                        <p className="mt-4 text-lg font-medium">{v.title}</p>
-                                        <p className="mt-1 text-sm text-gray-500">{v.text}</p>
-                                    </div>
-                                </Reveal>
-                            ))}
-                        </div>
                     </div>
 
                     <Reveal>
-                        <figure className="mt-10 flex flex-col gap-4 rounded-3xl bg-ink-900 p-7 text-white sm:flex-row sm:items-center sm:justify-between sm:p-10">
-                            <div className="flex gap-4">
-                                <Quote className="h-8 w-8 shrink-0 text-brand-500" />
-                                <blockquote className="text-xl font-medium leading-snug tracking-tight sm:text-2xl">
-                                    “Everything from the site walk is in one place the same day — no more chasing paper.”
-                                </blockquote>
+                        <Photo
+                            src="cmeri-banner.jpg"
+                            alt="Safety team inspecting a telecommunication tower site"
+                            loading="eager"
+                            imageClassName="object-[72%_center] lg:object-right"
+                            className="mt-10 min-h-[620px] rounded-[28px] lg:min-h-[560px]"
+                        >
+                            {/* dark on the left for the text, clear on the right so the photo shows */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/10 lg:bg-gradient-to-r lg:from-black/90 lg:via-black/65 lg:to-transparent" />
+                            <div className="absolute inset-x-0 bottom-0 h-1.5 bg-gradient-to-r from-brand-500 via-brand-300 to-transparent" />
+
+                            <div className="relative flex min-h-[620px] flex-col justify-between gap-10 px-6 py-10 text-white sm:px-10 sm:py-12 lg:min-h-[560px]">
+                                <div className="max-w-2xl">
+                                    <span className="inline-flex items-center gap-2 rounded-full bg-brand-500 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-ink-900">
+                                        <ShieldCheck className="h-4 w-4" /> The CMERI framework
+                                    </span>
+                                    <h3 className="mt-5 text-3xl font-medium leading-[1.1] tracking-[-0.04em] sm:text-4xl lg:text-[44px]">
+                                        Safety management that is <span className="text-brand-400">structured, measurable, accountable</span> and continuously improving.
+                                    </h3>
+                                    <p className="mt-4 max-w-xl text-sm leading-relaxed text-white/75 sm:text-base">
+                                        Through the CMERI framework, Safety Buddy transforms conventional safety management into a structured, measurable, accountable and continuously improving digital process.
+                                    </p>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-3">
+                                    {OUTCOMES.map((o, i) => (
+                                        <div key={o.title} className="group/card flex items-start gap-3.5 rounded-2xl bg-ink-950/55 p-4 ring-1 ring-white/15 backdrop-blur-md transition hover:-translate-y-1 hover:bg-ink-950/70 hover:ring-brand-500/60">
+                                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-500 text-ink-900"><o.icon className="h-5 w-5" /></span>
+                                            <div>
+                                                <p className="text-[11px] font-bold text-brand-400">0{i + 1}</p>
+                                                <p className="text-sm font-semibold uppercase tracking-wide">{o.title}</p>
+                                                <p className="mt-1 text-sm leading-snug text-white/75">{o.text}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <figcaption className="shrink-0 text-sm text-gray-400">
-                                <b className="block text-white">Site Safety Officer</b>Construction contractor
-                            </figcaption>
-                        </figure>
+                        </Photo>
                     </Reveal>
                 </section>
 
-                {/* what we serve */}
-                <section className="mx-auto max-w-[1400px] px-5 py-16 sm:px-8">
-                    <Reveal><SectionTag>What we serve</SectionTag></Reveal>
-                    <Reveal delay={0.05}><H2>Structured safety workflows</H2></Reveal>
-                    <Reveal delay={0.1}><p className="mt-4 max-w-md text-gray-500">Tailored tools for the way your site actually works — from the first inspection to the final report.</p></Reveal>
-
-                    <div className="mt-10 grid gap-5 md:grid-cols-3">
-                        {SERVE.map((s, i) => (
-                            <Reveal key={s.title} delay={i * 0.1}>
-                                <article className="group relative overflow-hidden rounded-3xl">
-                                    <Photo src={s.img} alt={s.title} className="aspect-[4/5]">
-                                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                                        <div className="absolute inset-x-0 bottom-0 p-6 text-white">
-                                            <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-brand-500 text-ink-900"><s.icon className="h-5 w-5" /></span>
-                                            <h3 className="text-2xl font-medium tracking-tight">{s.title}</h3>
-                                            <p className="mt-2 text-sm text-white/75">{s.text}</p>
-                                        </div>
-                                    </Photo>
-                                </article>
-                            </Reveal>
-                        ))}
-                    </div>
-                </section>
-
-                {/* pricing */}
-                <section id="pricing" className="scroll-mt-20 bg-gray-50 py-20">
+                {/* key system modules */}
+                <section id="modules" className="scroll-mt-20 bg-gray-50 py-20">
                     <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
-                        <div className="text-center">
-                            <Reveal><SectionTag>Simple pricing</SectionTag></Reveal>
-                            <Reveal delay={0.05}><H2>Clear pricing, no surprises.</H2></Reveal>
-                            <Reveal delay={0.1}><p className="mx-auto mt-4 max-w-md text-gray-500">Choose an annual Safety Buddy package. After your first purchase, explore all six modules.</p></Reveal>
+                        <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
+                            <div>
+                                <Reveal><SectionTag>Key system modules</SectionTag></Reveal>
+                                <Reveal delay={0.05}><H2>Integrated modules to manage<br />the complete safety journey</H2></Reveal>
+                            </div>
+                            <Reveal delay={0.1}><PillButton href="/register-view" tone="dark">Create an account</PillButton></Reveal>
                         </div>
 
-                        <div className="mx-auto mt-12 grid max-w-6xl gap-5 md:grid-cols-3">
-                            {plans.map((p, i) => (
-                                <Reveal key={p.name} delay={i * 0.1}>
-                                    <div className={`relative flex h-full flex-col rounded-[20px] p-7 transition hover:-translate-y-1.5 ${p.popular ? 'bg-ink-900 text-white shadow-2xl' : 'bg-white shadow-sm'}`}>
-                                        {p.popular && (
-                                            <span className="absolute right-5 top-5 rounded-full bg-brand-500 px-3 py-1 text-xs font-bold text-ink-900">Popular</span>
-                                        )}
-                                        <p className="text-xl font-medium">{p.name}</p>
-                                        <p className={`mt-1 text-sm ${p.popular ? 'text-gray-400' : 'text-gray-500'}`}>{p.tag}</p>
-                                        <p className="mt-6 text-5xl font-medium tracking-[-0.06em]">
-                                            {p.price === 0 ? 'Free' : <>RM {Number(p.price).toLocaleString()}</>}
-                                            {p.price > 0 && <span className={`ml-1 text-base font-normal tracking-normal ${p.popular ? 'text-gray-400' : 'text-gray-500'}`}>/ year</span>}
-                                        </p>
-                                        <Link href="/register-view" className={`group mt-6 flex items-center justify-between rounded-full py-2 pl-5 pr-2 text-sm font-semibold transition ${p.popular ? 'bg-brand-500 text-ink-900 hover:bg-brand-400' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
-                                            Get started
-                                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
-                                        </Link>
-                                        <ul className="mt-7 space-y-3 text-sm">
-                                            {p.items.map((it) => (
-                                                <li key={it} className="flex items-start gap-2.5">
-                                                    <Check className={`mt-0.5 h-4 w-4 shrink-0 ${p.popular ? 'text-brand-400' : 'text-brand-700'}`} strokeWidth={3} /> {it}
-                                                </li>
-                                            ))}
-                                        </ul>
+                        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {KEY_MODULES.map((m, i) => (
+                                <Reveal key={m.title} delay={(i % 4) * 0.06}>
+                                    <div className="h-full rounded-3xl bg-white p-5 shadow-sm transition hover:-translate-y-1.5 hover:shadow-xl">
+                                        <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${m.tone}`}><m.icon className="h-5 w-5" /></span>
+                                        <p className="mt-4 text-lg font-medium leading-snug tracking-tight">{m.title}</p>
+                                        <p className="mt-1.5 text-sm text-gray-500">{m.text}</p>
                                     </div>
                                 </Reveal>
                             ))}
                         </div>
-                        <p className="mx-auto mt-7 max-w-4xl text-center text-sm text-gray-500">Additional Inspector: RM800 per Inspector per year, prorated to the remaining subscription term. Self-learning user manual included; formal training certificate is not included.</p>
+
+                        <Reveal>
+                            <Photo src="devices.jpg" alt="Safety Buddy dashboard on laptop, tablet and mobile" tone="light" hideOnError className="mt-10 aspect-[16/7] rounded-[28px]" imageClassName="object-contain" />
+                        </Reveal>
                     </div>
                 </section>
 
@@ -605,9 +507,9 @@ export default function Landing({ subscriptionPlans = [] }) {
                 <section className="mx-auto max-w-[1400px] px-5 py-20 sm:px-8">
                     <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
                         <div>
-                            <Reveal><SectionTag>Trusted, every day</SectionTag></Reveal>
-                            <Reveal delay={0.05}><H2>Why teams choose Safety Buddy</H2></Reveal>
-                            <Reveal delay={0.1}><p className="mt-4 max-w-sm text-gray-500">We provide a smooth, low-friction safety workflow for every role on the project.</p></Reveal>
+                            <Reveal><SectionTag>Benefits to companies</SectionTag></Reveal>
+                            <Reveal delay={0.05}><H2>A safer, more accountable organisation</H2></Reveal>
+                            <Reveal delay={0.1}><p className="mt-4 max-w-sm text-gray-500">A safer, more accountable and higher performing organisation — with one smooth safety workflow for every role on the project.</p></Reveal>
                         </div>
                         <div className="grid gap-4 sm:grid-cols-2">
                             {WHY.map((w, i) => (
@@ -623,44 +525,25 @@ export default function Landing({ subscriptionPlans = [] }) {
                     </div>
                 </section>
 
-                {/* roles */}
+                {/* roles / people */}
                 <section className="bg-ink-900 py-20 text-white">
                     <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
                         <Reveal><p className="mb-3 text-base text-gray-400">Built for every role</p></Reveal>
-                        <Reveal delay={0.05}><h2 className="font-geist text-[34px] font-medium leading-[1.1] tracking-[-0.06em] sm:text-5xl">One platform, four experiences</h2></Reveal>
-                        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            {ROLES.map((r, i) => (
-                                <Reveal key={r.title} delay={i * 0.08}>
-                                    <div className="h-full rounded-3xl bg-white/5 p-6 ring-1 ring-white/10 transition hover:bg-white/10">
-                                        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-500 text-ink-900"><r.icon className="h-6 w-6" /></span>
-                                        <p className="mt-5 text-xl font-medium">{r.title}</p>
-                                        <p className="mt-2 text-sm text-gray-400">{r.text}</p>
+                        <Reveal delay={0.05}><h2 className="font-geist text-[34px] font-medium leading-[1.1] tracking-[-0.06em] sm:text-5xl">Safety is about people</h2></Reveal>
+                        <Reveal delay={0.1}><p className="mt-4 max-w-md text-gray-400">Admin, Manager, Supervisor, Inspector and Contractor — every role in your package works together on one platform for simpler, safer sites.</p></Reveal>
+
+                        <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+                            {VOICES.map((v, i) => (
+                                <Reveal key={v.name} delay={i * 0.08}>
+                                    <div className="group h-full">
+                                        <Photo src={v.img} alt={v.name} className="aspect-[3/4] rounded-3xl">
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                                        </Photo>
+                                        <p className="mt-3 text-[15px] font-medium">{v.name}</p>
+                                        <p className="text-sm font-semibold text-brand-400">{v.role}</p>
+                                        <p className="mt-0.5 text-xs leading-snug text-gray-400">{v.text}</p>
                                     </div>
                                 </Reveal>
-                            ))}
-                        </div>
-                    </div>
-                </section>
-
-                {/* reviews marquee */}
-                <section className="overflow-hidden py-20">
-                    <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
-                        <Reveal><H2>Trusted by safety teams<br />and contractors</H2></Reveal>
-                    </div>
-                    <div className="sb-marquee-wrap mt-10">
-                        <div className="sb-marquee slow">
-                            {[...REVIEWS, ...REVIEWS].map((r, i) => (
-                                <div key={i} className="mx-2 flex w-[360px] shrink-0 flex-col justify-between rounded-3xl bg-gray-50 p-6">
-                                    <div className="mb-3 flex gap-0.5">{[...Array(5)].map((_, k) => <Star key={k} className="h-4 w-4 fill-brand-500 text-brand-500" />)}</div>
-                                    <p className="text-[15px] leading-relaxed">“{r.text}”</p>
-                                    <div className="mt-5 flex items-center gap-3">
-                                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ink-900 text-sm font-bold text-brand-400">{r.name.charAt(0)}</span>
-                                        <div>
-                                            <p className="text-sm font-medium">{r.name}</p>
-                                            <p className="text-xs text-gray-500">{r.meta}</p>
-                                        </div>
-                                    </div>
-                                </div>
                             ))}
                         </div>
                     </div>
@@ -691,33 +574,57 @@ export default function Landing({ subscriptionPlans = [] }) {
                     </div>
                 </section>
 
-                {/* modules (coverage) */}
-                <section id="modules" className="scroll-mt-20 bg-gray-50 py-20">
+                {/* pricing */}
+                <section id="pricing" className="scroll-mt-20 bg-gray-50 py-20">
                     <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
-                        <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-end">
-                            <div>
-                                <Reveal><SectionTag>One account, many modules</SectionTag></Reveal>
-                                <Reveal delay={0.05}><H2>Choose what fits<br />your business</H2></Reveal>
-                            </div>
-                            <Reveal delay={0.1}><PillButton href="/register-view" tone="dark">Create an account</PillButton></Reveal>
+                        <div className="text-center">
+                            <Reveal><SectionTag>Simple pricing</SectionTag></Reveal>
+                            <Reveal delay={0.05}><H2>Clear pricing, no surprises.</H2></Reveal>
+                            <Reveal delay={0.1}><p className="mx-auto mt-4 max-w-md text-gray-500">Choose an annual Safety Buddy package. After your first purchase, explore every Safety Buddy module.</p></Reveal>
                         </div>
 
-                        <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                            {MODULES.map((m, i) => (
-                                <Reveal key={m.code} delay={i * 0.08}>
-                                    <div className="group overflow-hidden rounded-3xl bg-white shadow-sm transition hover:-translate-y-1.5 hover:shadow-xl">
-                                        <Photo src={m.img} alt={m.title} className="aspect-[4/3]" tone="light">
-                                            <span className="absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white text-ink-900 shadow"><m.icon className="h-5 w-5" /></span>
-                                        </Photo>
-                                        <div className="p-5">
-                                            <p className="text-[11px] font-bold uppercase tracking-wider text-brand-700">{m.code}</p>
-                                            <p className="mt-1 text-lg font-medium leading-snug tracking-tight">{m.title}</p>
-                                            <p className="mt-2 text-sm text-gray-500">{m.text}</p>
+                        <div className="mx-auto mt-12 grid max-w-6xl gap-5 md:grid-cols-3">
+                            {plans.map((p, i) => (
+                                <Reveal key={p.name} delay={i * 0.1}>
+                                    <div className={`relative flex h-full flex-col rounded-[24px] p-7 transition hover:-translate-y-1.5 ${p.popular ? 'bg-ink-900 text-white shadow-2xl ring-1 ring-brand-500/40' : 'bg-white shadow-sm ring-1 ring-gray-200'}`}>
+                                        <div className="flex items-center justify-between gap-3">
+                                            <p className="text-2xl font-medium tracking-tight">{p.name}</p>
+                                            {p.popular && (
+                                                <span className="rounded-full bg-brand-500 px-3 py-1 text-xs font-bold text-ink-900">Most popular</span>
+                                            )}
                                         </div>
+                                        <p className={`mt-1 text-sm ${p.popular ? 'text-gray-400' : 'text-gray-500'}`}>Annual package</p>
+                                        <p className="mt-6 text-5xl font-medium tracking-[-0.06em]">
+                                            {p.price === 0 ? 'Free' : <>RM {Number(p.price).toLocaleString()}</>}
+                                            {p.price > 0 && <span className={`ml-1 text-base font-normal tracking-normal ${p.popular ? 'text-gray-400' : 'text-gray-500'}`}>/ year</span>}
+                                        </p>
+                                        <Link href="/register-view" className={`group mt-6 flex items-center justify-between rounded-full py-2 pl-5 pr-2 text-sm font-semibold transition ${p.popular ? 'bg-brand-500 text-ink-900 hover:bg-brand-400' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
+                                            Get started
+                                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
+                                        </Link>
+                                        <p className={`mt-8 text-[11px] font-bold uppercase tracking-widest ${p.popular ? 'text-brand-400' : 'text-brand-700'}`}>Included user accounts</p>
+                                        <div className="mt-3 grid grid-cols-2 gap-2">
+                                            {p.seats.map((s) => (
+                                                <div key={s.label} className={`flex items-center gap-3 rounded-2xl px-3.5 py-3 ${p.popular ? 'bg-white/10' : 'bg-gray-50'}`}>
+                                                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold ${p.popular ? 'bg-brand-500 text-ink-900' : 'bg-ink-900 text-brand-400'}`}>{s.n}</span>
+                                                    <span className="text-sm font-medium leading-tight">{s.label}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <p className={`mt-8 text-[11px] font-bold uppercase tracking-widest ${p.popular ? 'text-brand-400' : 'text-brand-700'}`}>What’s included</p>
+                                        <ul className="mt-3 space-y-3 text-sm">
+                                            {p.items.map((it) => (
+                                                <li key={it} className="flex items-start gap-2.5">
+                                                    <Check className={`mt-0.5 h-4 w-4 shrink-0 ${p.popular ? 'text-brand-400' : 'text-brand-700'}`} strokeWidth={3} /> {it}
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
                                 </Reveal>
                             ))}
                         </div>
+                        <p className="mx-auto mt-7 max-w-4xl text-center text-sm text-gray-500">Need more Inspectors? Add one for RM800 per Inspector per year, prorated to the remaining subscription term. A self-learning user manual is included; a formal training certificate is not.</p>
                     </div>
                 </section>
 
@@ -791,7 +698,7 @@ export default function Landing({ subscriptionPlans = [] }) {
                 {/* CTA + stats */}
                 <section className="px-1 sm:px-1.5">
                     <Photo src="cta.jpg" alt="Safe site" className="rounded-[28px]">
-                        <div className="absolute inset-0 bg-gradient-to-b from-ink-950/55 via-ink-950/60 to-ink-950/80" />
+                        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/60 to-black/80" />
                         <div className="relative mx-auto max-w-[1400px] px-5 py-20 text-center text-white sm:px-8 sm:py-28">
                             <Reveal>
                                 <h2 className="mx-auto max-w-3xl font-geist text-4xl font-medium leading-[1.05] tracking-[-0.06em] sm:text-6xl">
@@ -818,6 +725,108 @@ export default function Landing({ subscriptionPlans = [] }) {
                         </div>
                     </Photo>
                 </section>
+
+                {/* Hidden for now – set the flag to true in SHOW to bring a section back */}
+
+                {/* about with scroll-reveal text */}
+                {SHOW.about && (
+                <>
+                <section id="about" className="mx-auto max-w-[1400px] scroll-mt-20 px-5 py-20 sm:px-8">
+                    <SectionTag>Know about us</SectionTag>
+                    <ScrollWords
+                        text="Safety Buddy — CMERI helps companies control, monitor, measure, enforce, report and improve safety performance. Every finding has an owner, every result is measured and every action is on record."
+                        className="max-w-5xl font-geist text-[30px] font-medium leading-[1.12] tracking-[-0.05em] sm:text-5xl"
+                    />
+
+                    <div className="mt-14 grid gap-6 lg:grid-cols-2">
+                        <Reveal>
+                            <Photo src="about.jpg" alt="Safety team on site" className="group aspect-[4/3] rounded-3xl" />
+                        </Reveal>
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            {VALUES.map((v, i) => (
+                                <Reveal key={v.title} delay={i * 0.08}>
+                                    <div className="h-full rounded-2xl bg-gray-50 p-5 transition hover:-translate-y-1 hover:bg-gray-100">
+                                        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-500 text-sm font-bold text-ink-900">{i + 1}</span>
+                                        <p className="mt-4 text-lg font-medium">{v.title}</p>
+                                        <p className="mt-1 text-sm text-gray-500">{v.text}</p>
+                                    </div>
+                                </Reveal>
+                            ))}
+                        </div>
+                    </div>
+
+                    <Reveal>
+                        <figure className="mt-10 flex flex-col gap-4 rounded-3xl bg-ink-900 p-7 text-white sm:flex-row sm:items-center sm:justify-between sm:p-10">
+                            <div className="flex gap-4">
+                                <Quote className="h-8 w-8 shrink-0 text-brand-500" />
+                                <blockquote className="text-xl font-medium leading-snug tracking-tight sm:text-2xl">
+                                    “Everything from the site walk is in one place the same day — no more chasing paper.”
+                                </blockquote>
+                            </div>
+                            <figcaption className="shrink-0 text-sm text-gray-400">
+                                <b className="block text-white">Site Safety Officer</b>Construction contractor
+                            </figcaption>
+                        </figure>
+                    </Reveal>
+                </section>
+                </>
+                )}
+
+                {/* what we serve */}
+                {SHOW.serve && (
+                <>
+                <section className="mx-auto max-w-[1400px] px-5 py-16 sm:px-8">
+                    <Reveal><SectionTag>What we serve</SectionTag></Reveal>
+                    <Reveal delay={0.05}><H2>Structured safety workflows</H2></Reveal>
+                    <Reveal delay={0.1}><p className="mt-4 max-w-md text-gray-500">Tailored tools for the way your site actually works — from the first inspection to the final report.</p></Reveal>
+
+                    <div className="mt-10 grid gap-5 md:grid-cols-3">
+                        {SERVE.map((s, i) => (
+                            <Reveal key={s.title} delay={i * 0.1}>
+                                <article className="group relative overflow-hidden rounded-3xl">
+                                    <Photo src={s.img} alt={s.title} className="aspect-[4/5]">
+                                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
+                                        <div className="absolute inset-x-0 bottom-0 p-6 text-white">
+                                            <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-brand-500 text-ink-900"><s.icon className="h-5 w-5" /></span>
+                                            <h3 className="text-2xl font-medium tracking-tight">{s.title}</h3>
+                                            <p className="mt-2 text-sm text-white/75">{s.text}</p>
+                                        </div>
+                                    </Photo>
+                                </article>
+                            </Reveal>
+                        ))}
+                    </div>
+                </section>
+                </>
+                )}
+
+                {/* reviews marquee */}
+                {SHOW.reviews && (
+                <>
+                <section className="overflow-hidden py-20">
+                    <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
+                        <Reveal><H2>Trusted by safety teams<br />and contractors</H2></Reveal>
+                    </div>
+                    <div className="sb-marquee-wrap mt-10">
+                        <div className="sb-marquee slow">
+                            {[...REVIEWS, ...REVIEWS].map((r, i) => (
+                                <div key={i} className="mx-2 flex w-[360px] shrink-0 flex-col justify-between rounded-3xl bg-gray-50 p-6">
+                                    <div className="mb-3 flex gap-0.5">{[...Array(5)].map((_, k) => <Star key={k} className="h-4 w-4 fill-brand-500 text-brand-500" />)}</div>
+                                    <p className="text-[15px] leading-relaxed">“{r.text}”</p>
+                                    <div className="mt-5 flex items-center gap-3">
+                                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-ink-900 text-sm font-bold text-brand-400">{r.name.charAt(0)}</span>
+                                        <div>
+                                            <p className="text-sm font-medium">{r.name}</p>
+                                            <p className="text-xs text-gray-500">{r.meta}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+                </>
+                )}
             </main>
 
             {/* footer */}
@@ -827,7 +836,7 @@ export default function Landing({ subscriptionPlans = [] }) {
                         <div className="flex items-center">
                             <img src="/images/sbc-header.png" alt="Safety Buddy – Cmeri" className="h-16 w-auto max-w-[240px] object-contain" />
                         </div>
-                        <p className="mt-4 max-w-xs text-sm text-gray-500">Control. Performance. Report. The all-in-one safety management platform for contractors.</p>
+                        <p className="mt-4 max-w-xs text-sm text-gray-500">Safety control, performance measurement and reporting for companies and contractors.</p>
                         <div className="mt-6 space-y-2 text-sm">
                             <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-brand-700" />{CONTACT.phone}</p>
                             <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-brand-700" />{CONTACT.email}</p>
@@ -836,8 +845,8 @@ export default function Landing({ subscriptionPlans = [] }) {
                     </div>
 
                     {[
-                        { t: 'Product', l: [['Inspections', '#features'], ['Toolbox talks', '#features'], ['Incident statistics', '#features'], ['Modules', '#modules']] },
-                        { t: 'Company', l: [['About', '#about'], ['Pricing', '#pricing'], ['Guides', '#guides'], ['Contact', '#contact']] },
+                        { t: 'Product', l: [['What is CMERI', '#top'], ['Framework', '#cmeri'], ['Key modules', '#modules'], ['Pricing', '#pricing']] },
+                        { t: 'Company', l: [['Pricing', '#pricing'], ['Guides', '#guides'], ['Contact', '#contact']] },
                         { t: 'Access', l: [['Sign in', '/login'], ['Create account', '/register-view']] },
                     ].map((c) => (
                         <div key={c.t}>

@@ -315,7 +315,7 @@ class ReviewController extends Controller
             if ($f['q'] !== '') {
                 $hay = $this->normalise(implode(' ', array_filter([
                     $i['project'] ?? null, $i['topic'] ?? null, $i['subcon'] ?? null, $i['location'] ?? null,
-                    $i['inspector'] ?? null, $i['description'] ?? null, $c['subcon_response'], $c['date_open'], '#' . $c['id'],
+                    $i['inspector'] ?? null, $i['description'] ?? null, $c['subcon_response'], $c['date_open'], '#' . $c['id'], $c['series_code'] ?? null, $i['series_code'] ?? null,
                 ])));
                 if (!str_contains($hay, $this->normalise($f['q']))) return false;
             }
@@ -407,8 +407,8 @@ class ReviewController extends Controller
 
             if ($f['q'] !== '') {
                 $hay = $this->normalise(implode(' ', array_filter([
-                    $v['project'], $v['by'], $v['date'],
-                    ...collect($v['inspections'])->flatMap(fn ($i) => [$i['topic'], $i['subcon'], $i['location'], $i['description']])->all(),
+                    $v['project'], $v['by'], $v['date'], $v['talk']['series_code'] ?? null,
+                    ...collect($v['inspections'])->flatMap(fn ($i) => [$i['series_code'], $i['topic'], $i['subcon'], $i['location'], $i['description']])->all(),
                 ])));
                 if (!str_contains($hay, $this->normalise($f['q']))) return false;
             }
@@ -495,6 +495,7 @@ class ReviewController extends Controller
             ->get()
             ->map(fn ($t) => [
                 'id' => $t->id,
+                'series_code' => $t->code,
                 'date' => optional($t->inspection_date)->format('Y-m-d'),
                 'project' => optional($t->project)->name,
                 'by' => optional($t->CompanyStaff)->name,
@@ -723,6 +724,7 @@ class ReviewController extends Controller
         return Inertia::render('Review/InspectionShow', [
             'inspection' => [
                 'id' => $i->id,
+                'series_code' => $i->code,
                 'project' => optional($i->project)->name,
                 'category' => $category,
                 'topic' => optional($i->topic)->name,

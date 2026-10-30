@@ -1,9 +1,10 @@
 // Site visit detail: toolbox talk first, then the inspections. Shared by the admin and the review portal.
 import React from 'react';
+import SeriesCode from './SeriesCode';
 import { Link } from '@inertiajs/react';
 import { ArrowLeft, CalendarDays, UserRound, MapPin, HardHat, ClipboardCheck, Building2, Users } from 'lucide-react';
 import { EvalBadge, StatusBadge, SectionCard, InfoRow, fmtDate } from '@/Components/inspector/kit';
-import ReviewProgress from '@/Components/shared/ReviewProgress';
+import ReviewProgress, { ReviewSteps } from '@/Components/shared/ReviewProgress';
 import PdfButton from '@/Components/shared/PdfButton';
 
 export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspectionHref, children }) {
@@ -44,6 +45,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                     <p className="text-sm text-gray-500">No toolbox talk was recorded for this visit.</p>
                 ) : (
                     <div className="space-y-5">
+                        <SeriesCode code={t.series_code} />
                         <div className="flex flex-wrap items-center gap-2">
                             <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${t.conducted ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
                                 {t.conducted ? 'Conducted' : 'Not conducted'}
@@ -104,6 +106,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                             <div key={i.id} className="rounded-2xl border border-gray-100 p-4">
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                     <div className="min-w-0">
+                                        <SeriesCode code={i.series_code} className="block" />
                                         <p className="text-[15px] font-bold text-gray-900">{i.topic || '-'}</p>
                                         <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                                             <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{i.location || '-'}</span>
@@ -113,6 +116,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                                     <div className="flex items-center gap-2">
                                         <EvalBadge value={i.evaluation} />
                                         <StatusBadge value={i.status} />
+                                        <ReviewSteps status={i.status} />
                                     </div>
                                 </div>
                                 {i.description && <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">{i.description}</p>}

@@ -183,7 +183,7 @@ export const CasesTab = ({ cases }) => {
             <button type="button" onClick={() => setOpen(expanded ? null : c.key)} className="flex w-full flex-col gap-2 p-4 text-left md:flex-row md:items-center md:justify-between">
               <div className="flex items-start gap-3">
                 <span className={`mt-0.5 whitespace-nowrap rounded px-2 py-0.5 text-xs font-bold ${c.type === 'nc' ? 'bg-orange-100 text-orange-800' : 'bg-purple-100 text-purple-800'}`}>
-                  {c.type === 'nc' ? 'NC' : 'CC'} #{c.id}
+                  {c.series_code || `${c.type === 'nc' ? 'NC' : 'CC'} #${c.id}`}
                 </span>
                 <div>
                   <div className="text-sm font-semibold text-gray-800">{i.topic || 'Inspection finding'}</div>

@@ -1,5 +1,6 @@
 // resources/js/Pages/Inspector/ToolboxTalks.jsx
 import React, { useState } from 'react';
+import SeriesCode from '@/Components/shared/SeriesCode';
 import { Head, Link, router } from '@inertiajs/react';
 import { Plus, CalendarDays, Users, UserRound, CheckCircle2, XCircle, ChevronRight, Pencil, Trash2, Eye } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
@@ -74,6 +75,7 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
+                                            <SeriesCode code={t.code} className="block" />
                                             <p className="truncate text-[15px] font-bold text-gray-900">{t.project?.name || '-'}</p>
                                             <p className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-brand-800">
                                                 <CalendarDays className="h-3.5 w-3.5" /> {fmtDate(t.inspection_date)}
@@ -124,7 +126,7 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
                                     {rows.map((t, idx) => (
                                         <tr key={t.id} className="hover:bg-gray-50">
                                             <td className="px-5 py-3.5 text-gray-400">{(toolboxTalks.from ?? 1) + idx}</td>
-                                            <td className="px-5 py-3.5 font-semibold text-gray-900">{t.project?.name || '-'}</td>
+                                            <td className="px-5 py-3.5 font-semibold text-gray-900"><SeriesCode code={t.code} className="block" />{t.project?.name || '-'}</td>
                                             <td className="px-5 py-3.5 text-gray-600">{t.company_staff?.name || t.conducted || '-'}</td>
                                             <td className="max-w-xs truncate px-5 py-3.5 text-gray-600">{topicsOf(t).join(', ') || '-'}</td>
                                             <td className="px-5 py-3.5 text-gray-600">{t.total_attended ?? 0}</td>

@@ -137,7 +137,7 @@ class PdfReportController extends Controller
         @ini_set('memory_limit', '512M');
         @set_time_limit(120);
 
-        return Pdf::loadView($view, $data)->setPaper('a4', 'portrait')->stream($filename . '.pdf');
+        return Pdf::loadView($view, $data)->setPaper('a4', 'portrait')->stream(str_replace(['/', '\\'], '-', $filename) . '.pdf');
     }
 
     private function ts($d, string $fmt = 'd M Y, H:i'): ?string
@@ -168,7 +168,7 @@ class PdfReportController extends Controller
             ? \App\Models\InspectionCategory::where('id', $i->topic->inspection_category_id)->value('name')
             : null;
 
-        $ref = 'INS-' . str_pad($i->id, 5, '0', STR_PAD_LEFT);
+        $ref = $i->code ?: 'INS-' . str_pad($i->id, 5, '0', STR_PAD_LEFT);
 
         return $this->render('pdf.inspection', [
             'i' => $i,
@@ -190,7 +190,7 @@ class PdfReportController extends Controller
         }
         abort_unless($t->status === Inspection::STATUS_APPROVED, 403, 'The PDF report is available once the toolbox talk is approved.');
 
-        $ref = 'TBT-' . str_pad($t->id, 5, '0', STR_PAD_LEFT);
+        $ref = $t->code ?: 'TBT-' . str_pad($t->id, 5, '0', STR_PAD_LEFT);
 
         return $this->render('pdf.toolbox', [
             't' => $t,
@@ -244,7 +244,7 @@ class PdfReportController extends Controller
         $verifier ??= optional($list->first(fn ($x) => $x->verifier)?->verifier)->name;
         $approver ??= optional($list->first(fn ($x) => $x->approver)?->approver)->name;
 
-        $ref = 'SV-' . strtoupper($m[1]) . '-' . str_pad($m[2], 5, '0', STR_PAD_LEFT);
+        $ref = ($t ?: $one)->code ?: 'SV-' . strtoupper($m[1]) . '-' . str_pad($m[2], 5, '0', STR_PAD_LEFT);
 
         return $this->render('pdf.visit', [
             't' => $t,
@@ -320,7 +320,7 @@ class PdfReportController extends Controller
         $row = CaseFeed::row($type, $case);
         $inspection = $case->inspection;
         $photos = $this->photos($inspection->photo);
-        $ref = strtoupper($type) . '-' . str_pad($case->id, 5, '0', STR_PAD_LEFT);
+        $ref = $case->code ?: strtoupper($type) . '-' . str_pad($case->id, 5, '0', STR_PAD_LEFT);
         $title = $type === 'nc' ? 'Non-Conformance Report' : 'Client Complaint Report';
 
         return $this->render('pdf.case', [

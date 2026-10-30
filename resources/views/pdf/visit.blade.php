@@ -11,7 +11,7 @@
 </table>
 
 @if($t)
-<div style="margin-top:14px;font-size:13px;font-weight:bold;color:#0f766e">Part 1 &middot; Toolbox talk</div>
+<div style="margin-top:14px;font-size:13px;font-weight:bold;color:#0f766e">Part 1 &middot; Toolbox talk{{ $t->code ? ' ' . $t->code : '' }}</div>
 @include('pdf._toolbox_body')
 @endif
 
@@ -19,7 +19,7 @@
 @php($i = $row['i'])
 @php($category = $row['category'])
 @php($photos = $row['photos'])
-<div style="page-break-before: always; font-size:13px;font-weight:bold;color:#0f766e">Part {{ $t ? 2 : 1 }} &middot; Inspection {{ $n + 1 }} of {{ count($inspections) }}</div>
+<div style="page-break-before: always; font-size:13px;font-weight:bold;color:#0f766e">Part {{ $t ? 2 : 1 }} &middot; Inspection {{ $n + 1 }} of {{ count($inspections) }}@if($i->code) &middot; {{ $i->code }}@endif</div>
 @include('pdf._inspection_body')
 @endforeach
 @endsection

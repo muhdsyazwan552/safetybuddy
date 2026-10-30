@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { Pencil, Printer, Trash2, CalendarDays, Users, UserRound, CheckCircle2, XCircle, ListChecks, Image as ImageIcon, X } from 'lucide-react';
+import { Pencil, Trash2, CalendarDays, Users, UserRound, CheckCircle2, XCircle, ListChecks, Image as ImageIcon, X } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import { SectionCard, InfoRow, Sheet, ActionBar, fmtDate, storageUrl, darkBtn, ghostBtn } from '@/Components/inspector/kit';
 import { spPercent } from '@/Components/shared/SpSampling';
@@ -36,7 +36,7 @@ export default function ShowToolboxTalk({ toolboxTalk, user, can_edit = false })
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
                     <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Toolbox talk #{toolboxTalk.id}</p>
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">{toolboxTalk.code || `Toolbox talk #${toolboxTalk.id}`}</p>
                             <h1 className="mt-1 text-xl font-extrabold leading-tight">{toolboxTalk.project?.name || '-'}</h1>
                         </div>
                         <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-[11px] font-bold uppercase ${isConducted ? 'bg-emerald-500 text-white' : 'bg-red-500 text-white'}`}>
@@ -129,9 +129,6 @@ export default function ShowToolboxTalk({ toolboxTalk, user, can_edit = false })
                         <Pencil className="h-4 w-4" /> Edit
                     </Link>
                 )}
-                <button onClick={() => window.print()} className={ghostBtn}>
-                    <Printer className="h-4 w-4" /> Print
-                </button>
                 {can_edit && (
                     <button
                         onClick={() => setConfirm(true)}

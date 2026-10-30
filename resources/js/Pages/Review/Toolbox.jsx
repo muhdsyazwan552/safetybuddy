@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import SeriesCode from '@/Components/shared/SeriesCode';
 import { Head } from '@inertiajs/react';
 import { CalendarDays, Users, Check, X } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
@@ -27,6 +28,7 @@ export default function Toolbox({ talks = [] }) {
                     <div key={t.id} className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
                         <div className="flex items-start justify-between gap-3 p-4">
                             <div className="min-w-0">
+                                <SeriesCode code={t.series_code} className="block" />
                                 <p className="truncate text-[15px] font-bold text-gray-900">{t.project || '-'}</p>
                                 <p className="mt-0.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                                     <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-4 w-4" />{t.date}</span>

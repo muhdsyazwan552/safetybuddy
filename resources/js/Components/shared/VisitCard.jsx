@@ -1,5 +1,7 @@
 // One site visit: the toolbox talk and the inspections done with it, each with its review status.
 import React, { useState } from 'react';
+import { ReviewSteps } from './ReviewProgress';
+import SeriesCode from './SeriesCode';
 import { Link } from '@inertiajs/react';
 import { CalendarDays, UserRound, HardHat, ClipboardCheck, ChevronDown, ChevronRight, Check, X, MapPin, Pencil } from 'lucide-react';
 import { EvalBadge, StatusBadge, cardTone } from '@/Components/inspector/kit';
@@ -57,7 +59,7 @@ export default function VisitCard({ visit, children, editable = false, defaultOp
                     {t && (
                         <section className="rounded-2xl border border-gray-100 bg-white p-4">
                             <div className="flex items-center justify-between gap-2">
-                                <p className="flex items-center gap-2 text-sm font-extrabold text-gray-900"><HardHat className="h-4 w-4" /> Toolbox talk</p>
+                                <p className="flex items-center gap-2 text-sm font-extrabold text-gray-900"><HardHat className="h-4 w-4" /> Toolbox talk <SeriesCode code={t.series_code} /></p>
                                 <div className="flex items-center gap-2">
                                     <StatusBadge value={t.status} />
                                     {editable && ['pending_verification', 'rejected'].includes(t.status) && (
@@ -89,7 +91,7 @@ export default function VisitCard({ visit, children, editable = false, defaultOp
                             {visit.inspections.map((i) => (
                                 <div key={i.id} className="rounded-2xl border border-gray-100 bg-white p-3.5">
                                     <div className="flex items-start justify-between gap-2">
-                                        <p className="min-w-0 text-sm font-bold text-gray-900">{i.topic || '-'}</p>
+                                        <p className="min-w-0 text-sm font-bold text-gray-900">{i.topic || '-'}<SeriesCode code={i.series_code} className="block" /></p>
                                         <div className="flex shrink-0 items-center gap-1.5">
                                             <EvalBadge value={i.evaluation} />
                                             {editable && ['pending_verification', 'rejected'].includes(i.status) && (
@@ -106,6 +108,7 @@ export default function VisitCard({ visit, children, editable = false, defaultOp
                                     {i.description && <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">{i.description}</p>}
                                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                                         <StatusBadge value={i.status} />
+                                        <ReviewSteps status={i.status} />
                                         {i.verifier && <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-blue-600"><Check className="h-3 w-3" />Verified by {i.verifier}</span>}
                                         {i.approver && <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600"><Check className="h-3 w-3" />Approved by {i.approver}</span>}
                                     </div>

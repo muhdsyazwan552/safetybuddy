@@ -7,6 +7,8 @@ use App\Models\CompanyStaff;
 use App\Models\SubconCompany;
 use App\Models\SubconStaff;
 use App\Models\SubscriptionsCompany;
+use App\Models\Inspection;
+use App\Models\Project;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -35,6 +37,36 @@ class SeriesCodes
     public static function number(int $sequence): string
     {
         return str_pad((string) $sequence, 3, '0', STR_PAD_LEFT);
+    }
+
+    /** Record types that carry a per-company series code: scope key => code segment. */
+    public const RECORD_SEGMENTS = ['tbx' => 'TBX', 'ins' => 'INS', 'nc' => 'NC', 'cc' => 'CC'];
+
+    /** Company that owns a toolbox talk / inspection / NC / CC row, resolved through its project or inspection. */
+    public static function recordCompanyId(string $type, $row): ?int
+    {
+        if (in_array($type, ['nc', 'cc'], true)) {
+            $inspection = $row->inspection_id ? Inspection::find($row->inspection_id) : null;
+
+            return $inspection ? self::recordCompanyId('ins', $inspection) : null;
+        }
+        if ($type === 'ins' && $row->company_id) {
+            return (int) $row->company_id;
+        }
+        $companyId = $row->project_id ? Project::whereKey($row->project_id)->value('company_id') : null;
+
+        return $companyId ? (int) $companyId : null;
+    }
+
+    /** Next [serial_no, code] for a record type, e.g. ABC/TBX/001. The counter row lock keeps concurrent creates unique. */
+    public static function assignRecord(string $type, ?int $companyId): array
+    {
+        return DB::transaction(function () use ($type, $companyId) {
+            $companyCode = $companyId ? Company::whereKey($companyId)->value('code') : null;
+            $sequence = self::next("{$type}:" . (int) $companyId);
+
+            return [$sequence, ($companyCode ?: 'CO') . '/' . self::RECORD_SEGMENTS[$type] . '/' . self::number($sequence)];
+        });
     }
 
     private static function next(string $scope): int

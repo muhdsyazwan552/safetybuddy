@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { StatusBadge } from '@/Components/inspector/kit';
+import SeriesCode from '@/Components/shared/SeriesCode';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
-import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
+import TableViewIcon, { tableViewActionClass, TableEditIcon, TableDeleteIcon, tableEditActionClass, tableDeleteActionClass } from '@/Components/shared/TableViewIcon';
 import Toolbox from './Toolbox';
 import { showAlert } from '@/Helpers/alert';
 
@@ -29,7 +31,7 @@ const Inspection = ({
   const visitPageSize = 15;
 
   const filteredVisits = visits.filter((v) => {
-    const text = `${v.project || ''} ${v.by || ''}`.toLowerCase();
+    const text = `${v.project || ''} ${v.by || ''} ${v.talk?.series_code || ''} ${v.inspections.map((i) => i.series_code).join(' ')}`.toLowerCase();
     const toolboxOk =
       visitToolbox === 'All' ||
       (visitToolbox === 'none' && !v.talk) ||
@@ -116,6 +118,7 @@ const Inspection = ({
   // Filter inspections
   const filteredInspections = inspections.filter(inspection => {
     const matchesSearch =
+      inspection.series_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inspection.inspection_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inspection.executor_company?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       inspection.project?.name?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -353,7 +356,7 @@ const Inspection = ({
                       <tr key={v.key} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-gray-500">{(visitPage - 1) * visitPageSize + n + 1}</td>
                         <td className="whitespace-nowrap px-4 py-3">{v.date ? new Date(`${v.date}T00:00:00`).toLocaleDateString() : '-'}</td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{v.project || '-'}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{v.project || '-'}{v.talk?.series_code && <SeriesCode code={v.talk.series_code} className="block" />}{!v.talk && v.inspections[0]?.series_code && <SeriesCode code={v.inspections[0].series_code} className="block" />}</td>
                         <td className="px-4 py-3">{v.by || '-'}</td>
                         <td className="px-4 py-3">
                           {v.talk ? (
@@ -782,6 +785,7 @@ const Inspection = ({
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Evaluation</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Topic</th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -794,7 +798,7 @@ const Inspection = ({
                             {inspection.inspection_date ? new Date(inspection.inspection_date).toLocaleDateString() : '-'}
                           </td>
                           <td className="px-6 py-4 text-sm text-gray-800">
-                            {inspection.project?.name || 'N/A'}
+                            <SeriesCode code={inspection.series_code} className="block" />{inspection.project?.name || 'N/A'}
                           </td>
                           <td className="px-6 py-4 text-sm font-medium text-gray-900">
                             {inspection.inspector?.name}
@@ -809,6 +813,7 @@ const Inspection = ({
                           <td className="px-6 py-4 whitespace-nowrap">
                             {getEvaluationBadge(inspection.evaluation)}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap"><StatusBadge value={inspection.status} /></td>
                           <td className="px-6 py-4 text-sm text-gray-800">
                             {inspection.topic?.name || 'N/A'}
                           </td>
@@ -824,15 +829,20 @@ const Inspection = ({
                               </Link>
                               <Link
                                 href={route('inspections.edit', inspection.id)}
-                                className="text-green-600 hover:text-green-800"
+                                className={tableEditActionClass}
+                                title="Edit inspection"
+                                aria-label="Edit inspection"
                               >
-                                Edit
+                                <TableEditIcon />
                               </Link>
                               <button
-                                className="text-red-600 hover:text-red-800"
+                                type="button"
+                                className={tableDeleteActionClass}
                                 onClick={() => handleDelete(inspection.id)}
+                                title="Delete inspection"
+                                aria-label="Delete inspection"
                               >
-                                Delete
+                                <TableDeleteIcon />
                               </button>
                             </div>
                           </td>
@@ -840,7 +850,7 @@ const Inspection = ({
                       ))
                     ) : (
                       <tr>
-                        <td colSpan="9" className="px-6 py-4 text-center text-sm text-gray-500">
+                        <td colSpan="10" className="px-6 py-4 text-center text-sm text-gray-500">
                           No inspections found
                         </td>
                       </tr>

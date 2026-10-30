@@ -30,7 +30,7 @@ export default function CaseCard({ item, children }) {
                     </span>
                     <div className="min-w-0">
                         <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
-                            {isNc ? 'Non-conformance' : 'Client complaint'} #{item.id}
+                            {isNc ? 'Non-conformance' : 'Client complaint'} {item.series_code || `#${item.id}`}
                         </p>
                         <p className="truncate text-[15px] font-bold text-gray-900">{i.topic || 'Inspection'}</p>
                         <p className="truncate text-xs text-gray-500">{i.project}</p>

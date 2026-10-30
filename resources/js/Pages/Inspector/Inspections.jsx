@@ -1,5 +1,7 @@
 // resources/js/Pages/Inspector/Inspections.jsx
 import React, { useState } from 'react';
+import { ReviewSteps } from '@/Components/shared/ReviewProgress';
+import SeriesCode from '@/Components/shared/SeriesCode';
 import { Head, Link, router } from '@inertiajs/react';
 import { Plus, MapPin, CalendarDays, Building2, ChevronRight, Pencil, Trash2, Eye } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
@@ -106,6 +108,7 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                                     <span className="absolute inset-y-0 left-0 w-1.5" style={{ background: EVAL[i.evaluation]?.color || '#9ca3af' }} />
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
+                                            <SeriesCode code={i.code} className="block" />
                                             <p className="truncate text-[15px] font-bold text-gray-900">{i.project?.name || '-'}</p>
                                             <p className="mt-0.5 truncate text-xs text-gray-500">{i.topic?.name || i.topic?.title || '-'}</p>
                                         </div>
@@ -114,6 +117,7 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                                             <StatusBadge value={i.status} />
                                         </div>
                                     </div>
+                                    <div className="mt-3 border-t border-gray-100 pt-2.5"><ReviewSteps status={i.status} /></div>
 
                                     <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-600">
                                         <span className="flex items-center gap-1.5 truncate"><Building2 className="h-3.5 w-3.5 shrink-0 text-gray-400" />{i.subcon_company?.name || '-'}</span>
@@ -149,7 +153,7 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                                     {rows.map((i, idx) => (
                                         <tr key={i.id} className="hover:bg-gray-50">
                                             <td className="px-5 py-3.5 text-gray-400">{(inspections.from ?? 1) + idx}</td>
-                                            <td className="px-5 py-3.5 font-semibold text-gray-900">{i.project?.name || '-'}</td>
+                                            <td className="px-5 py-3.5 font-semibold text-gray-900"><SeriesCode code={i.code} className="block" />{i.project?.name || '-'}</td>
                                             <td className="px-5 py-3.5 text-gray-600">{i.subcon_company?.name || '-'}</td>
                                             <td className="px-5 py-3.5 text-gray-600">{i.topic?.name || i.topic?.title || '-'}</td>
                                             <td className="px-5 py-3.5"><EvalBadge value={i.evaluation} /></td>

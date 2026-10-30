@@ -57,6 +57,7 @@ class CaseFeed
             'key' => $type . '-' . $case->id,
             'type' => $type,
             'id' => $case->id,
+            'series_code' => $case->code,
             'state' => $state, // open | responded | returned | closed
             'status' => $case->status,
             'date_open' => optional($case->date_open)->format('Y-m-d'),
@@ -69,6 +70,7 @@ class CaseFeed
             'created_at' => optional($case->created_at)->toDateTimeString(),
             'inspection' => [
                 'id' => $i?->id,
+                'series_code' => $i?->code,
                 'project_id' => $i?->project_id,
                 'project' => $i?->project?->name,
                 'subcon' => $i?->subconCompany?->name,

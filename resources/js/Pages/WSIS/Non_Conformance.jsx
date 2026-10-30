@@ -38,9 +38,10 @@ const NonConformance = ({ title, auth, nonConformances = [] }) => {
     const topic = nc.inspection?.topic?.name?.toLowerCase() ?? '';
     const subcon = nc.inspection?.subcon_company?.name?.toLowerCase() ?? '';
     const inspector = nc.inspection?.inspector?.name?.toLowerCase() ?? '';
+    const code = nc.code?.toLowerCase() ?? '';
     const search = searchTerm.toLowerCase();
 
-    const matchSearch = project.includes(search) || topic.includes(search)
+    const matchSearch = code.includes(search) || project.includes(search) || topic.includes(search)
       || subcon.includes(search) || inspector.includes(search);
 
     const matchStatus = statusFilter === 'all' || nc.status === statusFilter;
@@ -174,6 +175,7 @@ const NonConformance = ({ title, auth, nonConformances = [] }) => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Topic</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subcon Company</th>
@@ -188,6 +190,7 @@ const NonConformance = ({ title, auth, nonConformances = [] }) => {
                 {paginated.length > 0 ? paginated.map((nc, index) => (
                   <tr key={nc.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-gray-900">{startIndex + index + 1}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900"><span className="font-mono text-xs font-bold">{nc.code ?? '-'}</span></td>
                     <td className="px-6 py-4 text-sm text-gray-800">{nc.inspection?.project?.name ?? '-'}</td>
                     <td className="px-6 py-4 text-sm text-gray-800">{nc.inspection?.topic?.name ?? '-'}</td>
                     <td className="px-6 py-4 text-sm text-gray-800">{nc.inspection?.subcon_company?.name ?? '-'}</td>
@@ -224,7 +227,7 @@ const NonConformance = ({ title, auth, nonConformances = [] }) => {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan="9" className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan="10" className="px-6 py-4 text-center text-sm text-gray-500">
                       No non-conformance records found
                     </td>
                   </tr>

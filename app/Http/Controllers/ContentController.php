@@ -351,6 +351,8 @@ class ContentController extends Controller
             ->map(function ($inspection) {
                 return [
                     'id' => $inspection->id,
+                    'series_code' => $inspection->code,
+                    'status' => $inspection->status ?: Inspection::STATUS_PENDING,
                     'inspection_name' => $inspection->inspection_name ?? null,
                     'inspection_date' => $inspection->inspection_date,
                     'location' => $inspection->location,
@@ -389,6 +391,8 @@ class ContentController extends Controller
             ->get()
             ->map(fn ($talk) => [
                 'id'             => $talk->id,
+                'series_code'    => $talk->code,
+                'review_status'  => $talk->status ?: Inspection::STATUS_PENDING,
                 'name'           => $talk->CompanyStaff ? $talk->CompanyStaff->name : 'N/A',
                 'date'           => $talk->inspection_date,
                 'project'        => $talk->project ? $talk->project->name : 'N/A',
@@ -420,6 +424,48 @@ class ContentController extends Controller
         ]);
     }
 
+
+    /** Full detail of one toolbox talk, including its Safety Passport sampling. */
+    public function toolboxShow(int $id)
+    {
+        $talk = ToolboxTalks::with([
+                'project:id,name,company_id', 'CompanyStaff:id,name', 'categories:id,name', 'topics:id,name',
+                'attendees:id,name,role,company_id', 'inspections.topic:id,name',
+            ])
+            ->whereHas('project', fn ($q) => $q->where('company_id', Auth::user()->company_id))
+            ->findOrFail($id);
+
+        $subcons = SubconCompany::whereIn('id', $talk->attendees->pluck('company_id')->unique())->pluck('name', 'id');
+        $staffName = fn ($sid) => $sid ? CompanyStaff::whereKey($sid)->value('name') : null;
+
+        return Inertia::render('WSIS/Toolbox_Show', [
+            'talk' => [
+                'id' => $talk->id,
+                'code' => $talk->code,
+                'date' => optional($talk->inspection_date)->format('Y-m-d'),
+                'project' => optional($talk->project)->name,
+                'by' => optional($talk->CompanyStaff)->name,
+                'conducted' => $talk->conducted === 'yes',
+                'attended' => (int) $talk->total_attended,
+                'status' => $talk->status ?: Inspection::STATUS_PENDING,
+                'review_comment' => $talk->review_comment,
+                'verifier' => $staffName($talk->verified_by),
+                'approver' => $staffName($talk->approved_by),
+                'categories' => ($talk->categories->count() ? $talk->categories : $talk->topics)->pluck('name')->values(),
+                'sp_sampled' => $talk->sp_sampled,
+                'sp_not_registered' => $talk->sp_not_registered,
+                'sp_compliance' => $talk->sp_compliance,
+                'attendees' => $talk->attendees->map(fn ($a) => [
+                    'id' => $a->id, 'name' => $a->name, 'role' => $a->role, 'company' => $subcons[$a->company_id] ?? '-',
+                ])->values(),
+                'inspections' => $talk->inspections->map(fn ($i) => [
+                    'id' => $i->id, 'code' => $i->code, 'topic' => optional($i->topic)->name, 'evaluation' => $i->evaluation,
+                ])->values(),
+                'img_group' => $talk->img_group,
+                'img_attendance' => $talk->img_attendance,
+            ],
+        ]);
+    }
 
     /** One site visit - toolbox talk first, then its inspections. */
     public function visitShow(string $key)

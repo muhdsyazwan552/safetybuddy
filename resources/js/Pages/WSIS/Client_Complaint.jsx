@@ -23,9 +23,10 @@ const ClientComplaint = ({ title, auth, clientComplaints = [] }) => {
     const topic = cc.inspection?.topic?.name?.toLowerCase() ?? '';
     const subcon = cc.inspection?.subcon_company?.name?.toLowerCase() ?? '';
     const inspector = cc.inspection?.inspector?.name?.toLowerCase() ?? '';
+    const code = cc.code?.toLowerCase() ?? '';
     const search = searchTerm.toLowerCase();
 
-    const matchSearch = project.includes(search) || topic.includes(search)
+    const matchSearch = code.includes(search) || project.includes(search) || topic.includes(search)
       || subcon.includes(search) || inspector.includes(search);
     const matchStatus = statusFilter === 'all' || cc.status === statusFilter;
 
@@ -172,6 +173,7 @@ const ClientComplaint = ({ title, auth, clientComplaints = [] }) => {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Topic</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Subcon Company</th>
@@ -186,6 +188,7 @@ const ClientComplaint = ({ title, auth, clientComplaints = [] }) => {
                 {paginated.length > 0 ? paginated.map((cc, index) => (
                   <tr key={cc.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 text-sm text-gray-900">{startIndex + index + 1}</td>
+                    <td className="px-6 py-4 text-sm text-gray-900"><span className="font-mono text-xs font-bold">{cc.code ?? '-'}</span></td>
                     <td className="px-6 py-4 text-sm text-gray-800">{cc.inspection?.project?.name ?? '-'}</td>
                     <td className="px-6 py-4 text-sm text-gray-800">{cc.inspection?.topic?.name ?? '-'}</td>
                     <td className="px-6 py-4 text-sm text-gray-800">{cc.inspection?.subcon_company?.name ?? '-'}</td>
@@ -218,7 +221,7 @@ const ClientComplaint = ({ title, auth, clientComplaints = [] }) => {
                   </tr>
                 )) : (
                   <tr>
-                    <td colSpan="9" className="px-6 py-4 text-center text-sm text-gray-500">
+                    <td colSpan="10" className="px-6 py-4 text-center text-sm text-gray-500">
                       No client complaint records found
                     </td>
                   </tr>

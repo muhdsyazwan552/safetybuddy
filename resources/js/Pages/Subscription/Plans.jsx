@@ -24,6 +24,7 @@ function PlanCard({ plan, pending, hasActiveSafety, canPurchase }) {
     `${plan.manager_limit} Manager`,
     `${plan.supervisor_limit} Supervisor`,
     `${plan.inspector_limit} Inspector${plan.inspector_limit > 1 ? 's' : ''}`,
+    `${plan.contractor_limit ?? 1} Contractor${(plan.contractor_limit ?? 1) > 1 ? 's' : ''}`,
     plan.daily_pdf_limit === null ? 'Unlimited Daily Report PDFs' : `${plan.daily_pdf_limit} Daily Report PDFs / month (shared)`,
     plan.monthly_pdf_limit === null ? 'Unlimited Monthly Report PDFs' : `${plan.monthly_pdf_limit} Monthly Report PDFs / month (shared)`,
     ...common,
