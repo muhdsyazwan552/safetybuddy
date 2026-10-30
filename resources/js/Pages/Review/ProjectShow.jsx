@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import VisitCard from '@/Components/shared/VisitCard';
+import CaseCard from '@/Components/shared/CaseCard';
 import { EVAL, EVAL_ORDER, fmtDate } from '@/Components/inspector/kit';
 import { statusMeta, timelineProgress, daysLeft } from '@/Components/inspector/projectUtils';
 
@@ -15,7 +16,13 @@ const CASE_STATE = {
     closed: ['Closed', 'bg-emerald-50 text-emerald-700 border-emerald-200'],
 };
 
-export default function ProjectShow({ project, stats = {}, evaluation = {}, team = [], subcons = [], visits = [], cases = [] }) {
+// The project page content, shared with the inspector's project page.
+// hrefs: where a visit / case / subcontractor opens; null = that record has no page for this user
+export function ProjectDetail({ project, stats = {}, evaluation = {}, team = [], subcons = [], visits = [], cases = [], backHref = '/review/projects', backLabel = 'Projects', myRole = null, heroExtra = null, hrefs = {} }) {
+    const visitHref = hrefs.visit || ((v) => `/review/visits/${v.key}`);
+    const caseHref = hrefs.case === undefined ? ((c) => `/review/cases/${c.type}/${c.id}`) : hrefs.case;
+    const subconHref = hrefs.subcon === undefined ? ((c) => `/review/subcons/${c.id}`) : hrefs.subcon;
+    const SubconTag = subconHref ? Link : 'div';
     const [tab, setTab] = useState('overview');
     const st = statusMeta(project.status);
     const prog = timelineProgress(project.start_date, project.end_date);
@@ -23,21 +30,34 @@ export default function ProjectShow({ project, stats = {}, evaluation = {}, team
     const evalTotal = EVAL_ORDER.reduce((s, k) => s + (evaluation[k] || 0), 0);
     const openCases = cases.filter((c) => c.state !== 'closed');
 
+    // every list is paged on the page itself; each tab keeps its own page number
+    const [pages, setPages] = useState({ visits: 1, cases: 1, subcons: 1, team: 1 });
+    const setPage = (key, n) => setPages((p) => ({ ...p, [key]: n }));
+    const paged = (key, rows, size) => {
+        const last = Math.max(1, Math.ceil(rows.length / size));
+        const page = Math.min(pages[key], last);
+        return { rows: rows.slice((page - 1) * size, page * size), page, last, total: rows.length, key };
+    };
+    // only one card of the visit / case lists is open at a time
+    const [openVisit, setOpenVisit] = useState(null);
+    const [openCase, setOpenCase] = useState(null);
+    const pVisits = paged('visits', visits, 5);
+    const pCases = paged('cases', cases, 5);
+    const pSubcons = paged('subcons', subcons, 6);
+    const pTeam = paged('team', team, 6);
+
     const tabs = [
         ['overview', 'Overview'],
-        ['visits', `Site visits (${stats.visits ?? 0})`],
+        ['visits', `Toolbox talk & Inspection (${stats.visits ?? 0})`],
         ['cases', `NC / CC (${cases.length})`],
         ['subcons', `Subcons (${subcons.length})`],
         ['team', `Team (${team.length})`],
     ];
 
     return (
-        <ReviewLayout title={project.name}>
-            <Head title={`Project: ${project.name}`} />
-
             <div className="mx-auto max-w-5xl space-y-4 px-4 pb-10 pt-5 sm:px-6">
-                <Link href="/review/projects" className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-800">
-                    <ChevronLeft className="h-4 w-4" /> Projects
+                <Link href={backHref} className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-800">
+                    <ChevronLeft className="h-4 w-4" /> {backLabel}
                 </Link>
 
                 {/* Hero */}
@@ -54,6 +74,8 @@ export default function ProjectShow({ project, stats = {}, evaluation = {}, team
                             </div>
                             <span className={`shrink-0 rounded-full border px-3 py-1 text-[10px] font-bold uppercase ${st.cls}`}>{st.label}</span>
                         </div>
+                        {myRole && <p className="mt-3 text-sm text-gray-300">Your role : <b className="text-brand-400">{myRole}</b></p>}
+
                         <div className="mt-4">
                             <div className="mb-1.5 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-300">
                                 <span className="flex items-center gap-1.5">
@@ -72,6 +94,7 @@ export default function ProjectShow({ project, stats = {}, evaluation = {}, team
                                 </div>
                             )}
                         </div>
+                        {heroExtra}
                     </div>
                 </div>
 
@@ -122,17 +145,17 @@ export default function ProjectShow({ project, stats = {}, evaluation = {}, team
                         <Card title={`Open NC / CC (${openCases.length})`}>
                             {openCases.length === 0 ? <Empty>Nothing open on this project.</Empty> : (
                                 <div className="-mx-4 -mb-4 divide-y divide-gray-100">
-                                    {openCases.slice(0, 5).map((c) => <CaseRow key={c.key} c={c} />)}
+                                    {openCases.slice(0, 5).map((c) => <CaseRow key={c.key} c={c} href={caseHref ? caseHref(c) : null} />)}
                                 </div>
                             )}
                         </Card>
 
-                        <Card title="Latest site visits" className="md:col-span-2">
-                            {visits.length === 0 ? <Empty>No site visits yet.</Empty> : (
+                        <Card title="Latest toolbox talk & inspection" className="md:col-span-2">
+                            {visits.length === 0 ? <Empty>No toolbox talk & inspection yet.</Empty> : (
                                 <div className="space-y-3">
-                                    {visits.slice(0, 3).map((v) => <VisitCard key={v.key} visit={v} detailHref={`/review/visits/${v.key}`} />)}
+                                    {visits.slice(0, 3).map((v) => <VisitCard key={v.key} visit={v} detailHref={visitHref(v)} />)}
                                     {visits.length > 3 && (
-                                        <button onClick={() => setTab('visits')} className="w-full rounded-xl bg-gray-50 py-2.5 text-xs font-bold text-brand-800">See all site visits</button>
+                                        <button onClick={() => setTab('visits')} className="w-full rounded-xl bg-gray-50 py-2.5 text-xs font-bold text-brand-800">See all toolbox talk & inspection</button>
                                     )}
                                 </div>
                             )}
@@ -141,26 +164,38 @@ export default function ProjectShow({ project, stats = {}, evaluation = {}, team
                 )}
 
                 {tab === 'visits' && (
-                    visits.length === 0 ? <Empty boxed>No site visits yet.</Empty> : (
-                        <div className="space-y-3">
-                            {visits.map((v) => <VisitCard key={v.key} visit={v} detailHref={`/review/visits/${v.key}`} />)}
+                    visits.length === 0 ? <Empty boxed>No toolbox talk & inspection yet.</Empty> : (
+                        <div className="space-y-4">
+                            {pVisits.rows.map((v) => (
+                                <VisitCard key={v.key} visit={v} detailHref={visitHref(v)} open={openVisit === v.key} onToggle={() => setOpenVisit((k) => (k === v.key ? null : v.key))} />
+                            ))}
+                            <Pagination p={pVisits} onPage={setPage} />
                         </div>
                     )
                 )}
 
                 {tab === 'cases' && (
                     cases.length === 0 ? <Empty boxed>No NC / CC raised on this project.</Empty> : (
-                        <div className="divide-y divide-gray-100 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-                            {cases.map((c) => <CaseRow key={c.key} c={c} />)}
+                        <div className="space-y-4">
+                            {pCases.rows.map((c) => (
+                                <CaseCard key={c.key} item={c} showReply={false} collapsible open={openCase === c.key} onToggle={() => setOpenCase((k) => (k === c.key ? null : c.key))}>
+                                    {caseHref && (
+                                        <Link href={caseHref(c)} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink-900 px-5 py-3 text-sm font-bold text-brand-400 shadow-sm transition hover:bg-ink-800 sm:ml-auto sm:w-auto sm:min-w-[260px]">
+                                            View full details <ChevronRight className="h-4 w-4" />
+                                        </Link>
+                                    )}
+                                </CaseCard>
+                            ))}
+                            <Pagination p={pCases} onPage={setPage} />
                         </div>
                     )
                 )}
 
                 {tab === 'subcons' && (
                     subcons.length === 0 ? <Empty boxed>No subcontractor assigned.</Empty> : (
-                        <div className="grid gap-3 md:grid-cols-2">
-                            {subcons.map((c) => (
-                                <Link key={c.id} href={`/review/subcons/${c.id}`} className="block min-w-0 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md">
+                        <div className="space-y-3"><div className="grid gap-3 md:grid-cols-2">
+                            {pSubcons.rows.map((c) => (
+                                <SubconTag key={c.id} {...(subconHref ? { href: subconHref(c) } : {})} className="block min-w-0 rounded-3xl border border-gray-200 bg-white p-4 shadow-md shadow-gray-200/60 transition hover:shadow-md">
                                     <div className="flex items-center gap-3">
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-500 font-extrabold text-ink-900">{(c.name || '?').charAt(0).toUpperCase()}</span>
                                         <div className="min-w-0 flex-1">
@@ -174,21 +209,22 @@ export default function ProjectShow({ project, stats = {}, evaluation = {}, team
                                         <Pill label="Today" value={c.present_today} />
                                         <Pill label="Inspections" value={c.inspections} />
                                     </div>
-                                </Link>
+                                </SubconTag>
                             ))}
                         </div>
+                        <Pagination p={pSubcons} onPage={setPage} /></div>
                     )
                 )}
 
                 {tab === 'team' && (
                     team.length === 0 ? <Empty boxed>No staff assigned.</Empty> : (
-                        <div className="grid gap-3 md:grid-cols-2">
-                            {team.map((m) => (
-                                <div key={m.id} className="min-w-0 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <div className="space-y-3"><div className="grid gap-3 md:grid-cols-2">
+                            {pTeam.rows.map((m) => (
+                                <div key={m.id} className="min-w-0 rounded-3xl border border-gray-200 bg-white p-4 shadow-md shadow-gray-200/60">
                                     <div className="flex items-center gap-3">
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-100 font-extrabold text-brand-900">{(m.name || '?').charAt(0).toUpperCase()}</span>
                                         <div className="min-w-0">
-                                            <p className="truncate text-sm font-bold text-gray-900">{m.name}</p>
+                                            <p className="truncate text-sm font-bold text-gray-900">{m.name}{m.is_me && <span className="ml-2 rounded-full bg-brand-500 px-2 py-0.5 text-[10px] font-extrabold text-ink-900">You</span>}</p>
                                             <p className="truncate text-xs text-gray-500">{m.role || '-'}</p>
                                         </div>
                                     </div>
@@ -199,10 +235,36 @@ export default function ProjectShow({ project, stats = {}, evaluation = {}, team
                                 </div>
                             ))}
                         </div>
+                        <Pagination p={pTeam} onPage={setPage} /></div>
                     )
                 )}
             </div>
+    );
+}
+
+export default function ProjectShow(props) {
+    return (
+        <ReviewLayout title={props.project.name}>
+            <Head title={`Project: ${props.project.name}`} />
+            <ProjectDetail {...props} />
         </ReviewLayout>
+    );
+}
+
+// Previous / next with the page count; hidden when everything fits on one page
+function Pagination({ p, onPage }) {
+    if (p.last <= 1) return null;
+    const btn = 'inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-gray-700 disabled:opacity-40';
+    return (
+        <div className="flex items-center justify-between gap-3 pt-1">
+            <button type="button" className={btn} disabled={p.page <= 1} onClick={() => onPage(p.key, p.page - 1)}>
+                <ChevronLeft className="h-4 w-4" /> Previous
+            </button>
+            <span className="text-xs font-semibold text-gray-500">Page {p.page} of {p.last} · {p.total} total</span>
+            <button type="button" className={btn} disabled={p.page >= p.last} onClick={() => onPage(p.key, p.page + 1)}>
+                Next <ChevronRight className="h-4 w-4" />
+            </button>
+        </div>
     );
 }
 
@@ -222,7 +284,7 @@ function Stat({ icon: Icon, label, value, sub, danger = false, onClick }) {
 
 function Card({ title, children, className = '' }) {
     return (
-        <section className={`min-w-0 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm ${className}`}>
+        <section className={`min-w-0 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60 ${className}`}>
             <p className="bg-gray-50 px-4 py-3 text-xs font-bold uppercase tracking-widest text-gray-500">{title}</p>
             <div className="p-4">{children}</div>
         </section>
@@ -242,11 +304,12 @@ function Pill({ label, value }) {
     );
 }
 
-function CaseRow({ c }) {
+function CaseRow({ c, href }) {
     const [label, cls] = CASE_STATE[c.state] || CASE_STATE.open;
     const i = c.inspection || {};
+    const Tag = href ? Link : 'div';
     return (
-        <Link href={`/review/cases/${c.type}/${c.id}`} className="flex items-center gap-3 px-4 py-3 transition hover:bg-gray-50">
+        <Tag {...(href ? { href } : {})} className="flex items-center gap-3 px-4 py-3 transition hover:bg-gray-50">
             <span className={`shrink-0 rounded-lg px-2 py-1 text-[11px] font-bold ${c.type === 'nc' ? 'bg-orange-100 text-orange-800' : 'bg-violet-100 text-violet-800'}`}>
                 {c.type === 'nc' ? 'NC' : 'CC'}
             </span>
@@ -255,6 +318,6 @@ function CaseRow({ c }) {
                 <p className="truncate text-xs text-gray-500">{i.subcon || '-'} · {fmtDate(c.date_open || c.created_at)}</p>
             </div>
             <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase ${cls}`}>{label}</span>
-        </Link>
+        </Tag>
     );
 }

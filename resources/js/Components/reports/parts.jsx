@@ -19,12 +19,13 @@ export const RANK = {
     BRONZE: { bg: 'bg-orange-600', text: 'text-orange-700', ring: 'ring-orange-300', soft: 'bg-orange-50' },
 };
 
+// Same look as the SectionCard of the other detail pages: light header, rounded card
 export function Panel({ title, tone = 'blue', children, className = '' }) {
-    const head = { blue: 'bg-ink-900', grey: 'bg-slate-500', gold: 'bg-amber-600' }[tone] || 'bg-ink-900';
+    const head = { blue: 'bg-gray-50 text-gray-500', grey: 'bg-gray-50 text-gray-500', gold: 'bg-amber-50 text-amber-700' }[tone] || 'bg-gray-50 text-gray-500';
     return (
-        <section className={`overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm ${className}`}>
-            <h3 className={`${head} px-4 py-2 text-sm font-extrabold uppercase tracking-wide text-white`}>{title}</h3>
-            <div className="p-4">{children}</div>
+        <section className={`overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60 ${className}`}>
+            <h3 className={`${head} px-5 py-3 text-xs font-bold uppercase tracking-widest`}>{title}</h3>
+            <div className="p-5">{children}</div>
         </section>
     );
 }
@@ -78,3 +79,23 @@ export function Status({ value, className = '' }) {
 }
 
 export const benchLabel = (v) => `${trim(v)}%`;
+
+// Status as plain coloured text for the dark header (colours readable on dark)
+const HERO_STATUS = {
+    pending_verification: 'text-amber-300',
+    verified: 'text-sky-300',
+    approved: 'text-emerald-400',
+    rejected: 'text-red-400',
+};
+
+export function HeroStatusText({ value }) {
+    return <span className={`font-extrabold uppercase tracking-wide ${HERO_STATUS[value] || 'text-gray-300'}`}>{STATUS_LABEL[value] || value}</span>;
+}
+
+// "Scoring ON · BSPR ON · Penalties OFF" as coloured text for the dark header
+export function SwitchText({ settings }) {
+    const item = (label, on) => (
+        <span key={label}>{label} <b className={on ? 'text-emerald-400' : 'text-gray-400'}>{on ? 'ON' : 'OFF'}</b></span>
+    );
+    return <span className="flex flex-wrap gap-x-4">{[item('Scoring', settings.scoring_on), item('BSPR', settings.bspr_on), item('Penalties', settings.penalties_on)]}</span>;
+}

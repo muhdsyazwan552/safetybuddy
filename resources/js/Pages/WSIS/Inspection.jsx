@@ -297,10 +297,10 @@ const Inspection = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">Toolbox talks &amp; inspections</h1>
-                <p className="text-sm text-gray-500">One row per site visit. Open a row to see the toolbox talk first, then its inspections.</p>
+                <p className="text-sm text-gray-500">One row per toolbox talk & inspection. Open a row to see the toolbox talk first, then its inspections.</p>
               </div>
               <Link href="/site-visits/create" className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-800">
-                + New site visit
+                + New toolbox talk & inspection
               </Link>
             </div>
           </div>
@@ -347,7 +347,7 @@ const Inspection = ({
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
                   {pagedVisits.length === 0 && (
-                    <tr><td colSpan="8" className="px-4 py-10 text-center text-gray-500">No site visits found</td></tr>
+                    <tr><td colSpan="8" className="px-4 py-10 text-center text-gray-500">No toolbox talk & inspection found</td></tr>
                   )}
                   {pagedVisits.map((v, n) => {
                     const counts = {};
@@ -382,7 +382,7 @@ const Inspection = ({
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <Link href={`/site-visits/${v.key}`} className={tableViewActionClass} title="View site visit" aria-label="View site visit"><TableViewIcon /></Link>
+                          <Link href={`/site-visits/${v.key}`} className={tableViewActionClass} title="View toolbox talk & inspection" aria-label="View toolbox talk & inspection"><TableViewIcon /></Link>
                         </td>
                       </tr>
                     );
@@ -392,7 +392,7 @@ const Inspection = ({
             </div>
 
             <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
-              <span>{filteredVisits.length} site visit(s)</span>
+              <span>{filteredVisits.length} toolbox talk & inspection(s)</span>
               <div className="flex items-center gap-2">
                 <button className="rounded border border-gray-300 bg-white px-3 py-1 disabled:opacity-50" disabled={visitPage === 1} onClick={() => setVisitPage((p) => Math.max(1, p - 1))}>Previous</button>
                 <span className="text-xs">Page {visitPage} of {visitPages}</span>

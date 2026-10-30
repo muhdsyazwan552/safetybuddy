@@ -1,6 +1,6 @@
-@extends('pdf.layout')
+﻿@extends('pdf.layout')
 @section('body')
-<h2>Site visit summary</h2>
+<h2>Toolbox talk &amp; Inspection summary</h2>
 <table class="kv">
 <tr><td class="k">Project</td><td class="v">{{ $project ?: '-' }}</td></tr>
 <tr><td class="k">Date</td><td class="v">{{ $date ?: '-' }}</td></tr>

@@ -67,7 +67,7 @@ export default function Projects({ projects, statusCounts = {}, filters = {}, us
                                     <Link
                                         key={p.id}
                                         href={`/inspector/projects/${p.id}`}
-                                        className="block rounded-3xl border border-gray-100 bg-white p-4 shadow-sm transition hover:shadow-md active:scale-[0.985]"
+                                        className="block rounded-3xl border border-gray-200 bg-white p-4 shadow-md shadow-gray-200/60 transition hover:shadow-md active:scale-[0.985]"
                                     >
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="min-w-0">

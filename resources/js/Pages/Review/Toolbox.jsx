@@ -25,7 +25,7 @@ export default function Toolbox({ talks = [] }) {
                 {list.length === 0 && <p className="rounded-3xl bg-white p-8 text-center text-sm text-gray-500">No toolbox talks.</p>}
 
                 {list.map((t) => (
-                    <div key={t.id} className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+                    <div key={t.id} className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
                         <div className="flex items-start justify-between gap-3 p-4">
                             <div className="min-w-0">
                                 <SeriesCode code={t.series_code} className="block" />

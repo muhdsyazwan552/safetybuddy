@@ -426,7 +426,7 @@ export default function CompanyDetails({
                     </div>
 
                     {/* Toolbar */}
-                    <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-md shadow-gray-200/60">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                             <div className="relative flex-1">
                                 <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />

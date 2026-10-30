@@ -6,12 +6,12 @@ import VisitDetail from '@/Components/shared/VisitDetail';
 
 export default function Visit_Show({ visit }) {
     return (
-        <AppLayout title="Site visit">
-            <Head title="Site visit" />
+        <AppLayout title="Toolbox talk & Inspection">
+            <Head title="Toolbox talk & Inspection" />
             <VisitDetail
                 visit={visit}
                 backHref="/inspection"
-                backLabel="Back to site visits"
+                backLabel="Back to toolbox talk & inspection"
                 inspectionHref={(i) => `/inspections/${i.id}`}
             />
         </AppLayout>

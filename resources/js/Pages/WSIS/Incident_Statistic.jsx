@@ -2,6 +2,8 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
 import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
+import SeriesCode from '@/Components/shared/SeriesCode';
+import PdfButton from '@/Components/shared/PdfButton';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
 
 // ─── Chart colours (consistent across all 4 charts) ────────────────────────
@@ -825,7 +827,7 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
                 <thead className="bg-gray-50">
                   <tr>
                     {[
-                      '#', 'Year', 'Month', 'Incident Type', 'Injury Type',
+                      '#', 'Code', 'Year', 'Month', 'Incident Type', 'Injury Type',
                       'Body Part', 'Location', 'Project Name', 'Contractor / Subcon',
                       'Fatality', 'Occup. Health', 'LTI',
                       'First Aid', 'Fire Cases', 'Environmental',
@@ -840,12 +842,13 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
                 <tbody className="bg-white divide-y divide-gray-100">
                   {paginated.length === 0 ? (
                     <tr>
-                      <td colSpan={19} className="text-center py-10 text-gray-400 text-sm">No incidents found.</td>
+                      <td colSpan={20} className="text-center py-10 text-gray-400 text-sm">No incidents found.</td>
                     </tr>
                   ) : (
                     paginated.map((inc, idx) => (
                       <tr key={inc.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-3 py-3 font-medium text-gray-700">{(currentPage - 1) * entriesToShow + idx + 1}</td>
+                        <td className="px-3 py-3 whitespace-nowrap"><SeriesCode code={inc.series_code} /></td>
                         <td className="px-3 py-3 text-gray-700">{inc.incident_year ?? '—'}</td>
                         <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{getMonthFull(inc.incident_month)}</td>
                         <td className="px-3 py-3 text-gray-700 whitespace-nowrap">{inc.incident_type ?? '—'}</td>
@@ -944,6 +947,7 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-xl">
               <div>
                 <h2 className="text-lg font-bold text-gray-800">Incident Detail</h2>
+                <SeriesCode code={viewingIncident.series_code} className="block" />
                 <p className="text-xs text-gray-500 mt-0.5">
                   {getMonthFull(viewingIncident.incident_month)} {viewingIncident.incident_year}
                   {viewingIncident.incident_type ? ` · ${viewingIncident.incident_type}` : ''}
@@ -1040,23 +1044,10 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
                   <Field label="Corrective / Preventive Action" value={viewingIncident.corrective} />
                 </div>
               </section>
-
-              <section>
-                <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest mb-3 border-b border-blue-100 pb-1">Impact & Recording</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Field label="Manhours Lost" value={viewingIncident.manhours_lost} />
-                  {viewingIncident.attachment_upload && (
-                    <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Attachment</p>
-                      <a href={viewingIncident.attachment_upload} target="_blank" rel="noreferrer"
-                        className="text-sm text-blue-600 hover:underline">View File</a>
-                    </div>
-                  )}
-                </div>
-              </section>
             </div>
 
-            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex justify-end">
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex items-center justify-end gap-3">
+              <PdfButton href={`/pdf/incident/${viewingIncident.id}`} label="Generate PDF report" />
               <button
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium"
                 onClick={() => setViewingIncident(null)}

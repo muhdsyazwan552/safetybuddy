@@ -57,7 +57,7 @@ export default function NewVisit({
 }) {
     const isAdmin = portal === 'admin';
     const Shell = isAdmin ? AppLayout : InspectorLayout;
-    const shellProps = isAdmin ? { title: 'New site visit' } : { user };
+    const shellProps = isAdmin ? { title: 'New toolbox talk & inspection' } : { user };
     const barLeft = isAdmin ? 'lg:left-64' : '';
     const maxW = isAdmin ? 'max-w-6xl' : 'max-w-2xl';
     const padB = isAdmin ? 'pb-6' : 'pb-32';
@@ -185,7 +185,7 @@ export default function NewVisit({
 
     const header = (
         <div className={`mx-auto ${maxW} px-4 pt-5 sm:px-6`}>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-800">Site visit</p>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-800">Toolbox talk & Inspection</p>
             <h1 className="mb-4 text-2xl font-extrabold text-gray-900">{stepTitle}</h1>
             <Stepper step={step} withToolbox={withToolbox} talkNo={talk === 'no'} />
         </div>
@@ -193,7 +193,7 @@ export default function NewVisit({
 
     return (
         <Shell {...shellProps}>
-            <Head title={`${stepTitle} · Site visit`} />
+            <Head title={`${stepTitle} · Toolbox talk & Inspection`} />
             {header}
 
             {/* ───── 1. Start ───── */}

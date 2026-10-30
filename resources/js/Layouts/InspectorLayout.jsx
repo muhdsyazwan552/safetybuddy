@@ -24,8 +24,8 @@ import { confirmLogout } from '@/Helpers/logout';
 
 const TITLES = [
     ['/inspector/incidents/create', 'Report Incident'],
-    ['/inspector/visits/create', 'Site Visit'],
-    ['/inspector/visits', 'Site Visits'],
+    ['/inspector/visits/create', 'Toolbox talk & Inspection'],
+    ['/inspector/visits', 'Toolbox talk & Inspection'],
     ['/inspector/incidents', 'Incidents'],
     ['/inspector/attendance', 'Attendance'],
     ['/inspector/inspections/create', 'New Inspection'],
@@ -44,8 +44,8 @@ const TOP_LEVEL = ['/inspector/dashboard', '/inspector/visits', '/inspector/atte
 
 const TABS = [
     { name: 'Home', href: '/inspector/dashboard', icon: LayoutDashboard },
-    { name: 'Site Visits', href: '/inspector/visits', icon: ClipboardList },
-    null, // centre button: new site visit
+    { name: 'Toolbox talk & Inspection', short: 'TT / IP', href: '/inspector/visits', icon: ClipboardList },
+    null, // centre button: new toolbox talk & inspection
     { name: 'Incidents', href: '/inspector/incidents', icon: Siren },
 ];
 
@@ -136,7 +136,7 @@ export default function InspectorLayout({ children, user }) {
                                     <Link
                                         href="/inspector/visits/create"
                                         className="-mt-5 flex h-14 w-14 items-center justify-center rounded-full bg-brand-500 text-ink-900 shadow-lg ring-4 ring-gray-100 transition active:scale-95"
-                                        aria-label="New site visit"
+                                        aria-label="New toolbox talk & inspection"
                                     >
                                         <Plus className="h-7 w-7" strokeWidth={3} />
                                     </Link>
@@ -214,10 +214,12 @@ function TabLink({ item, active }) {
     return (
         <Link
             href={item.href}
+            title={item.name}
+            aria-label={item.name}
             className={`flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition ${active ? 'text-brand-400' : 'text-gray-400 hover:text-gray-200'}`}
         >
             <item.icon className="h-6 w-6" strokeWidth={active ? 2.5 : 2} />
-            {item.name}
+            {item.short || item.name}
         </Link>
     );
 }

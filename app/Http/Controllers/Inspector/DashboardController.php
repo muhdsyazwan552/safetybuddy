@@ -1395,10 +1395,17 @@ class DashboardController extends Controller
             ->orderBy('c.name')->orderBy('st.name')
             ->get(['a.project_id', 'a.subcon_company_id', 'c.name as subcon', 'st.id as staff_id', 'st.name as staff', 'st.role', 'a.hours']);
 
+        // series code of each day's attendance entry (project + subcontractor)
+        $codes = \App\Models\Manhour::whereIn('project_id', $projects->pluck('id'))
+            ->where('work_date', $date)
+            ->get(['project_id', 'subcon_company_id', 'code'])
+            ->mapWithKeys(fn ($m) => [$m->project_id . ':' . $m->subcon_company_id => $m->code]);
+
         $groups = $projects->map(fn ($p) => [
             'project_id' => $p->id,
             'project' => $p->name,
-            'subcons' => $rows->where('project_id', $p->id)->groupBy('subcon_company_id')->map(fn ($g) => [
+            'subcons' => $rows->where('project_id', $p->id)->groupBy('subcon_company_id')->map(fn ($g, $subconId) => [
+                'series_code' => $codes[$p->id . ':' . $subconId] ?? null,
                 'name' => $g->first()->subcon,
                 'workers' => $g->count(),
                 'manhours' => (float) $g->sum('hours'),
@@ -1556,6 +1563,25 @@ class DashboardController extends Controller
             'inspection_date' => $t->inspection_date ? $t->inspection_date->format('Y-m-d') : null,
         ])->values();
 
+        // same data as the manager's project page, so both are laid out alike
+        $workersToday = \App\Models\Manhour::where('project_id', $id)->where('work_date', now()->toDateString())
+            ->pluck('worker_count', 'subcon_company_id');
+        $subconRows = $subcons->map(fn ($c) => [
+            'id' => $c['id'],
+            'name' => $c['name'],
+            'contact' => $c['contact'],
+            'status' => $c['status'],
+            'scope' => $c['scope'],
+            'staff' => $c['staff']->count(),
+            'present_today' => (int) ($workersToday[$c['id']] ?? 0),
+            'inspections' => $c['inspections'],
+        ])->values();
+
+        $visits = \App\Support\VisitFeed::collect($project->company_id, [$project->id])->values();
+        $cases = \App\Support\CaseFeed::collect(fn ($q) => $q->whereHas('inspection', fn ($i) => $i->where('project_id', $project->id)))->values();
+        $manhours = \App\Models\Manhour::where('project_id', $id)
+            ->selectRaw('count(distinct work_date) as days, coalesce(sum(worker_count * working_hours), 0) as total')->first();
+
         return Inertia::render('Inspector/ProjectDetails', [
             'project' => [
                 'id' => $project->id,
@@ -1567,22 +1593,20 @@ class DashboardController extends Controller
             ],
             'myRole' => optional($staffAssign->firstWhere('entity_id', $staff->id))->role_assignment,
             'stats' => [
-                'total_inspections' => $inspections->count(),
-                'open_issues' => $evaluation['nonconformance'] + $evaluation['clientcomplaint'],
-                'toolbox_talks' => $talks->count(),
-                'conducted_talks' => $talks->where('conducted', 'yes')->count(),
-                'team' => $team->count(),
-                'subcons' => $subcons->count(),
+                'inspections' => $inspections->count(),
+                'visits' => $visits->count(),
+                'open_cases' => $cases->where('state', '!=', 'closed')->count(),
+                'manhours' => round((float) $manhours->total, 2),
+                'work_days' => (int) $manhours->days,
             ],
             'evaluation' => $evaluation,
             'team' => $team,
-            'subcons' => $subcons,
-            'recentInspections' => $recentInspections,
-            'recentTalks' => $recentTalks,
+            'subcons' => $subconRows,
+            'visits' => $visits,
+            'cases' => $cases,
             'user' => $user,
         ]);
     }
-
     // ==================== SUB CONTRACTOR METHODS ====================
 
     /**

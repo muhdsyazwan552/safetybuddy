@@ -11,7 +11,7 @@ import {
 
 const TABS = [
     { name: 'Home', href: '/review/dashboard', icon: LayoutDashboard },
-    { name: 'Site visits', href: '/review/visits', icon: ClipboardCheck },
+    { name: 'Toolbox talk & Inspection', short: 'TT / IP', href: '/review/visits', icon: ClipboardCheck },
     { name: 'NC / CC', href: '/review/cases', icon: AlertTriangle },
     { name: 'Incidents', href: '/review/incidents', icon: Siren },
 ];
@@ -83,10 +83,12 @@ export default function ReviewLayout({ title = 'Review', children }) {
                                 <Link
                                     key={item.href}
                                     href={item.href}
+                                    title={item.name}
+                                    aria-label={item.name}
                                     className={`flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition ${active ? 'text-brand-400' : 'text-gray-400 hover:text-gray-200'}`}
                                 >
                                     <item.icon className="h-6 w-6" strokeWidth={active ? 2.5 : 2} />
-                                    {item.name}
+                                    {item.short || item.name}
                                 </Link>
                             );
                         })}

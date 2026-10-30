@@ -72,7 +72,7 @@ export default function AttendancePanel({ projects = [], staffs = [], hours = 8,
 
     return (
         <div className="space-y-4">
-            <div className="grid grid-cols-1 gap-3 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 rounded-3xl border border-gray-200 bg-white p-4 shadow-md shadow-gray-200/60 sm:grid-cols-2">
                 <label className="block">
                     <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-gray-500">Project</span>
                     <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-base">
@@ -85,7 +85,7 @@ export default function AttendancePanel({ projects = [], staffs = [], hours = 8,
                 </label>
             </div>
 
-            <div className="rounded-3xl border border-gray-100 bg-white shadow-sm">
+            <div className="rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
                 <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
                     <p className="text-sm font-extrabold text-gray-900">Tick staff who worked</p>
                     {active.length > 0 && (
@@ -129,7 +129,7 @@ export default function AttendancePanel({ projects = [], staffs = [], hours = 8,
             {error && <p className="text-sm font-medium text-red-500">{error}</p>}
 
             {/* previous days */}
-            <div className="rounded-3xl border border-gray-100 bg-white shadow-sm">
+            <div className="rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
                 <div className="flex items-center gap-2 border-b border-gray-100 px-4 py-3">
                     <History className="h-4 w-4 text-gray-500" />
                     <p className="text-sm font-extrabold text-gray-900">Previous days</p>

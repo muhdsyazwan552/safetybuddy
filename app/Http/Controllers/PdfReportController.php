@@ -229,7 +229,7 @@ class PdfReportController extends Controller
         }
 
         $statuses = $list->pluck('status')->when($t, fn ($c) => $c->push($t->status));
-        abort_unless($statuses->isNotEmpty() && $statuses->every(fn ($s) => $s === Inspection::STATUS_APPROVED), 403, 'The PDF report is available once the whole site visit is approved.');
+        abort_unless($statuses->isNotEmpty() && $statuses->every(fn ($s) => $s === Inspection::STATUS_APPROVED), 403, 'The PDF report is available once the whole toolbox talk & inspection is approved.');
 
         $inspections = $list->map(fn ($i) => [
             'i' => $i,
@@ -254,7 +254,7 @@ class PdfReportController extends Controller
             'inspections' => $inspections,
             'imgGroup' => $t ? $this->image($t->img_group) : null,
             'imgAttendance' => $t ? $this->image($t->img_attendance) : null,
-        ] + $this->meta('Site Visit Report', $ref, $verifier, $this->ts(optional($src)->verified_at), $approver, $this->ts(optional($src)->approved_at)), $ref);
+        ] + $this->meta('Toolbox talk & Inspection Report', $ref, $verifier, $this->ts(optional($src)->verified_at), $approver, $this->ts(optional($src)->approved_at)), $ref);
     }
 
     // ------------------------------------------------------------------ company manhour (by day, project, subcontractor)
@@ -363,16 +363,24 @@ class PdfReportController extends Controller
             ->orderBy('c.name')->orderBy('st.name')
             ->get(['a.project_id', 'a.subcon_company_id', 'c.name as subcon', 'st.name as staff', 'st.role', 'a.hours']);
 
+        // series code of each day's attendance entry (project + subcontractor)
+        $codes = \App\Models\Manhour::whereIn('project_id', $projects->pluck('id'))
+            ->where('work_date', $date)
+            ->get(['project_id', 'subcon_company_id', 'code'])
+            ->mapWithKeys(fn ($m) => [$m->project_id . ':' . $m->subcon_company_id => $m->code]);
+
         $groups = $projects->map(fn ($p) => [
             'project' => $p->name,
-            'subcons' => $rows->where('project_id', $p->id)->groupBy('subcon_company_id')->map(fn ($g) => [
+            'subcons' => $rows->where('project_id', $p->id)->groupBy('subcon_company_id')->map(fn ($g, $subconId) => [
+                'series_code' => $codes[$p->id . ':' . $subconId] ?? null,
                 'name' => $g->first()->subcon,
                 'manhours' => (float) $g->sum('hours'),
                 'staff' => $g->map(fn ($r) => ['name' => $r->staff, 'role' => $r->role, 'hours' => (float) $r->hours])->values(),
             ])->values(),
         ])->filter(fn ($g) => $g['subcons']->isNotEmpty())->values();
 
-        $ref = 'ATT-' . str_replace('-', '', $date);
+        $entryCodes = $groups->flatMap(fn ($g) => $g['subcons']->pluck('series_code'))->filter()->values();
+        $ref = $entryCodes->count() === 1 ? $entryCodes->first() : 'ATT-' . str_replace('-', '', $date);
 
         return $this->render('pdf.attendance', [
             'date' => $date,
@@ -395,7 +403,7 @@ class PdfReportController extends Controller
             abort_unless((int) $i->reported_by === (int) $this->myStaffId(), 403);
         }
 
-        $ref = 'INC-' . str_pad($i->id, 5, '0', STR_PAD_LEFT);
+        $ref = $i->code ?: 'INC-' . str_pad($i->id, 5, '0', STR_PAD_LEFT);
 
         return $this->render('pdf.incident', [
             'i' => $i,

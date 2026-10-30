@@ -1,6 +1,8 @@
 // Daily Inspection Report - SPGPNC & BSPR performance of one contractor on one day.
 import React from 'react';
-import { Panel, RankMedal, RankStrip, SwitchChips, ResultText, Status, pct, rm, num, benchLabel } from './parts';
+import HeroMeta from '@/Components/shared/HeroMeta';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
+import { Panel, RankMedal, RankStrip, SwitchText, HeroStatusText, ResultText, pct, rm, benchLabel } from './parts';
 
 export default function DailyReportView({ report: r, children }) {
     const s = r.settings;
@@ -16,19 +18,22 @@ export default function DailyReportView({ report: r, children }) {
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-extrabold text-ink-900">Daily Inspection Report</h1>
-                    <p className="text-sm font-semibold text-brand-800">SPGPNC &amp; BSPR Performance</p>
-                </div>
-                <div className="space-y-1 text-sm text-slate-700 sm:text-right">
-                    <p><b>Project:</b> {r.project} &nbsp;|&nbsp; <b>Contractor:</b> {r.subcon}</p>
-                    <p><b>Date:</b> {r.date} &nbsp;|&nbsp; <b>Report:</b> {r.report_no}</p>
-                    <p className="flex flex-wrap items-center gap-2 sm:justify-end"><b>Status:</b> <Status value={r.status} /></p>
-                    <SwitchChips settings={s} />
+            <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
+                <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">{r.report_no}</p>
+                    <h1 className="mt-1 text-xl font-extrabold leading-tight">Daily Inspection Report</h1>
+                    <p className="text-sm font-semibold text-gray-300">SPGPNC &amp; BSPR Performance</p>
+                    <HeroMeta rows={[
+                        ['Project', r.project],
+                        ['Contractor', r.subcon],
+                        ['Date', r.date],
+                        ['Status', <HeroStatusText key="s" value={r.status} />],
+                        ['Settings', <SwitchText key="w" settings={s} />],
+                    ]} />
                 </div>
             </div>
 
+            <ReviewProgress kind="visit" status={r.status} />
             <div className="grid gap-4 md:grid-cols-2">
                 <Panel title="Safety Passport sampling">
                     {r.sampled === null ? (
@@ -50,9 +55,9 @@ export default function DailyReportView({ report: r, children }) {
                 </Panel>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="overflow-x-auto rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
                 <table className="min-w-full text-center text-sm">
-                    <thead className="bg-ink-900 text-white">
+                    <thead className="bg-gray-50 text-[11px] font-bold uppercase tracking-wider text-gray-500">
                         <tr>
                             <th className="px-4 py-2.5">Metric</th><th className="px-4 py-2.5">Actual score</th><th className="px-4 py-2.5">Benchmark</th>
                             <th className="px-4 py-2.5">Result</th><th className="px-4 py-2.5">Calculated penalty</th>
@@ -102,7 +107,7 @@ export default function DailyReportView({ report: r, children }) {
 
             {children}
 
-            <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-slate-600">
+            <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-slate-600">
                 Scores are calculated using unrounded values. Report approval and NC closure are separate processes. Calculated penalties are subject to Manager review before enforcement.
             </p>
         </div>

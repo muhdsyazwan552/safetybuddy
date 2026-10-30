@@ -3,6 +3,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import { Bar, BarChart, Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import AppLayout from '@/Pages/WSIS/Layout';
 import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
+import SeriesCode from '@/Components/shared/SeriesCode';
 import PdfButton from '@/Components/shared/PdfButton';
 
 const today = new Date().toISOString().slice(0, 10);
@@ -259,11 +260,12 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                <tr><th className="px-4 py-3 w-12">#</th><th className="px-4 py-3">Work date</th><th className="px-4 py-3">Project</th><th className="px-4 py-3">Subcontractor</th><th className="px-4 py-3 text-right">Workers</th><th className="px-4 py-3 text-right">Hours / worker</th><th className="px-4 py-3 text-right">Total manhours</th><th className="px-4 py-3 text-right">Detail</th></tr>
+                <tr><th className="px-4 py-3 w-12">#</th><th className="px-4 py-3">Code</th><th className="px-4 py-3">Work date</th><th className="px-4 py-3">Project</th><th className="px-4 py-3">Subcontractor</th><th className="px-4 py-3 text-right">Workers</th><th className="px-4 py-3 text-right">Hours / worker</th><th className="px-4 py-3 text-right">Total manhours</th><th className="px-4 py-3 text-right">Detail</th></tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
                 {visibleEntries.map((entry, rowNo) => (
                   <tr key={entry.id} className="hover:bg-slate-50/70"><td className="whitespace-nowrap px-4 py-3 text-slate-500">{(page - 1) * pageSize + rowNo + 1}</td>
+                    <td className="whitespace-nowrap px-4 py-3"><SeriesCode code={entry.series_code} /></td>
                     <td className="whitespace-nowrap px-4 py-3">{formatDate(entry.work_date)}</td>
                     <td className="px-4 py-3 font-medium text-slate-800">{entry.project_name || '—'}</td>
                     <td className="px-4 py-3">{entry.subcontractor_name || '—'}</td>
@@ -273,7 +275,7 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
                     <td className="px-4 py-3 text-right"><button type="button" onClick={() => setDetail(entry)} className={tableViewActionClass} title="View staff" aria-label="View staff"><TableViewIcon /></button></td>
                   </tr>
                 ))}
-                {!filteredEntries.length && <tr><td colSpan="8" className="px-4 py-12 text-center text-slate-500">No manhour records match these filters. Add your first daily record to begin.</td></tr>}
+                {!filteredEntries.length && <tr><td colSpan="9" className="px-4 py-12 text-center text-slate-500">No manhour records match these filters. Add your first daily record to begin.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -316,6 +318,7 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
             <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">Attendance detail</h2>
+                <SeriesCode code={detail.series_code} className="block" />
                 <p className="mt-1 text-sm text-slate-500">{formatDate(detail.work_date)} · {detail.project_name || '-'}</p>
                 <p className="text-sm font-semibold text-slate-700">{detail.subcontractor_name || '-'}</p>
               </div>

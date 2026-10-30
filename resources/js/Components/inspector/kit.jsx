@@ -50,20 +50,38 @@ export const REVIEW_STATUS = {
     rejected: { label: 'Returned', badge: 'bg-red-50 text-red-700 border-red-200' },
 };
 
-// Light card tint per review status / case state (amber = waiting, blue = verified / replied, green = done, red = returned)
-export const CARD_TONE = {
-    pending_verification: { card: 'bg-amber-50 border-amber-200', line: 'border-amber-200', foot: 'bg-amber-100/60' },
-    verified: { card: 'bg-sky-50 border-sky-200', line: 'border-sky-200', foot: 'bg-sky-100/60' },
-    approved: { card: 'bg-emerald-50 border-emerald-200', line: 'border-emerald-200', foot: 'bg-emerald-100/60' },
-    rejected: { card: 'bg-rose-50 border-rose-200', line: 'border-rose-200', foot: 'bg-rose-100/60' },
+// Card look per review status / case state: white card with a visible border and a soft shadow, both in the status colour
+// The status itself is shown by the coloured status text inside the card.
+const toneOf = (card) => ({
+    card: `relative bg-white transition hover:-translate-y-0.5 hover:shadow-xl ${card}`,
+    line: 'border-gray-100',
+    foot: 'bg-gray-50/70',
+});
+// each status: border + glow, a soft tint fading in from the top-right corner, and a colour bar along the top edge
+const AMBER = 'border-amber-200 shadow-lg shadow-amber-100/80 bg-gradient-to-bl from-amber-50 via-white to-white before:absolute before:inset-x-0 before:top-0 before:h-1.5 before:bg-gradient-to-r before:from-amber-400 before:to-amber-200';
+const SKY = 'border-sky-200 shadow-lg shadow-sky-100/80 bg-gradient-to-bl from-sky-50 via-white to-white before:absolute before:inset-x-0 before:top-0 before:h-1.5 before:bg-gradient-to-r before:from-sky-500 before:to-sky-200';
+const GREEN = 'border-emerald-200 shadow-lg shadow-emerald-100/80 bg-gradient-to-bl from-emerald-50 via-white to-white before:absolute before:inset-x-0 before:top-0 before:h-1.5 before:bg-gradient-to-r before:from-emerald-500 before:to-emerald-200';
+const ROSE = 'border-rose-200 shadow-lg shadow-rose-100/80 bg-gradient-to-bl from-rose-50 via-white to-white before:absolute before:inset-x-0 before:top-0 before:h-1.5 before:bg-gradient-to-r before:from-rose-500 before:to-rose-200';export const CARD_TONE = {
+    pending_verification: toneOf(AMBER),
+    verified: toneOf(SKY),
+    approved: toneOf(GREEN),
+    rejected: toneOf(ROSE),
     // NC / CC case states
-    open: { card: 'bg-amber-50 border-amber-200', line: 'border-amber-200', foot: 'bg-amber-100/60' },
-    responded: { card: 'bg-sky-50 border-sky-200', line: 'border-sky-200', foot: 'bg-sky-100/60' },
-    returned: { card: 'bg-rose-50 border-rose-200', line: 'border-rose-200', foot: 'bg-rose-100/60' },
-    closed: { card: 'bg-emerald-50 border-emerald-200', line: 'border-emerald-200', foot: 'bg-emerald-100/60' },
+    open: toneOf(AMBER),
+    responded: toneOf(SKY),
+    returned: toneOf(ROSE),
+    closed: toneOf(GREEN),
 };
-export const cardTone = (key) => CARD_TONE[key] || { card: 'bg-white border-gray-100', line: 'border-gray-100', foot: 'bg-gray-50' };
+// Subcontractor company status: same card look as the review status cards (active = green, pending = amber, anything else = grey)
+const GREY = 'border-gray-200 shadow-lg shadow-gray-200/70 bg-gradient-to-bl from-gray-100 via-white to-white before:absolute before:inset-x-0 before:top-0 before:h-1.5 before:bg-gradient-to-r before:from-gray-400 before:to-gray-200';
+export const subconStatus = (status) => {
+    const key = String(status || '').toLowerCase();
+    if (key === 'active') return { label: 'Active', text: 'text-emerald-700', tone: CARD_TONE.approved };
+    if (key === 'pending') return { label: 'Pending', text: 'text-amber-700', tone: CARD_TONE.pending_verification };
+    return { label: status ? String(status) : 'Inactive', text: 'text-gray-500', tone: toneOf(GREY) };
+};
 
+export const cardTone = (key) => CARD_TONE[key] || toneOf('border-gray-200 shadow-lg shadow-gray-200/70');
 export function StatusBadge({ value, className = '' }) {
     const s = REVIEW_STATUS[value || 'pending_verification'];
     return (
@@ -183,9 +201,9 @@ export function Pager({ data }) {
 }
 
 export function SectionCard({ title, icon: Icon, children, tone = 'default', className = '' }) {
-    const head = tone === 'danger' ? 'bg-red-50 text-red-700' : 'bg-gray-50 text-gray-500';
+    const head = tone === 'danger' ? 'bg-red-50 text-red-700' : 'bg-gradient-to-b from-gray-50 to-white text-gray-500';
     return (
-        <section className={`overflow-hidden rounded-3xl border bg-white shadow-sm ${tone === 'danger' ? 'border-red-100' : 'border-gray-100'} ${className}`}>
+        <section className={`overflow-hidden rounded-3xl border bg-white shadow-md shadow-gray-200/60 ${tone === 'danger' ? 'border-red-200' : 'border-gray-200'} ${className}`}>
             {title && (
                 <div className={`flex items-center gap-2 px-5 py-3 text-xs font-bold uppercase tracking-widest ${head}`}>
                     {Icon && <Icon className="h-4 w-4" />} {title}

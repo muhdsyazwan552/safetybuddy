@@ -98,6 +98,16 @@ class ToolboxTalks extends Model
         return $this->hasMany(Inspection::class, 'toolbox_talk_id');
     }
 
+    public function verifier()
+    {
+        return $this->belongsTo(CompanyStaff::class, 'verified_by');
+    }
+
+    public function approver()
+    {
+        return $this->belongsTo(CompanyStaff::class, 'approved_by');
+    }
+
     public function CompanyStaff()
     {
         return $this->belongsTo(CompanyStaff::class, 'inspection_by');

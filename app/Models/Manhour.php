@@ -2,12 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasSeriesCode;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Manhour extends Model
 {
-    use HasFactory;
+    use HasFactory, HasSeriesCode;
+
+    /** One daily attendance entry (project + subcontractor + day) gets a code such as ABC/ATT/001. */
+    public static function seriesType(): string
+    {
+        return 'att';
+    }
 
     protected $table = 'manhours';
 

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, MapPin, FolderKanban, CheckCircle2, Loader2 } from 'lucide-react';
+import HeroMeta, { HeroEval, HeroStatus } from '@/Components/shared/HeroMeta';
+import { ArrowLeft, FolderKanban, CheckCircle2, Loader2 } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
-import { SectionCard, InfoRow, EvalBadge, StatusBadge, fmtDate } from '@/Components/inspector/kit';
+import { SectionCard, InfoRow, fmtDate } from '@/Components/inspector/kit';
 import PdfButton from '@/Components/shared/PdfButton';
 
 function Actions({ i, can_verify, can_approve }) {
@@ -61,23 +62,21 @@ export default function InspectionShow({ inspection: i, can_verify, can_approve 
             <Head title={`Inspection #${i.id}`} />
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
-                    <Link href="/review/visits" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
-                        <ArrowLeft className="h-4 w-4" /> Back to site visits
+                    <Link href={`/review/visits/${i.visit_key || `insp-${i.id}`}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                        <ArrowLeft className="h-4 w-4" /> Back to toolbox talk & inspection
                     </Link>
                     {i.status === 'approved' && <PdfButton href={`/pdf/inspection/${i.id}`} />}
                 </div>
 
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">{i.series_code || `Inspection #${i.id}`}</p>
-                            <h1 className="mt-1 text-xl font-extrabold leading-tight">{i.topic || '-'}</h1>
-                            <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-300"><MapPin className="h-4 w-4 text-brand-400" />{i.location || '-'}</p>
-                        </div>
-                        <div className="flex shrink-0 flex-col items-end gap-1.5">
-                            <EvalBadge value={i.evaluation} className="!border-transparent bg-white" />
-                            <StatusBadge value={i.status} className="bg-white" />
-                        </div>
+                    <div className="min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">{i.series_code || `Inspection #${i.id}`}</p>
+                        <h1 className="mt-1 text-xl font-extrabold leading-tight">{i.topic || '-'}</h1>
+                        <HeroMeta rows={[
+                            ['Location', i.location || '-'],
+                            ['Evaluation', <HeroEval key="e" value={i.evaluation} />],
+                            ['Status', <HeroStatus key="s" value={i.status} />],
+                        ]} />
                     </div>
                 </div>
 
@@ -120,16 +119,10 @@ export default function InspectionShow({ inspection: i, can_verify, can_approve 
                 {(i.nc || i.cc) && (
                     <SectionCard title="Linked case">
                         <div className="flex flex-wrap gap-3">
-                            {i.nc && <Link href={`/review/cases/nc/${i.nc.id}`} className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">Non-conformance #{i.nc.id} · {i.nc.status}</Link>}
-                            {i.cc && <Link href={`/review/cases/cc/${i.cc.id}`} className="rounded-xl bg-purple-50 px-4 py-2.5 text-sm font-bold text-purple-700">Client complaint #{i.cc.id} · {i.cc.status}</Link>}
+                            {i.nc && <Link href={`/review/cases/nc/${i.nc.id}`} className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">Non-conformance {i.nc.series_code || `#${i.nc.id}`} · {i.nc.status}</Link>}
+                            {i.cc && <Link href={`/review/cases/cc/${i.cc.id}`} className="rounded-xl bg-purple-50 px-4 py-2.5 text-sm font-bold text-purple-700">Client complaint {i.cc.series_code || `#${i.cc.id}`} · {i.cc.status}</Link>}
                         </div>
                     </SectionCard>
-                )}
-
-                {i.visit_key && (
-                    <Link href={`/review/visits/${i.visit_key}`} className="inline-block rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-gray-700">
-                        Open the whole site visit (toolbox talk + inspections)
-                    </Link>
                 )}
 
                 <Actions i={i} can_verify={can_verify} can_approve={can_approve} />

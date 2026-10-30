@@ -10,7 +10,7 @@ const STATUS = {
 
 function Section({ title, children }) {
     return (
-        <section className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+        <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-md shadow-gray-200/60">
             <h2 className="mb-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">{title}</h2>
             {children}
         </section>

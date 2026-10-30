@@ -40,7 +40,7 @@ class SeriesCodes
     }
 
     /** Record types that carry a per-company series code: scope key => code segment. */
-    public const RECORD_SEGMENTS = ['tbx' => 'TBX', 'ins' => 'INS', 'nc' => 'NC', 'cc' => 'CC'];
+    public const RECORD_SEGMENTS = ['tbx' => 'TBX', 'ins' => 'INS', 'nc' => 'NC', 'cc' => 'CC', 'inc' => 'INC', 'att' => 'ATT'];
 
     /** Company that owns a toolbox talk / inspection / NC / CC row, resolved through its project or inspection. */
     public static function recordCompanyId(string $type, $row): ?int
@@ -50,7 +50,7 @@ class SeriesCodes
 
             return $inspection ? self::recordCompanyId('ins', $inspection) : null;
         }
-        if ($type === 'ins' && $row->company_id) {
+        if (in_array($type, ['ins', 'inc', 'att'], true) && $row->company_id) {
             return (int) $row->company_id;
         }
         $companyId = $row->project_id ? Project::whereKey($row->project_id)->value('company_id') : null;

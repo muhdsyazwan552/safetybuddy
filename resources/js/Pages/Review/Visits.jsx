@@ -74,12 +74,15 @@ export default function Visits({ visits = [], meta, counts = {}, filters = {}, p
         ['rejected', 'Returned', counts.rejected],
     ];
 
+    // only one card is open at a time; opening another closes the previous one
+    const [openKey, setOpenKey] = useState(null);
+
     // month headings make long lists easy to scan and to jump back in time
     let lastMonth = null;
 
     return (
-        <ReviewLayout title="Site visits">
-            <Head title="Site visits" />
+        <ReviewLayout title="Toolbox talk & Inspection">
+            <Head title="Toolbox talk & Inspection" />
             <div className="mx-auto max-w-3xl space-y-4 px-4 pb-10 pt-5">
                 <ListControls
                     path="/review/visits"
@@ -97,7 +100,7 @@ export default function Visits({ visits = [], meta, counts = {}, filters = {}, p
                 {visits.length === 0 ? (
                     <div className="rounded-3xl bg-white p-10 text-center">
                         <SearchX className="mx-auto h-10 w-10 text-gray-300" />
-                        <p className="mt-3 text-base font-extrabold text-gray-700">No site visits found</p>
+                        <p className="mt-3 text-base font-extrabold text-gray-700">No toolbox talk & inspection found</p>
                         <p className="mt-1 text-sm text-gray-400">Try another word, period or clear the filters.</p>
                     </div>
                 ) : (
@@ -109,9 +112,7 @@ export default function Visits({ visits = [], meta, counts = {}, filters = {}, p
                         return (
                             <React.Fragment key={v.key}>
                                 {heading && <h2 className="pt-2 text-xs font-extrabold uppercase tracking-widest text-gray-500">{m}</h2>}
-                                <VisitCard visit={v} detailHref={`/review/visits/${v.key}`}>
-                                    <VisitActions visit={v} can_verify={can_verify} can_approve={can_approve} />
-                                </VisitCard>
+                                <VisitCard visit={v} detailHref={`/review/visits/${v.key}`} open={openKey === v.key} onToggle={() => setOpenKey((k) => (k === v.key ? null : v.key))} />
                             </React.Fragment>
                         );
                     })

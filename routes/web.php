@@ -289,6 +289,7 @@ Route::middleware(['auth', 'role:3,4'])->prefix('review')->name('review.')->grou
     Route::get('/inspections', [$c, 'inspectionsIndex'])->name('inspections');
     Route::get('/cases', [$c, 'casesIndex'])->name('cases');
     Route::get('/toolbox', [$c, 'toolboxIndex'])->name('toolbox');
+    Route::get('/toolbox/{id}', [$c, 'toolboxShow'])->where('id', '[0-9]+')->name('toolbox.show');
     Route::get('/visits', [$c, 'visitsIndex'])->name('visits');
     Route::get('/projects', [$c, 'projectsIndex'])->name('projects');
     Route::get('/projects/{id}', [$c, 'projectShow'])->where('id', '[0-9]+')->name('projects.show');
@@ -365,6 +366,7 @@ Route::middleware(['auth', 'role:7,8'])->prefix('inspector')->name('inspector.')
     // Report incident (same form as the admin) + daily attendance viewer
     Route::get('/incidents', [IncidentController::class, 'inspectorIndex'])->name('incidents');
     Route::get('/incidents/create', [IncidentController::class, 'create'])->name('incident.create');
+    Route::get('/incidents/{id}', [IncidentController::class, 'inspectorShow'])->where('id', '[0-9]+')->name('incidents.show');
     Route::post('/incidents', [IncidentController::class, 'store'])->name('incident.store');
     Route::get('/incidents/project-assignments/{projectId}', [IncidentController::class, 'getProjectAssignments']);
     Route::get('/incidents/subcon-staff/{subconId}', [IncidentController::class, 'subconStaff']);

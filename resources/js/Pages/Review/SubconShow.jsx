@@ -23,9 +23,12 @@ export default function SubconShow({ company, staff, machinery, cases, attendanc
                             <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Subcontractor</p>
                             <h1 className="truncate text-xl font-extrabold">{company.name}</h1>
                         </div>
-                        <span className={`rounded-full px-3 py-1 text-xs font-bold ${company.status === 'active' ? 'bg-green-500/20 text-green-300' : 'bg-white/10 text-gray-300'}`}>
-                            {company.status || 'inactive'}
-                        </span>
+                        <p className="shrink-0 text-right text-xs text-gray-400">
+                            Status
+                            <span className={`mt-0.5 block text-sm font-extrabold uppercase tracking-wide ${company.status === 'active' ? 'text-emerald-400' : company.status === 'pending' ? 'text-amber-300' : 'text-gray-300'}`}>
+                                {company.status || 'inactive'}
+                            </span>
+                        </p>
                     </div>
                     <div className="mt-4 space-y-1.5 text-sm text-gray-300">
                         {company.contact && <a href={`tel:${company.contact}`} className="flex items-center gap-2"><Phone className="h-4 w-4 text-brand-400" />{company.contact}</a>}

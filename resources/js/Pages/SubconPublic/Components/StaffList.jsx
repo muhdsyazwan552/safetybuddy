@@ -222,7 +222,7 @@ export default function StaffList({ staffs: allStaffs, onOpen, onEdit, onDelete,
     // Table view
     return (
         <>
-        <div className="overflow-x-auto rounded-3xl border border-gray-100 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
             <table className="min-w-full divide-y divide-gray-100 text-sm">
                 <thead className="bg-gray-50 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
                     <tr>

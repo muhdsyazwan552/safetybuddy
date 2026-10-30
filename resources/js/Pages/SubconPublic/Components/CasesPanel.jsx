@@ -80,7 +80,7 @@ export default function CasesPanel({ cases = [], isLeader, publicToken, leaderKe
 
     return (
         <div className="space-y-3">
-            <ul className="divide-y divide-gray-100 overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+            <ul className="divide-y divide-gray-100 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
                 {rows.map((c, n) => {
                     const isNc = c.type === 'nc';
                     const st = CASE_STATE[c.state] || CASE_STATE.open;

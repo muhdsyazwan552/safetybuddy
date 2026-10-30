@@ -2,12 +2,26 @@
 import React from 'react';
 import SeriesCode from './SeriesCode';
 import { Link } from '@inertiajs/react';
-import { ArrowLeft, CalendarDays, UserRound, MapPin, HardHat, ClipboardCheck, Building2, Users } from 'lucide-react';
-import { EvalBadge, StatusBadge, SectionCard, InfoRow, fmtDate } from '@/Components/inspector/kit';
-import ReviewProgress, { ReviewSteps } from '@/Components/shared/ReviewProgress';
+import { ArrowLeft, HardHat, ClipboardCheck, Users, ChevronRight } from 'lucide-react';
+import { EVAL, REVIEW_STATUS, SectionCard, InfoRow, fmtDate } from '@/Components/inspector/kit';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
+import HeroMeta, { HeroStatus } from '@/Components/shared/HeroMeta';
 import PdfButton from '@/Components/shared/PdfButton';
 
-export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspectionHref, children }) {
+// Plain coloured text (no badge) so the value stands out; the colour comes from the badge palette in kit.
+const textColor = (badge, fallback = 'text-gray-600') => (badge || '').split(' ').find((c) => c.startsWith('text-')) || fallback;
+
+function StatusText({ value }) {
+    const s = REVIEW_STATUS[value || 'pending_verification'];
+    return <span className={`text-base font-extrabold uppercase tracking-wide ${textColor(s.badge)}`}>{s.label}</span>;
+}
+
+function EvalText({ value }) {
+    const ev = EVAL[value];
+    return <span className={`text-base font-extrabold uppercase tracking-wide ${textColor(ev?.badge)}`}>{ev?.label || value || '-'}</span>;
+}
+
+export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspectionHref, toolboxHref, children }) {
     const t = visit.talk;
 
     return (
@@ -20,21 +34,21 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
             <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg sm:p-7">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="min-w-0">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Site visit</p>
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Toolbox talk &amp; Inspection</p>
                         <h1 className="mt-1 text-2xl font-extrabold leading-tight">{visit.project || '-'}</h1>
-                        <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-300">
-                            <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-brand-400" />{fmtDate(visit.date, { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                            <span className="flex items-center gap-1.5"><UserRound className="h-4 w-4 text-brand-400" />{visit.by || '-'}</span>
-                        </div>
+                        <HeroMeta rows={[
+                            ['Date', fmtDate(visit.date, { day: 'numeric', month: 'long', year: 'numeric' })],
+                            ['Inspector', visit.by || '-'],
+                            ['Status', <HeroStatus key="s" value={visit.status} />],
+                        ]} />
                     </div>
-                    <StatusBadge value={visit.status} className="shrink-0 self-start bg-white !px-4 !py-2 !text-xs" />
                 </div>
             </div>
 
             <ReviewProgress kind="visit" status={visit.status} />
 
             {visit.status === 'approved' && /^(talk|insp)-[0-9]+$/.test(visit.key) && (
-                <div className="flex justify-end"><PdfButton href={`/pdf/visit/${visit.key}`} label="Full site visit PDF" /></div>
+                <div className="flex justify-end"><PdfButton href={`/pdf/visit/${visit.key}`} label="Full toolbox talk & inspection PDF" /></div>
             )}
 
             {children}
@@ -45,18 +59,20 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                     <p className="text-sm text-gray-500">No toolbox talk was recorded for this visit.</p>
                 ) : (
                     <div className="space-y-5">
-                        <SeriesCode code={t.series_code} />
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${t.conducted ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                                {t.conducted ? 'Conducted' : 'Not conducted'}
-                            </span>
-                            <StatusBadge value={t.status} />
-                            {t.status === 'approved' && t.id && <PdfButton href={`/pdf/toolbox/${t.id}`} className="ml-auto" />}
+                        <div className="flex items-start justify-between gap-3">
+                            <SeriesCode code={t.series_code} className="text-xs" />
+                            {t.status === 'approved' && t.id && <PdfButton href={`/pdf/toolbox/${t.id}`} />}
                         </div>
 
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                            <InfoRow label="Present">
-                                <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-gray-400" />{t.attended}</span>
+                            <InfoRow label="Status"><StatusText value={t.status} /></InfoRow>
+                            <InfoRow label="Toolbox talk">
+                                <span className={`text-base font-extrabold uppercase tracking-wide ${t.conducted ? 'text-emerald-700' : 'text-red-700'}`}>
+                                    {t.conducted ? 'Conducted' : 'Not conducted'}
+                                </span>
+                            </InfoRow>
+                            <InfoRow label="Attendees">
+                                <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-gray-400" />{t.attended} present</span>
                             </InfoRow>
                             {t.conducted && <InfoRow label="Categories">{t.categories.length ? t.categories.join(', ') : '-'}</InfoRow>}
                         </div>
@@ -71,7 +87,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
 
                         {t.attendees?.length > 0 && (
                             <div>
-                                <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Attendance</p>
+                                <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Attendee names</p>
                                 <div className="flex flex-wrap gap-1.5">
                                     {t.attendees.map((n) => <span key={n} className="rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700">{n}</span>)}
                                 </div>
@@ -92,6 +108,14 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                         {t.review_comment && t.status === 'rejected' && (
                             <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">Returned: {t.review_comment}</p>
                         )}
+
+                        {toolboxHref && t.id && (
+                            <div className="border-t border-gray-100 pt-4">
+                                <Link href={toolboxHref(t)} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink-900 px-5 py-3 text-sm font-bold text-brand-400 shadow-sm transition hover:bg-ink-800 sm:ml-auto sm:w-auto sm:min-w-[260px]">
+                                    View toolbox talk detail <ChevronRight className="h-4 w-4" />
+                                </Link>
+                            </div>
+                        )}
                     </div>
                 )}
             </SectionCard>
@@ -104,23 +128,25 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                     <div className="space-y-3">
                         {visit.inspections.map((i) => (
                             <div key={i.id} className="rounded-2xl border border-gray-100 p-4">
-                                <div className="flex flex-wrap items-start justify-between gap-2">
+                                <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <SeriesCode code={i.series_code} className="block" />
                                         <p className="text-[15px] font-bold text-gray-900">{i.topic || '-'}</p>
-                                        <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                                            <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{i.location || '-'}</span>
-                                            {i.subcon && <span className="inline-flex items-center gap-1.5"><Building2 className="h-4 w-4" />{i.subcon}</span>}
-                                        </p>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <EvalBadge value={i.evaluation} />
-                                        <StatusBadge value={i.status} />
-                                        <ReviewSteps status={i.status} />
-                                    </div>
+                                    {i.status === 'approved' && <PdfButton href={`/pdf/inspection/${i.id}`} className="shrink-0" />}
                                 </div>
-                                {i.description && <p className="mt-3 whitespace-pre-wrap text-sm text-gray-700">{i.description}</p>}
-                                {i.status === 'approved' && <div className="mt-3"><PdfButton href={`/pdf/inspection/${i.id}`} /></div>}
+                                <div className="mt-4 grid grid-cols-2 gap-4">
+                                    <InfoRow label="Location">{i.location || '-'}</InfoRow>
+                                    <InfoRow label="Subcontractor">{i.subcon || '-'}</InfoRow>
+                                    <InfoRow label="Status"><StatusText value={i.status} /></InfoRow>
+                                    <InfoRow label="Evaluation"><EvalText value={i.evaluation} /></InfoRow>
+                                    {i.description && (
+                                        <div className="col-span-2">
+                                            <InfoRow label="Comment"><span className="whitespace-pre-wrap">{i.description}</span></InfoRow>
+                                        </div>
+                                    )}
+                                </div>
+
                                 {i.photos?.length > 0 && (
                                     <div className="mt-3 flex gap-2 overflow-x-auto">
                                         {i.photos.map((p) => (
@@ -130,12 +156,17 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                                         ))}
                                     </div>
                                 )}
-                                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] font-semibold">
-                                    {i.verifier && <span className="text-blue-600">Verified by {i.verifier}</span>}
-                                    {i.approver && <span className="text-emerald-600">Approved by {i.approver}</span>}
-                                    {i.review_comment && i.status === 'rejected' && <span className="text-red-600">Returned: {i.review_comment}</span>}
-                                    {inspectionHref && <Link href={inspectionHref(i)} className="ml-auto text-brand-700 hover:underline">Open inspection →</Link>}
-                                </div>
+                                {i.review_comment && i.status === 'rejected' && (
+                                    <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">Returned: {i.review_comment}</p>
+                                )}
+
+                                {inspectionHref && (
+                                    <div className="mt-4 border-t border-gray-100 pt-4">
+                                        <Link href={inspectionHref(i)} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink-900 px-5 py-3 text-sm font-bold text-brand-400 shadow-sm transition hover:bg-ink-800 sm:ml-auto sm:w-auto sm:min-w-[260px]">
+                                            View inspection detail <ChevronRight className="h-4 w-4" />
+                                        </Link>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

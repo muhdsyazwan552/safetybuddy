@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { CheckCircle2, Loader2, SearchX } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Loader2, SearchX } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import CaseCard from '@/Components/shared/CaseCard';
 import ListControls, { Pager } from '@/Components/shared/ListControls';
@@ -60,6 +60,8 @@ export default function Cases({ cases = [], meta, counts = {}, filters = {}, pro
         ['closed', 'Closed', counts.closed],
     ];
     let lastMonth = null;
+    // only one card is open at a time
+    const [openKey, setOpenKey] = useState(null);
 
     return (
         <ReviewLayout title="NC / CC cases">
@@ -90,10 +92,11 @@ export default function Cases({ cases = [], meta, counts = {}, filters = {}, pro
                         return (
                             <React.Fragment key={c.key}>
                                 {heading && <h2 className="pt-2 text-xs font-extrabold uppercase tracking-widest text-gray-500">{m}</h2>}
-                                <CaseCard item={c}>
+                                <CaseCard item={c} showReply={false} collapsible open={openKey === c.key} onToggle={() => setOpenKey((k) => (k === c.key ? null : c.key))}>
                                     <div className="space-y-3">
-                                        <CaseActions item={c} />
-                                        <Link href={`/review/cases/${c.type}/${c.id}`} className="inline-block text-sm font-bold text-brand-700 hover:underline">View full details →</Link>
+                                        <Link href={`/review/cases/${c.type}/${c.id}`} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink-900 px-5 py-3 text-sm font-bold text-brand-400 shadow-sm transition hover:bg-ink-800 sm:ml-auto sm:w-auto sm:min-w-[260px]">
+                                            View full details <ChevronRight className="h-4 w-4" />
+                                        </Link>
                                     </div>
                                 </CaseCard>
                             </React.Fragment>

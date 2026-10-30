@@ -223,7 +223,7 @@ export default function Dashboard({
                                 href="/inspector/visits/create"
                                 className="sb-create"
                             >
-                                <Plus className="w-4 h-4" strokeWidth={3} /> New Site Visit
+                                <Plus className="w-4 h-4" strokeWidth={3} /> New Toolbox talk & Inspection
                             </Link>
                         </div>
                     </motion.section>

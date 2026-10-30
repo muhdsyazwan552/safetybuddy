@@ -551,6 +551,7 @@ class ContentController extends Controller
 
                 return [
                     'id'                     => $inc->id,
+                    'series_code'            => $inc->code,
 
                     // ── Basic Information ──────────────────────────────────────
                     'incident_year'          => $inc->incident_date?->format('Y'),
@@ -666,6 +667,7 @@ class ContentController extends Controller
             ->map(fn (Manhour $entry) => [
                 'staff' => $staffByDay->get($entry->project_id . '|' . $entry->subcon_company_id . '|' . $entry->work_date->format('Y-m-d'), collect()),
                 'id' => $entry->id,
+                'series_code' => $entry->code,
                 'work_date' => $entry->work_date->format('Y-m-d'),
                 'created_at' => $entry->created_at?->format('Y-m-d H:i:s'),
                 'project_id' => $entry->project_id,

@@ -20,7 +20,7 @@ const formatMoney = (value) => value === null || value === undefined ? '—' : `
 
 function Card({ icon: Icon, title, hint, children }) {
     return (
-        <section className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
+        <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
             <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-ink-900 text-brand-400">
                     <Icon className="h-5 w-5" />

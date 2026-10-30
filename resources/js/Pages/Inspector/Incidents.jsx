@@ -1,103 +1,37 @@
+// Incidents on the inspector's projects. Same card as the review portal; its button opens the detail page.
 import React, { useMemo, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { Plus, MapPin, CalendarDays, Building2, UserRound, ChevronDown, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
-import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { EmptyState } from '@/Components/inspector/kit';
-import PdfButton from '@/Components/shared/PdfButton';
+import { IncidentCard } from '@/Pages/Review/Incidents';
 
-const STATUS = {
-    open: 'bg-amber-50 text-amber-700 border-amber-200',
-    'in progress': 'bg-blue-50 text-blue-700 border-blue-200',
-    inprogress: 'bg-blue-50 text-blue-700 border-blue-200',
-    closed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+const PER_PAGE = 8;
+
+// the status of an incident is stored as open / in progress / closed
+const normStatus = (s) => {
+    const v = (s || 'open').toLowerCase().replace(/\s+/g, '');
+    return v === 'inprogress' ? 'inprogress' : v === 'closed' ? 'closed' : 'open';
 };
-const STATUS_LABEL = { open: 'Submitted', inprogress: 'Reviewed', 'in progress': 'Reviewed', closed: 'Approved' };
-
-function Row({ label, children }) {
-    if (!children) return null;
-    return (
-        <div>
-            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{label}</p>
-            <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-800">{children}</p>
-        </div>
-    );
-}
-
-function IncidentCard({ item }) {
-    const [open, setOpen] = useState(false);
-    const status = (item.status || 'open').toLowerCase();
-
-    return (
-        <div className="overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-sm">
-            <button type="button" onClick={() => setOpen((o) => !o)} className="w-full p-4 text-left">
-                <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                        <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">Incident #{item.id}</p>
-                        <p className="truncate text-[15px] font-bold text-gray-900">{item.type || 'Incident'}</p>
-                        <p className="truncate text-xs text-gray-500">{item.project}</p>
-                    </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${STATUS[status] || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                            {STATUS_LABEL[status] || item.status || 'Submitted'}
-                        </span>
-                        {item.mine && <span className="text-[10px] font-bold text-brand-700">Reported by you</span>}
-                    </div>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-500">
-                    <span className="inline-flex items-center gap-1.5"><CalendarDays className="h-4 w-4" />{item.date}</span>
-                    <span className="inline-flex items-center gap-1.5"><MapPin className="h-4 w-4" />{item.location || '-'}</span>
-                    {item.subcon && <span className="inline-flex items-center gap-1.5"><Building2 className="h-4 w-4" />{item.subcon}</span>}
-                    <span className="inline-flex items-center gap-1.5"><UserRound className="h-4 w-4" />{item.reported_by || '-'}</span>
-                </div>
-                <ChevronDown className={`mx-auto mt-2 h-5 w-5 text-gray-300 transition ${open ? 'rotate-180' : ''}`} />
-            </button>
-
-            {open && (
-                <div className="space-y-3 border-t border-gray-100 bg-gray-50 p-4">
-                    <ReviewProgress kind="incident" status={item.status} />
-                    <Row label="Description">{item.description}</Row>
-                    <Row label="Responsible person">{item.responsible}</Row>
-                    <Row label="Injury / body part">{[item.injury, item.body_part].filter(Boolean).join(' · ')}</Row>
-                    <Row label="Immediate cause">{item.immediate_cause}</Row>
-                    <Row label="Immediate action">{item.immediate_action}</Row>
-                    <Row label="Corrective action">{item.corrective}</Row>
-                    <PdfButton href={`/pdf/incident/${item.id}`} />
-                {item.responses?.length > 0 && (
-                    <div>
-                        <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Supervisor review and approval</p>
-                        <ul className="mt-1 space-y-2">
-                            {item.responses.map((r) => (
-                                <li key={r.id} className={`rounded-xl px-3 py-2 text-sm ${['closed', 'approved'].includes(r.type) ? 'bg-emerald-50 text-emerald-900' : r.type === 'reopened' ? 'bg-amber-50 text-amber-900' : 'bg-sky-50 text-sky-900'}`}>
-                                    <p className="text-[11px] font-bold uppercase tracking-wide opacity-70">{['closed', 'approved'].includes(r.type) ? 'Approved' : r.type === 'reopened' ? 'Reopened' : 'Reviewed'} · {r.by}{r.role ? ` (${r.role})` : ''} · {r.at}</p>
-                                    {r.message && <p className="mt-0.5 whitespace-pre-wrap">{r.message}</p>}
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
-                    {item.involved.length > 0 && (
-                        <div>
-                            <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                                <Users className="h-3.5 w-3.5" /> Subcontractor staff involved
-                            </p>
-                            <ul className="mt-1 space-y-0.5 text-sm text-gray-800">
-                                {item.involved.map((p) => <li key={p.id}>{p.name}{p.role ? <span className="text-gray-400"> · {p.role}</span> : null}</li>)}
-                            </ul>
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-}
 
 export default function Incidents({ incidents = [], projects = [], user }) {
     const [projectId, setProjectId] = useState('all');
-    const list = useMemo(
-        () => (projectId === 'all' ? incidents : incidents.filter((i) => String(i.project_id) === String(projectId))),
-        [incidents, projectId],
-    );
+    const [q, setQ] = useState('');
+    const [page, setPage] = useState(1);
+    // only one card is open at a time
+    const [openId, setOpenId] = useState(null);
+
+    const needle = q.trim().toLowerCase();
+    const list = useMemo(() => incidents
+        .filter((i) => projectId === 'all' || String(i.project_id) === String(projectId))
+        .filter((i) => !needle || [i.series_code, i.type, i.project, i.subcon, i.location, i.reported_by, i.description, i.date]
+            .filter(Boolean).join(' ').toLowerCase().includes(needle)),
+    [incidents, projectId, needle]);
+
+    const lastPage = Math.max(1, Math.ceil(list.length / PER_PAGE));
+    const current = Math.min(page, lastPage);
+    const shown = list.slice((current - 1) * PER_PAGE, current * PER_PAGE);
+    const change = (setter) => (value) => { setter(value); setPage(1); };
 
     return (
         <InspectorLayout user={user}>
@@ -106,7 +40,7 @@ export default function Incidents({ incidents = [], projects = [], user }) {
                 <div className="flex items-center gap-3">
                     <select
                         value={projectId}
-                        onChange={(e) => setProjectId(e.target.value)}
+                        onChange={(e) => change(setProjectId)(e.target.value)}
                         className="min-w-0 flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold"
                     >
                         <option value="all">All my projects ({incidents.length})</option>
@@ -117,10 +51,46 @@ export default function Incidents({ incidents = [], projects = [], user }) {
                     </Link>
                 </div>
 
+                <label className="relative block">
+                    <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                        type="search"
+                        value={q}
+                        onChange={(e) => change(setQ)(e.target.value)}
+                        placeholder="Search code, type, project, location, person…"
+                        className="w-full rounded-2xl border border-gray-200 bg-white py-2.5 pl-10 pr-10 text-sm"
+                    />
+                    {q && (
+                        <button type="button" onClick={() => change(setQ)('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                            <X className="h-4 w-4" />
+                        </button>
+                    )}
+                </label>
+
                 {list.length === 0 ? (
-                    <EmptyState title="No incidents" hint="No incident has been reported for your projects." />
+                    <EmptyState title="No incidents" hint={needle ? 'No incident matches your search.' : 'No incident has been reported for your projects.'} />
                 ) : (
-                    list.map((i) => <IncidentCard key={i.id} item={i} />)
+                    shown.map((i) => (
+                        <IncidentCard
+                            key={i.id}
+                            incident={{ ...i, status: normStatus(i.status), involved_count: i.involved?.length || 0 }}
+                            detailHref={`/inspector/incidents/${i.id}`}
+                            open={openId === i.id}
+                            onToggle={() => setOpenId((k) => (k === i.id ? null : i.id))}
+                        />
+                    ))
+                )}
+
+                {lastPage > 1 && (
+                    <div className="flex items-center justify-between gap-3 pt-1">
+                        <button type="button" disabled={current <= 1} onClick={() => setPage(current - 1)} className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-gray-700 disabled:opacity-40">
+                            <ChevronLeft className="h-4 w-4" /> Previous
+                        </button>
+                        <span className="text-xs font-semibold text-gray-500">Page {current} of {lastPage} · {list.length} total</span>
+                        <button type="button" disabled={current >= lastPage} onClick={() => setPage(current + 1)} className="inline-flex items-center gap-1 rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-gray-700 disabled:opacity-40">
+                            Next <ChevronRight className="h-4 w-4" />
+                        </button>
+                    </div>
                 )}
             </div>
         </InspectorLayout>

@@ -3,7 +3,7 @@
 // the data comes from App\Support\SubconDetail.
 import React, { useState } from 'react';
 import dayjs from 'dayjs';
-import { storageUrl } from '@/Components/inspector/kit';
+import { storageUrl, cardTone, subconStatus } from '@/Components/inspector/kit';
 import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
 
 const fmtDate = (d) => (d ? dayjs(d).format('DD MMM YYYY') : '-');
@@ -16,7 +16,7 @@ export const ExpiryBadge = ({ date }) => {
 };
 
 const EmptyState = ({ children }) => (
-  <div className="rounded-lg border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">{children}</div>
+  <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">{children}</div>
 );
 
 const Detail = ({ label, children }) => (
@@ -39,19 +39,18 @@ export const SubconSummary = ({ staff = [], machinery, cases, attendance, induct
     { key: 'machinery', label: 'Machinery', value: machinery.length, sub: expiredCf ? `${expiredCf} CF expired` : 'No expired CF', alert: expiredCf > 0 },
   ];
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-5">
+    <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-5">
       {cards.map(c => (
         <button key={c.key} type="button" onClick={() => onSelect(c.key)}
-          className="rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm transition hover:border-blue-300 hover:shadow">
-          <div className="text-xs font-medium uppercase tracking-wider text-gray-500">{c.label}</div>
-          <div className="mt-1 text-2xl font-bold text-gray-800">{c.value}</div>
-          <div className={`mt-0.5 text-xs ${c.alert ? 'font-semibold text-red-600' : 'text-gray-500'}`}>{c.sub}</div>
+          className={`relative overflow-hidden rounded-3xl border p-4 text-left ${c.alert ? cardTone('rejected').card : 'border-gray-200 bg-white shadow-md shadow-gray-200/60 transition hover:-translate-y-0.5 hover:shadow-xl'}`}>
+          <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">{c.label}</div>
+          <div className="mt-1.5 text-3xl font-extrabold leading-none text-gray-900">{c.value}</div>
+          <div className={`mt-1.5 text-xs ${c.alert ? 'font-extrabold uppercase tracking-wide text-rose-700' : 'font-semibold text-emerald-700'}`}>{c.sub}</div>
         </button>
       ))}
     </div>
   );
 };
-
 export const SubconTabs = ({ tab, onChange, counts }) => {
   const tabs = [
     ['staff', 'Staff'],
@@ -61,20 +60,19 @@ export const SubconTabs = ({ tab, onChange, counts }) => {
     ['machinery', 'Machinery'],
   ];
   return (
-    <div className="mb-6 flex gap-1 overflow-x-auto border-b border-gray-200">
+    <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
       {tabs.map(([key, label]) => (
         <button key={key} type="button" onClick={() => onChange(key)}
-          className={`-mb-px whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium transition ${
-            tab === key ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700'
+          className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-xs font-bold transition ${
+            tab === key ? 'bg-ink-900 text-brand-400 shadow-md' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
           }`}>
           {label}
-          <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${tab === key ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{counts[key]}</span>
+          <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] ${tab === key ? 'bg-white/15 text-brand-400' : 'bg-gray-100 text-gray-600'}`}>{counts[key]}</span>
         </button>
       ))}
     </div>
   );
 };
-
 export const AttendanceTab = ({ attendance }) => {
   const [open, setOpen] = useState(null);
   const [month, setMonth] = useState('');
@@ -85,7 +83,7 @@ export const AttendanceTab = ({ attendance }) => {
   if (!attendance.length) return <EmptyState>No daily attendance recorded yet. The subcontractor leader ticks staff present from their leader link.</EmptyState>;
 
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
       <div className="flex flex-col gap-3 border-b border-gray-200 p-4 md:flex-row md:items-center md:justify-between">
         <div className="text-sm text-gray-600">
           <span className="font-semibold text-gray-800">{rows.length}</span> day(s) &middot;{' '}
@@ -99,7 +97,7 @@ export const AttendanceTab = ({ attendance }) => {
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
+          <thead className="bg-gradient-to-b from-gray-50 to-white">
             <tr>
               {['Date', 'Project', 'Workers', 'Hours / Worker', 'Manhours', ''].map(h => (
                 <th key={h} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{h}</th>
@@ -179,7 +177,7 @@ export const CasesTab = ({ cases }) => {
         const i = c.inspection || {};
         const expanded = open === c.key;
         return (
-          <div key={c.key} className="rounded-lg border border-gray-200 bg-white shadow-sm">
+          <div key={c.key} className={`overflow-hidden rounded-3xl border ${cardTone(c.state).card}`}>
             <button type="button" onClick={() => setOpen(expanded ? null : c.key)} className="flex w-full flex-col gap-2 p-4 text-left md:flex-row md:items-center md:justify-between">
               <div className="flex items-start gap-3">
                 <span className={`mt-0.5 whitespace-nowrap rounded px-2 py-0.5 text-xs font-bold ${c.type === 'nc' ? 'bg-orange-100 text-orange-800' : 'bg-purple-100 text-purple-800'}`}>
@@ -190,7 +188,7 @@ export const CasesTab = ({ cases }) => {
                   <div className="text-xs text-gray-500">{i.project || '-'}{i.location ? ` · ${i.location}` : ''} · Opened {fmtDate(c.date_open || c.created_at)}</div>
                 </div>
               </div>
-              <span className={`self-start rounded-full px-2.5 py-0.5 text-xs font-semibold md:self-center ${cls}`}>{label}</span>
+              <span className={`self-start text-xs font-extrabold uppercase tracking-wide md:self-center ${cls.split(' ').find(x => x.startsWith('text-'))}`}>Status : {label}</span>
             </button>
             {expanded && (
               <div className="grid gap-4 border-t border-gray-100 p-4 text-sm md:grid-cols-2">
@@ -229,7 +227,7 @@ export const InductionTab = ({ induction }) => {
   const pct = induction.total ? Math.round((induction.done / induction.total) * 100) : 0;
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-md shadow-gray-200/60">
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
           <span className="font-semibold text-gray-800">{induction.done} of {induction.total} topics acknowledged</span>
           <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${induction.complete ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}`}>
@@ -241,7 +239,7 @@ export const InductionTab = ({ induction }) => {
         </div>
       </div>
       {induction.topics.length ? (
-        <div className="divide-y divide-gray-100 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+        <div className="divide-y divide-gray-100 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
           {induction.topics.map((t, n) => (
             <div key={t.id}>
               <button type="button" onClick={() => setOpen(open === t.id ? null : t.id)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50">
@@ -275,9 +273,9 @@ export const InductionTab = ({ induction }) => {
 export const MachineryTab = ({ machinery }) => {
   if (!machinery.length) return <EmptyState>No machinery registered by this subcontractor.</EmptyState>;
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
       <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
+        <thead className="bg-gradient-to-b from-gray-50 to-white">
           <tr>
             {['#', 'Machinery', 'Plate / Serial No.', 'Operator', 'CF Expiry', 'Certificate'].map(h => (
               <th key={h} className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">{h}</th>
@@ -303,55 +301,69 @@ export const MachineryTab = ({ machinery }) => {
   );
 };
 
-/** Read-only staff list with contact and certifications. */
+/** Read-only staff cards with contact and certifications; the card is highlighted by the staff status. */
 export const StaffTab = ({ staff = [] }) => {
   const [q, setQ] = useState('');
   const rows = staff.filter(s => [s.code, s.name, s.role, s.email, s.contact].some(v => v?.toLowerCase().includes(q.toLowerCase())));
 
   if (!staff.length) return <EmptyState>No staff registered by this subcontractor.</EmptyState>;
 
+  const row = (label, value) => (
+    <>
+      <dt className="text-gray-500">{label} :</dt>
+      <dd className="min-w-0 break-words font-semibold text-gray-700">{value}</dd>
+    </>
+  );
+
   return (
-    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div className="border-b border-gray-200 p-4">
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search staff..."
-          className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm md:w-64" />
-      </div>
-      <ul className="divide-y divide-gray-100">
-        {rows.map(s => (
-          <li key={s.id} className="flex flex-col gap-2 px-4 py-3 md:flex-row md:items-center">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-800">{(s.name || '?').charAt(0).toUpperCase()}</span>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-gray-900">{s.name}</div>
-                {s.code && <div className="truncate text-xs font-semibold text-gray-500">{s.code}</div>}
-                <div className="truncate text-xs text-gray-500">
-                  {s.role || '-'}{s.contact ? <> &middot; <a href={`tel:${s.contact}`} className="text-blue-600">{s.contact}</a></> : null}{s.email ? ` · ${s.email}` : ''}
+    <div className="space-y-4">
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search staff..."
+        className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm shadow-sm md:w-80" />
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {rows.map(s => {
+          const st = subconStatus(s.status || 'active');
+          const waiting = s.status === 'pending' || s.supervisor_approved_at || s.manager_approved_at;
+          return (
+            <article key={s.id} className={`relative overflow-hidden rounded-3xl border p-5 ${st.tone.card}`}>
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-ink-900 text-base font-extrabold text-brand-400">{(s.name || '?').charAt(0).toUpperCase()}</span>
+                <div className="min-w-0">
+                  <div className="truncate text-[15px] font-extrabold text-gray-900">{s.name}</div>
+                  {s.code && <div className="truncate font-mono text-[11px] font-bold tracking-wide text-brand-800">{s.code}</div>}
                 </div>
               </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-1.5 md:justify-end">
-              {s.certifications?.map(c => (
-                <a key={c.id} href={c.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-2 py-0.5 text-xs text-blue-700 hover:bg-blue-50">
-                  {c.title} <ExpiryBadge date={c.expiry_date} />
-                </a>
-              ))}
-              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${s.is_safetypassport ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}`}>Passport {s.is_safetypassport ? 'Yes' : 'No'}</span>
-              {(s.status === 'pending' || s.supervisor_approved_at || s.manager_approved_at) && (
-                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800"
-                  title={`Supervisor: ${s.supervisor_approved_at ? `${s.supervisor_approved_name || 'approved'} ${String(s.supervisor_approved_at).slice(0, 10)}` : 'waiting'} | Manager: ${s.manager_approved_at ? `${s.manager_approved_name || 'approved'} ${String(s.manager_approved_at).slice(0, 10)}` : 'waiting'}`}>
-                  Sup {s.supervisor_approved_at ? '✓' : '…'} · Mgr {s.manager_approved_at ? '✓' : '…'}
-                </span>
+
+              <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-2 gap-y-2 text-xs">
+                {row('Role', s.role || '-')}
+                {row('Status', <span className={`font-extrabold uppercase tracking-wide ${st.text}`}>{st.label}</span>)}
+                {row('Safety passport', <span className={`font-extrabold uppercase tracking-wide ${s.is_safetypassport ? 'text-emerald-700' : 'text-rose-700'}`}>{s.is_safetypassport ? 'Yes' : 'No'}</span>)}
+                {s.contact && row('Contact', <a href={`tel:${s.contact}`} className="text-blue-700">{s.contact}</a>)}
+                {s.email && row('Email', s.email)}
+                {waiting && row('Approval',
+                  <span title={`Supervisor: ${s.supervisor_approved_at ? `${s.supervisor_approved_name || 'approved'} ${String(s.supervisor_approved_at).slice(0, 10)}` : 'waiting'} | Manager: ${s.manager_approved_at ? `${s.manager_approved_name || 'approved'} ${String(s.manager_approved_at).slice(0, 10)}` : 'waiting'}`}>
+                    Supervisor <b className={s.supervisor_approved_at ? 'text-emerald-700' : 'text-amber-700'}>{s.supervisor_approved_at ? '✓' : '…'}</b>
+                    {' · '}Manager <b className={s.manager_approved_at ? 'text-emerald-700' : 'text-amber-700'}>{s.manager_approved_at ? '✓' : '…'}</b>
+                  </span>)}
+              </dl>
+
+              {s.certifications?.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-1.5 border-t border-gray-100 pt-3">
+                  {s.certifications.map(c => (
+                    <a key={c.id} href={c.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-50">
+                      {c.title} <ExpiryBadge date={c.expiry_date} />
+                    </a>
+                  ))}
+                </div>
               )}
-              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${(s.status || 'active') === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700'}`}>{s.status || 'active'}</span>
-            </div>
-          </li>
-        ))}
-        {!rows.length && <li className="p-6 text-center text-sm text-gray-500">No staff match your search.</li>}
-      </ul>
+            </article>
+          );
+        })}
+      </div>
+      {!rows.length && <div className="rounded-3xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">No staff match your search.</div>}
     </div>
   );
 };
-
 /** Tab content for everything except staff (pass staffPanel to replace the read-only list). */
 export const SubconPanels = ({ tab, staff, machinery = [], cases = [], attendance = [], induction, staffPanel = null }) => (
   <>

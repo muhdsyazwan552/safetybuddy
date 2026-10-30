@@ -104,8 +104,8 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
                 {/* what needs a decision */}
                 <Section title="Needs your action">
                     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
-                        <ActionTile icon={ClipboardCheck} tone="amber" value={counts.visits_verify} label="Site visits to verify" hint="Toolbox talk + inspections" href="/review/visits?status=pending_verification" />
-                        {is_manager && <ActionTile icon={BadgeCheck} tone="sky" value={counts.visits_approve} label="Site visits to approve" hint="Verified by a supervisor" href="/review/visits?status=verified" />}
+                        <ActionTile icon={ClipboardCheck} tone="amber" value={counts.visits_verify} label="Toolbox talk & Inspection to verify" hint="Toolbox talk + inspections" href="/review/visits?status=pending_verification" />
+                        {is_manager && <ActionTile icon={BadgeCheck} tone="sky" value={counts.visits_approve} label="Toolbox talk & Inspection to approve" hint="Verified by a supervisor" href="/review/visits?status=verified" />}
                         <ActionTile icon={AlertTriangle} tone="violet" value={counts.cases_review} label="NC / CC replies to review" hint={`${counts.cases_waiting} waiting for the subcontractor`} href="/review/cases?state=responded" />
                         {!is_manager && <ActionTile icon={Siren} tone="rose" value={counts.incidents_open} label="Incidents awaiting approval" hint={counts.incidents_new ? `${counts.incidents_new} awaiting review` : 'All reviewed; awaiting approval'} href="/review/incidents" />}
                         <ActionTile icon={BarChart3} tone="sky" value={is_manager ? counts.monthly_approve : counts.monthly_verify} label={is_manager ? 'Monthly reports to approve' : 'Monthly reports to verify'} hint={is_manager ? `${counts.monthly_verify} more waiting for verification` : 'Pooled from approved inspections'} href="/review/reports?tab=monthly" />
@@ -145,7 +145,7 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
                     {/* waiting list */}
                     <Section title={is_manager ? 'Waiting for approval' : 'Waiting for verification'} href="/review/visits">
                         {queue.length === 0 ? (
-                            <Empty text="No site visit is waiting. Nice work." />
+                            <Empty text="No toolbox talk & inspection is waiting. Nice work." />
                         ) : (
                             <div className="space-y-2">
                                 {queue.map((v, n) => (

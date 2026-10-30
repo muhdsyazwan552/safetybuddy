@@ -238,7 +238,7 @@ class ReviewController extends Controller
             'evaluation' => $evaluation,
             'team' => $team,
             'subcons' => $subcons,
-            'visits' => $visits->take(20)->values(),
+            'visits' => $visits->values(), // paged on the page itself
             'cases' => $cases->values(),
         ]);
     }
@@ -454,7 +454,7 @@ class ReviewController extends Controller
         $c = ['status' => \App\Models\Inspection::STATUS_VERIFIED, 'verified_by' => $staffId, 'verified_at' => now(), 'review_comment' => null];
         $this->stepVisit($id, \App\Models\Inspection::STATUS_PENDING, $c, $c);
 
-        return back()->with('success', 'Site visit verified.');
+        return back()->with('success', 'Toolbox talk & Inspection verified.');
     }
 
     public function visitApprove(int $id)
@@ -464,7 +464,7 @@ class ReviewController extends Controller
         $c = ['status' => \App\Models\Inspection::STATUS_APPROVED, 'approved_by' => $staffId, 'approved_at' => now()];
         $this->stepVisit($id, \App\Models\Inspection::STATUS_VERIFIED, $c, $c);
 
-        return back()->with('success', 'Site visit approved.');
+        return back()->with('success', 'Toolbox talk & Inspection approved.');
     }
 
     public function visitReject(Request $request, int $id)
@@ -480,7 +480,7 @@ class ReviewController extends Controller
             ->whereIn('status', [\App\Models\Inspection::STATUS_PENDING, \App\Models\Inspection::STATUS_VERIFIED])
             ->update($c);
 
-        return back()->with('success', 'Site visit returned to the inspector.');
+        return back()->with('success', 'Toolbox talk & Inspection returned to the inspector.');
     }
 
     /** Toolbox talks of the company - conducted or not, with Safety Passport sampling. */
@@ -517,6 +517,7 @@ class ReviewController extends Controller
     {
         $row = [
             'id' => $i->id,
+            'series_code' => $i->code,
             'date' => optional($i->incident_date)->format('Y-m-d H:i'),
             'day' => optional($i->incident_date)->format('Y-m-d'),
             'project_id' => $i->project_id,
@@ -685,6 +686,53 @@ class ReviewController extends Controller
         return Inertia::render('Review/VisitShow', ['visit' => $visit] + $this->roleFlags());
     }
 
+    /** Full detail of one toolbox talk: attendance, Safety Passport sampling and its calculation. */
+    public function toolboxShow(int $id)
+    {
+        $t = \App\Models\ToolboxTalks::with([
+                'project:id,name,company_id', 'CompanyStaff:id,name', 'categories:id,name',
+                'attendees:id,name,role', 'verifier:id,name', 'approver:id,name',
+            ])
+            ->whereHas('project', fn ($q) => $q->where('company_id', $this->companyId()))
+            ->findOrFail($id);
+
+        $sp = \Illuminate\Support\Facades\DB::table('toolbox_talk_sp')
+            ->leftJoin('subcon_company', 'subcon_company.id', '=', 'toolbox_talk_sp.subcon_company_id')
+            ->where('toolbox_talk_sp.toolbox_talk_id', $t->id)
+            ->get(['subcon_company.name as company', 'toolbox_talk_sp.sampled', 'toolbox_talk_sp.not_registered'])
+            ->map(fn ($r) => ['company' => $r->company ?: '-', 'sampled' => (int) $r->sampled, 'not_registered' => (int) $r->not_registered])
+            ->values();
+
+        $url = fn ($p) => $p ? \Illuminate\Support\Facades\Storage::url($p) : null;
+
+        return Inertia::render('Review/ToolboxShow', [
+            'talk' => [
+                'id' => $t->id,
+                'series_code' => $t->code,
+                'project' => optional($t->project)->name,
+                'by' => optional($t->CompanyStaff)->name,
+                'date' => optional($t->inspection_date)->format('Y-m-d'),
+                'conducted' => $t->conducted === 'yes',
+                'attended' => (int) $t->total_attended,
+                'attendees' => $t->attendees->map(fn ($a) => ['id' => $a->id, 'name' => $a->name, 'role' => $a->role])->values(),
+                'categories' => $t->categories->pluck('name')->values(),
+                'sp_sampled' => $t->sp_sampled,
+                'sp_not_registered' => $t->sp_not_registered,
+                'sp_compliance' => $t->sp_compliance,
+                'sp_companies' => $sp,
+                'status' => $t->status ?: \App\Models\Inspection::STATUS_PENDING,
+                'review_comment' => $t->review_comment,
+                'verifier' => optional($t->verifier)->name,
+                'verified_at' => optional($t->verified_at)->format('Y-m-d H:i'),
+                'approver' => optional($t->approver)->name,
+                'approved_at' => optional($t->approved_at)->format('Y-m-d H:i'),
+                'img_group' => $url($t->img_group),
+                'img_attendance' => $url($t->img_attendance),
+                'inspections' => $t->inspections()->count(),
+            ],
+        ]);
+    }
+
     /** Full detail of one NC / CC case with its timeline. */
     public function caseShow(string $type, int $id)
     {
@@ -743,8 +791,8 @@ class ReviewController extends Controller
                 'approved_at' => optional($i->approved_at)->format('Y-m-d H:i'),
                 'review_comment' => $i->review_comment,
                 'visit_key' => $i->toolbox_talk_id ? 'talk-' . $i->toolbox_talk_id : null,
-                'nc' => $i->non_conformance ? ['id' => $i->non_conformance->id, 'status' => $i->non_conformance->status] : null,
-                'cc' => $i->client_complaint ? ['id' => $i->client_complaint->id, 'status' => $i->client_complaint->status] : null,
+                'nc' => $i->non_conformance ? ['id' => $i->non_conformance->id, 'series_code' => $i->non_conformance->code, 'status' => $i->non_conformance->status] : null,
+                'cc' => $i->client_complaint ? ['id' => $i->client_complaint->id, 'series_code' => $i->client_complaint->code, 'status' => $i->client_complaint->status] : null,
             ],
         ] + $this->roleFlags());
     }

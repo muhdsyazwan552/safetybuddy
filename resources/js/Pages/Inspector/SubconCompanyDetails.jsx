@@ -1,9 +1,9 @@
 // resources/js/Pages/Inspector/SubconCompanyDetails.jsx
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { Phone, Mail, MapPin, Users, ClipboardCheck, AlertTriangle, FolderKanban, ChevronRight } from 'lucide-react';
+import { Phone, Mail, MapPin, Users, ClipboardCheck, AlertTriangle, FolderKanban } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
-import { EVAL, EvalBadge, EmptyState, SectionCard, fmtDate } from '@/Components/inspector/kit';
+import { SectionCard } from '@/Components/inspector/kit';
 import { statusMeta } from '@/Components/inspector/projectUtils';
 import SubconDetail from '@/Components/shared/SubconDetail';
 
@@ -62,24 +62,6 @@ export default function SubconCompanyDetails({ company, inspections = [], stats 
                         </div>
                     </SectionCard>
                 )}
-
-                <SectionCard title="Recent inspections" icon={ClipboardCheck}>
-                    {inspections.length === 0 ? <p className="text-sm text-gray-400">No inspections yet.</p> : (
-                        <div className="-mx-5 -mb-5 divide-y divide-gray-100">
-                            {inspections.map((i) => (
-                                <Link key={i.id} href={`/inspector/inspections/${i.id}`} className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-gray-50 active:bg-gray-50">
-                                    <span className="h-10 w-1.5 shrink-0 rounded-full" style={{ background: EVAL[i.evaluation]?.color || '#9ca3af' }} />
-                                    <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-semibold text-gray-900">{i.project?.name || '-'}</p>
-                                        <p className="truncate text-xs text-gray-500">{i.topic?.name || '-'} · {fmtDate(i.inspection_date)}</p>
-                                    </div>
-                                    <EvalBadge value={i.evaluation} />
-                                    <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                                </Link>
-                            ))}
-                        </div>
-                    )}
-                </SectionCard>
             </div>
         </InspectorLayout>
     );

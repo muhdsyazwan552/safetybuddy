@@ -1,11 +1,15 @@
 import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, CalendarDays, MapPin, Siren, FileText, Users, ShieldAlert, ListChecks, MessageSquare, Send, CheckCircle2, RotateCcw, Loader2 } from 'lucide-react';
+import { ArrowLeft, FileText, Users, ShieldAlert, MessageSquare, Send, CheckCircle2, RotateCcw, Loader2 } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import { SectionCard, InfoRow } from '@/Components/inspector/kit';
 import { incidentTone } from './Incidents';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
+import HeroMeta from '@/Components/shared/HeroMeta';
 import PdfButton from '@/Components/shared/PdfButton';
+
+// status text colours that stay readable on the dark header
+const HERO_TONE = { open: 'text-rose-300', inprogress: 'text-amber-300', closed: 'text-emerald-400' };
 
 function ResponsePanel({ i, can_review, can_reopen }) {
     const [text, setText] = useState('');
@@ -29,20 +33,25 @@ function ResponsePanel({ i, can_review, can_reopen }) {
             {i.responses.length === 0 ? (
                 <p className="text-sm text-gray-500">Awaiting supervisor review.</p>
             ) : (
-                <ol className="space-y-3">
-                    {i.responses.map((r) => (
-                        <li key={r.id} className={`rounded-2xl px-4 py-3 ${['closed', 'approved'].includes(r.type) ? 'bg-emerald-50' : r.type === 'reopened' ? 'bg-amber-50' : 'bg-sky-50'}`}>
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">
-                                {['closed', 'approved'].includes(r.type) ? 'Approved' : r.type === 'reopened' ? 'Reopened' : 'Reviewed'} · {r.by}{r.role ? ` (${r.role})` : ''} · {r.at}
-                            </p>
-                            {r.message && <p className="mt-1 whitespace-pre-wrap text-sm text-gray-800">{r.message}</p>}
-                        </li>
-                    ))}
-                </ol>
-            )}
+                <ul className="space-y-4">
+                    {i.responses.map((r) => {
+                        const approved = ['closed', 'approved'].includes(r.type);
+                        const label = approved ? 'Approved' : r.type === 'reopened' ? 'Reopened' : 'Reviewed';
 
+                        return (
+                            <li key={r.id}>
+                                <div className={`inline-block max-w-full rounded-2xl rounded-tl-md px-4 py-2.5 ${approved ? 'bg-emerald-50' : r.type === 'reopened' ? 'bg-amber-50' : 'bg-gray-100'}`}>
+                                    <p className="text-sm font-bold text-gray-900">{r.by}</p>
+                                    {r.message && <p className="whitespace-pre-wrap break-words text-sm text-gray-800">{r.message}</p>}
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">{label}{r.role ? ` · ${r.role}` : ''}{r.at ? ` · ${r.at}` : ''}</p>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
             {can_review && !closed && (
-                <div className="mt-4 space-y-3">
+                <div className="mt-5 space-y-3 border-t border-gray-100 pt-4">
                     <textarea
                         rows={3}
                         value={text}
@@ -74,67 +83,52 @@ function ResponsePanel({ i, can_review, can_reopen }) {
     );
 }
 
-export default function IncidentShow({ incident: i, can_review_incident, can_reopen_incident }) {
+// The page content, shared with the inspector's read-only incident page
+export function IncidentDetail({ incident: i, canReview = false, canReopen = false, backHref = '/review/incidents' }) {
     const tone = incidentTone(i.status);
     const isImage = i.attachment && /\.(png|jpe?g|webp|gif)$/i.test(i.attachment);
 
     return (
-        <ReviewLayout title="Incident">
-            <Head title={`Incident #${i.id}`} />
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
-                    <Link href="/review/incidents" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                    <Link href={backHref} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
                         <ArrowLeft className="h-4 w-4" /> Back to incidents
                     </Link>
                     <PdfButton href={`/pdf/incident/${i.id}`} />
                 </div>
 
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                            <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Incident #{i.id}</p>
-                            <h1 className="mt-1 text-xl font-extrabold leading-tight">{i.type || 'Incident'}</h1>
-                            <p className="mt-1 text-sm text-gray-300">{i.project}</p>
-                            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm text-gray-300">
-                                <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-brand-400" />{i.date}</span>
-                                <span className="flex items-center gap-1.5"><MapPin className="h-4 w-4 text-brand-400" />{i.location || '-'}</span>
-                            </div>
-                        </div>
-                        <span className={`shrink-0 rounded-full border px-3 py-1.5 text-[11px] font-bold uppercase ${tone.badge}`}>{tone.label}</span>
+                    <div className="min-w-0">
+                        <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Incident {i.series_code}</p>
+                        <h1 className="mt-1 text-xl font-extrabold leading-tight">{i.type || 'Incident'}</h1>
+                        <HeroMeta rows={[
+                            ['Project', i.project || '-'],
+                            ['Subcontractor', i.subcon || '-'],
+                            ['Date', i.date || '-'],
+                            ['Status', <span key="s" className={`font-extrabold uppercase tracking-wide ${HERO_TONE[i.status] || HERO_TONE.open}`}>{tone.label}</span>],
+                        ]} />
                     </div>
                 </div>
-
                 <ReviewProgress kind="incident" status={i.status} />
 
-                <SectionCard title="Basic information" icon={Siren}>
+                <SectionCard title="Incident details" icon={FileText}>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <InfoRow label="Project">{i.project}</InfoRow>
                         <InfoRow label="Contractor / subcontractor">{i.subcon}</InfoRow>
                         <InfoRow label="Reported by">{i.reported_by}</InfoRow>
                         <InfoRow label="Responsible person">{i.responsible}</InfoRow>
+                        <InfoRow label="Date">{i.date}</InfoRow>
+                        <InfoRow label="Location">{i.location}</InfoRow>
                         <InfoRow label="Injury type">{i.injury}</InfoRow>
                         <InfoRow label="Body part affected">{i.body_part}</InfoRow>
                         {i.reviewed_by && <InfoRow label="Reviewed by">{i.reviewed_by}</InfoRow>}
-                    </div>
-                </SectionCard>
-
-                <SectionCard title="Case details" icon={FileText}>
-                    <div className="space-y-4">
-                        <InfoRow label="Incident description">{i.description}</InfoRow>
-                        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                            <InfoRow label="Immediate cause">{i.immediate_cause}</InfoRow>
-                            <InfoRow label="Underlying cause">{i.underlying_cause}</InfoRow>
-                        </div>
-                    </div>
-                </SectionCard>
-
-                <SectionCard title="Follow-up and actions" icon={ListChecks}>
-                    <div className="space-y-4">
+                        <div className="sm:col-span-2"><InfoRow label="Incident description"><span className="whitespace-pre-wrap">{i.description}</span></InfoRow></div>
+                        <InfoRow label="Immediate cause">{i.immediate_cause}</InfoRow>
+                        <InfoRow label="Underlying cause">{i.underlying_cause}</InfoRow>
                         <InfoRow label="Immediate action taken">{i.immediate_action}</InfoRow>
                         <InfoRow label="Corrective / preventive action">{i.corrective}</InfoRow>
                     </div>
                 </SectionCard>
-
                 {i.involved.length > 0 && (
                     <SectionCard title={`Subcontractor staff involved (${i.involved.length})`} icon={Users}>
                         <ul className="divide-y divide-gray-100">
@@ -148,7 +142,7 @@ export default function IncidentShow({ incident: i, can_review_incident, can_reo
                     </SectionCard>
                 )}
 
-                <ResponsePanel i={i} can_review={can_review_incident} can_reopen={can_reopen_incident} />
+                <ResponsePanel i={i} can_review={canReview} can_reopen={canReopen} />
 
                 {i.attachment && (
                     <SectionCard title="Evidence" icon={ShieldAlert}>
@@ -164,6 +158,14 @@ export default function IncidentShow({ incident: i, can_review_incident, can_reo
                     </SectionCard>
                 )}
             </div>
+    );
+}
+
+export default function IncidentShow({ incident, can_review_incident, can_reopen_incident }) {
+    return (
+        <ReviewLayout title="Incident">
+            <Head title={`Incident ${incident.series_code || ''}`.trim()} />
+            <IncidentDetail incident={incident} canReview={can_review_incident} canReopen={can_reopen_incident} />
         </ReviewLayout>
     );
 }

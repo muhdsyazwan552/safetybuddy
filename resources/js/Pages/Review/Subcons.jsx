@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { Search, Users, AlertTriangle, Truck, CalendarCheck, ChevronRight } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
+import { subconStatus } from '@/Components/inspector/kit';
 
 export default function Subcons({ companies = [], filters = {} }) {
     const [q, setQ] = useState(filters.q || '');
@@ -36,11 +37,13 @@ export default function Subcons({ companies = [], filters = {} }) {
                     <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-10 text-center text-sm text-gray-500">No subcontractor found.</div>
                 ) : (
                     <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                        {companies.map((c) => (
+                        {companies.map((c) => {
+                            const st = subconStatus(c.status);
+                            return (
                             <Link
                                 key={c.id}
                                 href={`/review/subcons/${c.id}`}
-                                className="group block min-w-0 rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition hover:border-brand-300 hover:shadow active:scale-[0.99]"
+                                className={`group block min-w-0 overflow-hidden rounded-3xl border p-5 active:scale-[0.99] ${st.tone.card}`}
                             >
                                 <div className="flex items-start gap-3">
                                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-500 text-lg font-extrabold text-ink-900">
@@ -48,23 +51,20 @@ export default function Subcons({ companies = [], filters = {} }) {
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <p className="line-clamp-2 break-words text-sm font-bold leading-snug text-gray-900">{c.name}</p>
-                                        <div className="mt-1 flex min-w-0 items-center gap-2">
-                                            <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${c.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                                                {c.status || 'inactive'}
-                                            </span>
-                                            <span className="truncate text-xs text-gray-500">{c.contact || c.email || ''}</span>
-                                        </div>
+                                        <p className="mt-1.5 text-xs text-gray-500">Status : <span className={`font-extrabold uppercase tracking-wide ${st.text}`}>{st.label}</span></p>
+                                        <p className="mt-0.5 truncate text-xs text-gray-500">{c.contact || c.email || ''}</p>
                                     </div>
                                     <ChevronRight className="mt-3 h-4 w-4 shrink-0 text-gray-300 group-hover:text-gray-500" />
                                 </div>
-                                <div className="mt-3 grid grid-cols-4 gap-1.5 text-center sm:gap-2">
+                                <div className="mt-4 grid grid-cols-4 gap-1.5 text-center sm:gap-2">
                                     <Stat icon={Users} label="Staff" value={c.staff} />
                                     <Stat icon={CalendarCheck} label="Today" value={c.present_today} />
                                     <Stat icon={AlertTriangle} label="NC/CC" value={c.open_cases} danger={c.open_cases > 0} />
                                     <Stat icon={Truck} label="Machine" value={c.machinery} />
                                 </div>
                             </Link>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>

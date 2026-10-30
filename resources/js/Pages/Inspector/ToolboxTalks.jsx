@@ -71,7 +71,7 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
                                 <Link
                                     key={t.id}
                                     href={`/inspector/toolbox-talks/detail/${t.id}`}
-                                    className="block rounded-3xl border border-gray-100 bg-white p-4 shadow-sm active:scale-[0.985] transition"
+                                    className="block rounded-3xl border border-gray-200 bg-white p-4 shadow-md shadow-gray-200/60 active:scale-[0.985] transition"
                                 >
                                     <div className="flex items-start justify-between gap-3">
                                         <div className="min-w-0">
@@ -108,7 +108,7 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
                         </div>
 
                         {/* Desktop table */}
-                        <div className="hidden overflow-x-auto rounded-3xl border border-gray-100 bg-white shadow-sm md:block">
+                        <div className="hidden overflow-x-auto rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60 md:block">
                             <table className="min-w-full divide-y divide-gray-100 text-sm">
                                 <thead className="bg-gray-50 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
                                     <tr>

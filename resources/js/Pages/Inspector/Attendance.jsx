@@ -4,6 +4,7 @@ import { CalendarDays, Users, Clock, ChevronDown, Building2 } from 'lucide-react
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import { EmptyState } from '@/Components/inspector/kit';
 import PdfButton from '@/Components/shared/PdfButton';
+import SeriesCode from '@/Components/shared/SeriesCode';
 
 function SubconRow({ subcon }) {
     const [open, setOpen] = useState(false);
@@ -12,6 +13,7 @@ function SubconRow({ subcon }) {
             <button type="button" onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-3 px-4 py-3.5 text-left">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink-900 text-brand-400"><Building2 className="h-5 w-5" /></span>
                 <span className="min-w-0 flex-1">
+                    <SeriesCode code={subcon.series_code} className="block" />
                     <span className="block truncate text-[15px] font-bold text-gray-900">{subcon.name}</span>
                     <span className="mt-0.5 flex gap-3 text-xs text-gray-500">
                         <span className="inline-flex items-center gap-1"><Users className="h-3.5 w-3.5" />{subcon.workers} worker(s)</span>
@@ -45,7 +47,7 @@ export default function Attendance({ date, groups = [], user }) {
             <Head title="Attendance" />
             <div className="mx-auto max-w-2xl space-y-4 px-4 pb-24 pt-5 sm:px-6">
                 <div className="flex justify-end"><PdfButton href={`/pdf/attendance?date=${date}`} label="Attendance PDF" /></div>
-                <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+                <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-md shadow-gray-200/60">
                     <label className="block">
                         <span className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500">
                             <CalendarDays className="h-4 w-4" /> Date
@@ -80,7 +82,7 @@ export default function Attendance({ date, groups = [], user }) {
                                 No attendance submitted for this day.
                             </p>
                         ) : (
-                            g.subcons.map((s) => <SubconRow key={s.name} subcon={s} />)
+                            g.subcons.map((s) => <SubconRow key={s.series_code || s.name} subcon={s} />)
                         )}
                     </section>
                 ))}

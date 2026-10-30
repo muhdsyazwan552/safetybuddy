@@ -1,7 +1,9 @@
 // Monthly Inspection Report - pooled counts of the approved daily reports.
 import React from 'react';
 import { Link } from '@inertiajs/react';
-import { Panel, RankMedal, RankStrip, SwitchChips, ResultText, Status, pct, rm, num, benchLabel } from './parts';
+import HeroMeta from '@/Components/shared/HeroMeta';
+import ReviewProgress from '@/Components/shared/ReviewProgress';
+import { Panel, RankMedal, RankStrip, SwitchText, HeroStatusText, ResultText, Status, pct, rm, num, benchLabel } from './parts';
 
 const monthName = (period) => new Date(`${period}-01T00:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
@@ -31,19 +33,22 @@ export default function MonthlyReportView({ report: m, dailyHref, children }) {
 
     return (
         <div className="space-y-4">
-            <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-extrabold text-ink-900">Monthly Inspection Report</h1>
-                    <p className="text-sm font-semibold text-brand-800">SPGPNC &amp; BSPR Performance</p>
-                </div>
-                <div className="space-y-1 text-sm text-slate-700 sm:text-right">
-                    <p><b>Project:</b> {m.project} &nbsp;|&nbsp; <b>Contractor:</b> {m.subcon}</p>
-                    <p><b>Period:</b> {monthName(m.period)} &nbsp;|&nbsp; <b>Report:</b> {m.report_no}</p>
-                    <p className="flex flex-wrap items-center gap-2 sm:justify-end"><b>Status:</b> <Status value={m.status === 'pending_verification' ? 'pending_verification' : m.status} /></p>
-                    <SwitchChips settings={s} />
+            <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
+                <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">{m.report_no}</p>
+                    <h1 className="mt-1 text-xl font-extrabold leading-tight">Monthly Inspection Report</h1>
+                    <p className="text-sm font-semibold text-gray-300">SPGPNC &amp; BSPR Performance</p>
+                    <HeroMeta rows={[
+                        ['Project', m.project],
+                        ['Contractor', m.subcon],
+                        ['Period', monthName(m.period)],
+                        ['Status', <HeroStatusText key="s" value={m.status} />],
+                        ['Settings', <SwitchText key="w" settings={s} />],
+                    ]} />
                 </div>
             </div>
 
+            <ReviewProgress kind="visit" status={m.status} />
             <div className="grid gap-4 md:grid-cols-3">
                 <Panel title="Monthly coverage">
                     <p className="text-lg font-bold text-slate-800">{m.inspections_approved} approved inspection{m.inspections_approved === 1 ? '' : 's'}</p>
@@ -63,9 +68,9 @@ export default function MonthlyReportView({ report: m, dailyHref, children }) {
                 </Panel>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="overflow-x-auto rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
                 <table className="min-w-full text-center text-sm">
-                    <thead className="bg-ink-900 text-white">
+                    <thead className="bg-gray-50 text-[11px] font-bold uppercase tracking-wider text-gray-500">
                         <tr><th className="px-4 py-2.5">Metric</th><th className="px-4 py-2.5">Monthly calculation</th><th className="px-4 py-2.5">Monthly score</th><th className="px-4 py-2.5">Benchmark</th><th className="px-4 py-2.5">Result</th></tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -139,7 +144,7 @@ export default function MonthlyReportView({ report: m, dailyHref, children }) {
 
             {children}
 
-            <p className="rounded-xl bg-amber-50 px-4 py-3 text-xs text-slate-600">
+            <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-slate-600">
                 Scores use unrounded values. Complete SP coverage is required for the monthly overall score and rank. Supervisor verification precedes Manager approval.
             </p>
         </div>

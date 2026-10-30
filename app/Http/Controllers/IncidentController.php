@@ -161,6 +161,7 @@ class IncidentController extends Controller
             ->get()
             ->map(fn (Incident $i) => [
                 'id' => $i->id,
+                'series_code' => $i->code,
                 'date' => optional($i->incident_date)->format('Y-m-d H:i'),
                 'project_id' => $i->project_id,
                 'project' => optional($i->project)->name,
@@ -191,6 +192,57 @@ class IncidentController extends Controller
         ]);
     }
 
+    /** One incident of the inspector's projects, laid out like the manager's detail page (read only). */
+    public function inspectorShow(int $id)
+    {
+        $user = Auth::user();
+        $staff = CompanyStaff::where('user_id', $user->id)->first();
+
+        $assigned = $staff
+            ? DB::table('project_assign')->where('entity_type', 'staff')->where('entity_id', $staff->id)->pluck('project_id')
+            : collect();
+
+        $projectIds = Project::where('company_id', $user->company_id)
+            ->when($assigned->isNotEmpty(), fn ($q) => $q->whereIn('id', $assigned))
+            ->pluck('id');
+
+        $i = Incident::with([
+                'project:id,name', 'subcontractor:id,name', 'incidentType:id,name', 'injuryType:id,name',
+                'reportedBy:id,name', 'responsibleBy:id,name', 'reviewedBy:id,name', 'involvedStaff:id,name,role', 'responses',
+            ])
+            ->whereIn('project_id', $projectIds)
+            ->findOrFail($id);
+
+        return Inertia::render('Inspector/IncidentShow', [
+            'incident' => [
+                'id' => $i->id,
+                'series_code' => $i->code,
+                'date' => optional($i->incident_date)->format('Y-m-d H:i'),
+                'project' => optional($i->project)->name,
+                'subcon' => optional($i->subcontractor)->name,
+                'type' => optional($i->incidentType)->name,
+                'injury' => optional($i->injuryType)->name,
+                'body_part' => $i->body_part,
+                'location' => $i->location,
+                'description' => $i->incident_description,
+                'immediate_cause' => $i->immediate_cause,
+                'underlying_cause' => $i->underlying_cause,
+                'immediate_action' => $i->immediate_action,
+                'corrective' => $i->corrective,
+                'status' => strtolower((string) ($i->status ?: 'open')),
+                'reported_by' => optional($i->reportedBy)->name,
+                'responsible' => optional($i->responsibleBy)->name,
+                'reviewed_by' => optional($i->reviewedBy)->name,
+                'attachment' => $i->attachment_upload ? \Illuminate\Support\Facades\Storage::url($i->attachment_upload) : null,
+                'involved' => $i->involvedStaff->map(fn ($x) => ['id' => $x->id, 'name' => $x->name, 'role' => $x->role])->values(),
+                'responses' => $i->responses->map(fn ($r) => [
+                    'id' => $r->id, 'type' => $r->type, 'message' => $r->message, 'by' => $r->staff_name,
+                    'role' => $r->role_label, 'at' => optional($r->created_at)->format('Y-m-d H:i'),
+                ])->values(),
+            ],
+            'user' => $user,
+        ]);
+    }
     /** Staff of a subcontractor company, for the "who was involved" checklist (AJAX). */
     public function subconStaff($subconId)
     {
