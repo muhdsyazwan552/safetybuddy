@@ -13,6 +13,13 @@ class SubconBriefingSubmission extends Model
 
     protected $table = 'subcon_briefing_submissions';
 
+    /** A signed-in company only ever sees its own contractors' rows. */
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new \App\Models\Scopes\TenantScope('subcon_company'));
+        static::saving(fn ($model) => \App\Models\Scopes\TenantScope::guardWrite($model));
+    }
+
     protected $fillable = [
         'subcon_company_id', 'status', 'briefing_date', 'register_file', 'register_name', 'photos', 'notes',
         'submitted_at', 'reviewed_by', 'reviewed_at', 'review_comment',

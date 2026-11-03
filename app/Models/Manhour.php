@@ -18,6 +18,18 @@ class Manhour extends Model
 
     protected $table = 'manhours';
 
+
+    /** A signed-in company only ever sees its own rows. */
+
+    protected static function booted(): void
+
+    {
+
+        static::addGlobalScope(new \App\Models\Scopes\TenantScope());
+        static::saving(fn ($model) => \App\Models\Scopes\TenantScope::guardWrite($model));
+
+    }
+
     protected $fillable = [
         'company_id',
         'project_id',

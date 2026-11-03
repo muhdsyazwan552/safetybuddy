@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-/** Extra Inspector seats bought on top of a package: RM 800 once per user, any package. */
+/** Extra seats bought on top of a package, once per seat, any package: Inspector RM 800, Executor RM 500. */
 class SubscriptionAddon extends Model
 {
     public const INSPECTOR_PRICE = 800;
+    public const EXECUTOR_PRICE = 500;
 
     protected $table = 'subscription_addons';
 

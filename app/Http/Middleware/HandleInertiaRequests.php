@@ -50,7 +50,7 @@ class HandleInertiaRequests extends Middleware
             return null;
         }
 
-        $user->loadMissing('company:id,name', 'role:id,name,display_name');
+        $user->loadMissing('company:id,name,code,reference_code,logo_path,account_type_id,training_provider_company_id', 'company.accountType:id,name', 'company.trainingProvider:id,name', 'role:id,name,display_name');
 
         return [
             'id' => $user->id,
@@ -61,7 +61,16 @@ class HandleInertiaRequests extends Middleware
             'role_id' => $user->role_id,
             'email_verified_at' => $user->email_verified_at,
             'created_at' => $user->created_at,
-            'company' => $user->company ? ['id' => $user->company->id, 'name' => $user->company->name] : null,
+            'company' => $user->company ? [
+                'id' => $user->company->id,
+                'name' => $user->company->name,
+                'code' => $user->company->code,
+                'logo_url' => $user->company->logo_url,
+                'reference_code' => $user->company->reference_code,
+                'account_type_id' => $user->company->account_type_id,
+                'account_type' => $user->company->accountType?->name,
+                'training_provider_name' => $user->company->trainingProvider?->name,
+            ] : null,
             'role' => $user->role ? ['id' => $user->role->id, 'name' => $user->role->name, 'display_name' => $user->role->display_name] : null,
         ];
     }

@@ -5,7 +5,11 @@ import { showAlert } from '@/Helpers/alert';
 import ShareSubconLink from '@/Components/shared/ShareSubconLink';
 
 const ExecutorManagement = ({ title }) => {
-  const { companies = [], flash } = usePage().props;
+  const { companies = [], flash, executorSeats, auth } = usePage().props;
+  const quotaReached = executorSeats?.limit !== null && executorSeats?.limit !== undefined && executorSeats.used >= executorSeats.limit;
+  const quotaConfigured = executorSeats?.limit != null;
+  const quotaRemaining = quotaConfigured ? Math.max(0, executorSeats.limit - executorSeats.used) : 0;
+  const quotaPercent = quotaConfigured && executorSeats.limit > 0 ? Math.min(100, (executorSeats.used / executorSeats.limit) * 100) : 0;
 
   // State for UI controls
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,7 +84,7 @@ const ExecutorManagement = ({ title }) => {
         closeModal();
       },
       onError: (errors) => {
-        showAlert.error(Object.values(errors).join('\n') || 'Could not save executor company.');
+        showAlert.error(Object.values(errors).join('\n') || 'Could not save contractor company.');
       },
       preserveScroll: true
     });
@@ -121,15 +125,32 @@ const ExecutorManagement = ({ title }) => {
       <Head title={title} />
 
       <div className="p-6">
-        <div className="flex justify-between items-center mb-5">
-          <h1 className="text-2xl font-bold text-gray-800">Executor Companies</h1>
+        <div className="flex justify-between items-center mb-5 gap-4">
+          <h1 className="text-2xl font-bold text-gray-800">Contractor Companies</h1>
           <button
             onClick={() => setShowAddExecutorModal(true)}
-            className="sb-create"
+            disabled={quotaReached || executorSeats?.limit == null}
+            title={quotaReached ? 'Your package Contractor limit has been reached' : executorSeats?.limit == null ? 'An active package is required' : undefined}
+            className="sb-create disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Add New Executor
+            Add New Contractor
           </button>
         </div>
+
+        <section className="mb-5 flex max-w-xl flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm" aria-labelledby="executor-quota-title">
+          <div className="h-1 bg-brand-500" />
+          <div className="p-5">
+            <h2 id="executor-quota-title" className="inline-flex rounded-full bg-brand-100 px-3 py-1 text-xs font-bold text-brand-900">Contractor limit</h2>
+            {quotaConfigured ? <>
+              <div className="mt-4 border-t border-gray-100 pt-4">
+                <p className="text-sm font-semibold text-gray-800">{executorSeats.used} / {executorSeats.limit} Contractor companies used</p>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-label="Contractor companies used" aria-valuenow={executorSeats.used} aria-valuemin={0} aria-valuemax={executorSeats.limit}><div className={`h-full rounded-full ${quotaReached ? 'bg-amber-500' : 'bg-brand-500'}`} style={{ width: `${quotaPercent}%` }}/></div>
+                <p className={`mt-2 text-xs ${quotaReached ? 'font-semibold text-amber-800' : 'text-ink-500'}`}>{quotaReached ? 'Limit reached. Add a Contractor slot to create another company.' : `${quotaRemaining} ${quotaRemaining === 1 ? 'slot' : 'slots'} available. Each Contractor company uses one slot.`}</p>
+              </div>
+            </> : <p className="mt-4 text-sm text-gray-600">Choose an active package before adding a Contractor company.</p>}
+            {auth?.user?.role_id === 2 && <a href={`${route('manage.package')}#contractor-slots`} className="mt-4 inline-flex rounded-lg bg-ink-900 px-4 py-2 text-xs font-bold text-brand-300 transition hover:bg-ink-800">Add Contractor Slot</a>}
+          </div>
+        </section>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {/* Table Header with Controls */}
@@ -157,7 +178,7 @@ const ExecutorManagement = ({ title }) => {
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search executors..."
+                placeholder="Search contractors..."
                 className="border border-gray-300 rounded px-4 py-1 pl-8 text-sm w-full md:w-64"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -262,7 +283,7 @@ const ExecutorManagement = ({ title }) => {
                 ) : (
                   <tr>
                     <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
-                      No executor companies found
+                      No contractor companies found
                     </td>
                   </tr>
                 )}
@@ -313,7 +334,7 @@ const ExecutorManagement = ({ title }) => {
               <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 rounded-t-xl">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-bold text-gray-800">{editingCompany ? 'Edit Executor Company' : 'Add New Executor Company'}</h2>
+                    <h2 className="text-xl font-bold text-gray-800">{editingCompany ? 'Edit Contractor Company' : 'Add New Contractor Company'}</h2>
                     <p className="text-sm text-gray-600 mt-1">{editingCompany ? 'Update the company details' : 'Fill in the company details'}</p>
                   </div>
                   <button
@@ -398,7 +419,7 @@ const ExecutorManagement = ({ title }) => {
                     disabled={processing}
                     className="px-6 py-2 bg-gradient-to-r from-brand-500 to-brand-600 text-ink-900 rounded-lg hover:from-brand-400 hover:to-brand-500 font-medium shadow-md hover:shadow-lg disabled:opacity-50"
                   >
-                    {processing ? 'Saving...' : editingCompany ? 'Save Changes' : 'Add Executor'}
+                    {processing ? 'Saving...' : editingCompany ? 'Save Changes' : 'Add Contractor'}
                   </button>
                 </div>
               </form>

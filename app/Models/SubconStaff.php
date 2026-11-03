@@ -11,6 +11,13 @@ class SubconStaff extends Model
 
     protected $table = 'subcon_staff';
 
+    /** A signed-in company only ever sees its own contractors' rows. */
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new \App\Models\Scopes\TenantScope('subcon'));
+        static::saving(fn ($model) => \App\Models\Scopes\TenantScope::guardWrite($model));
+    }
+
     protected $fillable = [
         'company_id',
         'code',

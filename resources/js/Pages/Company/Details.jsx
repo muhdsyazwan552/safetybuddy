@@ -5,6 +5,7 @@ import {
     CheckCircle2, Save, Loader2, Undo2, CalendarDays, BadgeCheck, AlertCircle, PackageCheck,
 } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import CompanyAvatar from '@/Components/CompanyAvatar';
 import { inputClass, labelClass, SectionCard } from '@/Components/inspector/kit';
 
 function Field({ label, icon: Icon, error, children, hint }) {
@@ -77,9 +78,7 @@ export default function Details({ company, stats = {}, subscriptions = [] }) {
                     <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-brand-500/20 blur-2xl" />
                     <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex min-w-0 items-center gap-4">
-                            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-3xl bg-brand-500 text-3xl font-extrabold text-ink-900 shadow-lg sm:h-20 sm:w-20 sm:text-4xl">
-                                {(data.name || '?').charAt(0).toUpperCase()}
-                            </span>
+                            <CompanyAvatar name={data.name} logoUrl={company.logo_url} className="h-16 w-16 text-3xl shadow-lg sm:h-20 sm:w-20 sm:text-4xl" />
                             <div className="min-w-0">
                                 <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">Company profile</p>
                                 <h1 className="truncate text-xl font-extrabold sm:text-2xl">{data.name || 'Unnamed company'}</h1>

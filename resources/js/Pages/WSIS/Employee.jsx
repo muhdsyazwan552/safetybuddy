@@ -13,6 +13,7 @@ const TIERS = {
     action: 'Approves',
     detail: 'Company, projects and settings; contractor approval; final inspection, NC/CC and monthly approvals.',
     badge: 'bg-ink-900 text-brand-400',
+    accent: 'bg-ink-900',
   },
   4: {
     tier: '2nd Tier',
@@ -20,6 +21,7 @@ const TIERS = {
     action: 'Verifies',
     detail: 'Verifies inspections, NC/CC responses and monthly reports before they reach the Manager.',
     badge: 'bg-brand-500 text-ink-900',
+    accent: 'bg-brand-500',
   },
   7: {
     tier: '3rd Tier',
@@ -27,6 +29,7 @@ const TIERS = {
     action: 'Creates',
     detail: 'Creates inspections and toolbox talks, collects evidence and issues NC/CC.',
     badge: 'bg-brand-100 text-brand-900',
+    accent: 'bg-brand-200',
   },
 };
 
@@ -231,16 +234,23 @@ const StaffManagement = ({ title }) => {
         <p className="mb-4 text-sm text-gray-600">{seatLimits?.configured ? `${seatLimits.plan_name} package · employee seats` : 'Package not assigned. Ask the system admin to select a plan before adding employees.'}</p>
 
         {/* Who does what */}
-        <div className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+        <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-3">
           {[3, 4, 7].map((id) => (
-            <div key={id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${TIERS[id].badge}`}>{TIERS[id].tier} · {TIERS[id].name}</span>
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-400">{TIERS[id].action}</span>
+            <section key={id} className="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+              <div className={`h-1 ${TIERS[id].accent}`} />
+              <div className="flex flex-1 flex-col p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className={`rounded-full px-3 py-1 text-xs font-bold ${TIERS[id].badge}`}>{TIERS[id].tier} · {TIERS[id].name}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">{TIERS[id].action}</span>
+                </div>
+                <p className="mt-4 flex-1 text-sm leading-6 text-gray-600">{TIERS[id].detail}</p>
+                <div className="mt-5 border-t border-gray-100 pt-4">
+                  <p className="text-sm font-semibold text-gray-800">{seatsUsed(id)} / {seatLimits?.roles?.[id]?.limit ?? '—'} seats used</p>
+                  {seatLimits?.roles?.[id]?.limit > 0 && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-label={`${TIERS[id].name} seats used`} aria-valuenow={seatsUsed(id)} aria-valuemin={0} aria-valuemax={seatLimits.roles[id].limit}><div className={`h-full rounded-full ${TIERS[id].accent}`} style={{ width: `${Math.min(100, seatsUsed(id) / seatLimits.roles[id].limit * 100)}%` }} /></div>}
+                  {id === 7 && auth?.user?.role_id === 2 && <a href={`${route('manage.package')}#inspector-slots`} className="mt-4 inline-flex rounded-lg bg-ink-900 px-4 py-2 text-xs font-bold text-brand-300 transition hover:bg-ink-800">Add Inspector Slot</a>}
+                </div>
               </div>
-              <p className="mt-2 text-sm text-gray-600">{TIERS[id].detail}</p>
-              <p className="mt-3 text-sm font-semibold text-gray-800">{seatsUsed(id)} / {seatLimits?.roles?.[id]?.limit ?? '—'} seats used</p>
-            </div>
+            </section>
           ))}
         </div>
 

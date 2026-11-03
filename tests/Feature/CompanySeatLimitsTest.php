@@ -29,6 +29,7 @@ class CompanySeatLimitsTest extends TestCase
             $table->unsignedInteger('manager_limit');
             $table->unsignedInteger('supervisor_limit');
             $table->unsignedInteger('inspector_limit');
+            $table->unsignedInteger('contractor_limit');
         });
         Schema::create('subscriptions_company', function (Blueprint $table) {
             $table->id();
@@ -57,6 +58,10 @@ class CompanySeatLimitsTest extends TestCase
             $table->unsignedBigInteger('user_id')->nullable();
             $table->unsignedInteger('role_id');
         });
+        Schema::create('subcon_company', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('company_id');
+        });
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('company_id');
@@ -64,7 +69,7 @@ class CompanySeatLimitsTest extends TestCase
         });
 
         DB::table('modules')->insert(['id' => 1, 'code' => 'SB360-WSIS']);
-        DB::table('subscription_plans')->insert(['id' => 1, 'name' => 'Starter', 'manager_limit' => 1, 'supervisor_limit' => 1, 'inspector_limit' => 1]);
+        DB::table('subscription_plans')->insert(['id' => 1, 'name' => 'Starter', 'manager_limit' => 1, 'supervisor_limit' => 1, 'inspector_limit' => 1, 'contractor_limit' => 1]);
         DB::table('subscriptions_company')->insert([
             'id' => 1, 'company_id' => 2, 'module_id' => 1, 'subscription_plan_id' => null,
             'start_date' => today()->subDay(), 'end_date' => today()->addYear(), 'status' => 'active',
@@ -127,5 +132,31 @@ class CompanySeatLimitsTest extends TestCase
         $this->assertSame(1, CompanySeatLimits::snapshot(2)['roles'][7]['used']);
         $this->expectException(ValidationException::class);
         CompanySeatLimits::assertAvailable(2, 7);
+    }
+
+    public function test_executor_creation_requires_an_assigned_package(): void
+    {
+        $this->expectException(ValidationException::class);
+        CompanySeatLimits::assertExecutorAvailable(2);
+    }
+
+    public function test_executor_quota_counts_companies_and_extra_seats(): void
+    {
+        DB::table('subscriptions_company')->where('id', 1)->update(['subscription_plan_id' => 1]);
+        CompanySeatLimits::assertExecutorAvailable(2);
+
+        DB::table('subcon_company')->insert(['company_id' => 2]);
+        $this->assertSame(1, CompanySeatLimits::snapshot(2)['executors']['used']);
+
+        try {
+            CompanySeatLimits::assertExecutorAvailable(2);
+            $this->fail('Included Executor slot is used up.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('name', $exception->errors());
+        }
+
+        DB::table('subscription_addons')->insert(['company_id' => 2, 'type' => 'executor', 'quantity' => 2]);
+        $this->assertSame(3, CompanySeatLimits::snapshot(2)['executors']['limit']);
+        CompanySeatLimits::assertExecutorAvailable(2);
     }
 }

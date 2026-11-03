@@ -25,7 +25,9 @@ class EnsureCompanyPurchased
             return $next($request);
         }
 
-        if ($request->is('plans', 'plans/request', 'subscription/start', 'logout')) {
+        // Everything a company needs before it has a package: choose a plan, apply as a Training Provider,
+        // link a provider reference code and redeem an activation code.
+        if ($request->is('plans', 'plans/request', 'plans/training-provider', 'plans/reference-code', 'plans/activation-code', 'subscription/start', 'manage-package/payments', 'logout')) {
             return $next($request);
         }
 

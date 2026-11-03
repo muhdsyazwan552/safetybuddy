@@ -20,6 +20,7 @@ class SeriesCodesTest extends TestCase
 
         Schema::create('company', function (Blueprint $table) {
             $table->id();
+            $table->char('uuid', 36)->nullable()->unique();
             $table->string('name');
             $table->timestamps();
         });
@@ -40,6 +41,8 @@ class SeriesCodesTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('company_id');
             $table->string('name');
+            $table->string('status')->nullable();
+            $table->string('sp_briefing_status')->nullable();
             $table->timestamps();
         });
     }
@@ -70,23 +73,26 @@ class SeriesCodesTest extends TestCase
         $this->migrateCodes();
 
         $owner = SeriesCodes::createCompany(['name' => 'Dasar Jati Sdn Bhd']);
-        $this->assertSame('DJ', $owner->code);
-        $this->assertSame('DJ2', SeriesCodes::createCompany(['name' => 'Dasar Jati Sdn Bhd'])->code);
+        $this->assertSame('DJ-000001', $owner->code);
+        // same acronym, different company: the number keeps the code unique
+        $this->assertSame('DJ-000002', SeriesCodes::createCompany(['name' => 'Dunia Jutawan Sdn Bhd'])->code);
+        $this->assertNotSame($owner->uuid, SeriesCodes::createCompany(['name' => 'Dasar Jati Sdn Bhd'])->uuid);
+        $this->assertTrue(\Illuminate\Support\Str::isUuid($owner->uuid));
 
         $firstEmployee = SeriesCodes::createEmployee($owner->id, ['name' => 'Manager']);
-        $this->assertSame('DJ/EMP/001', $firstEmployee->code);
+        $this->assertSame('DJ-000001/EMP/001', $firstEmployee->code);
         $firstEmployee->delete();
-        $this->assertSame('DJ/EMP/002', SeriesCodes::createEmployee($owner->id, ['name' => 'Inspector'])->code);
+        $this->assertSame('DJ-000001/EMP/002', SeriesCodes::createEmployee($owner->id, ['name' => 'Inspector'])->code);
 
         $firstSubcon = SeriesCodes::createSubconCompany($owner->id, ['name' => 'XYZ Electrical']);
-        $this->assertSame('DJ/XYZ/001', $firstSubcon->code);
-        $this->assertSame('DJ/XYZ/002', SeriesCodes::createSubconCompany($owner->id, ['name' => 'XYZ Engineering'])->code);
+        $this->assertSame('DJ-000001/XYZ/001', $firstSubcon->code);
+        $this->assertSame('DJ-000001/XYZ/002', SeriesCodes::createSubconCompany($owner->id, ['name' => 'XYZ Engineering'])->code);
 
         $firstStaff = SeriesCodes::createSubconStaff($firstSubcon->id, ['name' => 'Worker']);
-        $this->assertSame('DJ/XYZ/001/STF/001', $firstStaff->code);
+        $this->assertSame('DJ-000001/XYZ/001/STF/001', $firstStaff->code);
         $firstStaff->delete();
         $owner->update(['name' => 'Dasar Jati Group']);
         $firstSubcon->update(['name' => 'XYZ Group']);
-        $this->assertSame('DJ/XYZ/001/STF/002', SeriesCodes::createSubconStaff($firstSubcon->id, ['name' => 'Worker 2'])->code);
+        $this->assertSame('DJ-000001/XYZ/001/STF/002', SeriesCodes::createSubconStaff($firstSubcon->id, ['name' => 'Worker 2'])->code);
     }
 }

@@ -39,9 +39,12 @@ Route::get('/product', function () {
 
 Route::get('/', function () {
     return Inertia::render('PublicWeb/Index', [
-        'subscriptionPlans' => \App\Models\SubscriptionPlan::where('is_active', true)->orderBy('sort_order')->get(),
+        'subscriptionPlans' => \App\Models\SubscriptionPlan::where('is_active', true)->where('audience', 'normal')->orderBy('sort_order')->get(),
+        'providerPlans' => \App\Models\SubscriptionPlan::where('is_active', true)->where('audience', 'training_provider')->orderBy('sort_order')->get(),
     ]);
 });
+
+Route::get('/training-providers', [\App\Http\Controllers\PublicTrainingProviderController::class, 'index'])->name('public.training-providers');
 
 Route::get('/login', [AuthController::class, 'login'])->name('admin.login');
 Route::post('/login', [AuthController::class, 'authenticate'])->name('login');
@@ -57,16 +60,43 @@ Route::post('/email/verification-notification', [CompanyEmailVerificationControl
 
 Route::middleware(['auth', 'role:1'])->prefix('admin')->name('system.admin.')->group(function () {
     Route::get('/dashboard', [SystemAdminController::class, 'dashboard'])->name('dashboard');
+    Route::get('/companies', [SystemAdminController::class, 'companies'])->name('companies.index');
+    Route::get('/companies/{company}', [SystemAdminController::class, 'showCompany'])->name('companies.show');
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
+    Route::get('/users', [SystemAdminController::class, 'users'])->name('users.index');
+    Route::get('/users/create', [SystemAdminController::class, 'createUser'])->name('users.create');
     Route::post('/users', [SystemAdminController::class, 'storeUser'])->name('users.store');
     Route::put('/users/{user}', [SystemAdminController::class, 'updateUser'])->name('users.update');
     Route::get('/subscriptions', [SystemAdminController::class, 'subscriptions'])->name('subscriptions');
+    Route::get('/subscriptions/create', [SystemAdminController::class, 'createSubscription'])->name('subscriptions.create');
+    Route::get('/subscriptions/{subscription}', [SystemAdminController::class, 'showSubscription'])->name('subscriptions.show');
     Route::post('/subscriptions', [SystemAdminController::class, 'storeSubscription'])->name('subscriptions.store');
     Route::put('/subscriptions/{subscription}', [SystemAdminController::class, 'updateSubscription'])->name('subscriptions.update');
+    Route::get('/approvals', [SystemAdminController::class, 'approvals'])->name('approvals');
+    Route::get('/packages', [SystemAdminController::class, 'packages'])->name('packages.index');
+    Route::get('/packages/create', [SystemAdminController::class, 'createPackage'])->name('packages.create');
+    Route::get('/packages/{module}/edit', [SystemAdminController::class, 'editPackage'])->name('packages.edit');
     Route::post('/packages', [SystemAdminController::class, 'storePackage'])->name('packages.store');
+    Route::put('/packages/{module}', [SystemAdminController::class, 'updatePackage'])->name('packages.update');
     Route::post('/subscription-plans', [SubscriptionPlanController::class, 'storePlan'])->name('plans.store');
+    Route::get('/subscription-plans/create', [SubscriptionPlanController::class, 'createPlan'])->name('plans.create');
+    Route::get('/subscription-plans/{subscriptionPlan}', [SubscriptionPlanController::class, 'showPlan'])->name('plans.show');
+    Route::get('/subscription-plans/{subscriptionPlan}/edit', [SubscriptionPlanController::class, 'editPlan'])->name('plans.edit');
+    Route::put('/subscription-plans/{subscriptionPlan}', [SubscriptionPlanController::class, 'updatePlan'])->name('plans.update');
     Route::post('/plan-requests/{planRequest}/approve', [SubscriptionPlanController::class, 'approve'])->name('plan-requests.approve');
     Route::post('/plan-requests/{planRequest}/reject', [SubscriptionPlanController::class, 'reject'])->name('plan-requests.reject');
+    Route::post('/package-orders/{batch}/approve', [\App\Http\Controllers\ProviderPackageController::class, 'approveOrder'])->name('package-orders.approve');
+    Route::post('/package-orders/{batch}/reject', [\App\Http\Controllers\ProviderPackageController::class, 'rejectOrder'])->name('package-orders.reject');
+    Route::get('/training-providers', [\App\Http\Controllers\TrainingProviderController::class, 'index'])->name('training-providers.index');
+    Route::get('/training-providers/orders', [\App\Http\Controllers\TrainingProviderController::class, 'orders'])->name('training-providers.orders');
+    Route::get('/training-providers/orders/{batch}', [\App\Http\Controllers\TrainingProviderController::class, 'showOrder'])->name('training-providers.orders.show');
+    Route::get('/training-providers/{provider}/companies', [\App\Http\Controllers\TrainingProviderController::class, 'linkedCompanies'])->name('training-providers.companies');
+    Route::get('/training-providers/approvals', [\App\Http\Controllers\TrainingProviderController::class, 'approvalsIndex'])->name('training-providers.approvals');
+    Route::get('/training-providers/approvals/{application}', [\App\Http\Controllers\TrainingProviderController::class, 'approvalDetails'])->name('training-providers.approvals.show');
+    Route::post('/training-providers/{application}/approve', [\App\Http\Controllers\TrainingProviderController::class, 'approve'])->name('training-providers.approve');
+    Route::post('/training-providers/{application}/reject', [\App\Http\Controllers\TrainingProviderController::class, 'reject'])->name('training-providers.reject');
+    Route::get('/training-providers/{application}/registration-document', [\App\Http\Controllers\TrainingProviderController::class, 'registrationDocument'])->name('training-providers.registration-document');
+    Route::get('/training-providers/certificates/{certificate}', [\App\Http\Controllers\TrainingProviderController::class, 'certificateFile'])->name('training-providers.certificate');
 });
 
 
@@ -121,9 +151,20 @@ Route::middleware(['auth', 'role:2,3,4,7,8'])->group(function () {
 
 Route::middleware(['auth', 'role:2'])->group(function () {
     Route::get('/subscription/start', [SubscriptionPlanController::class, 'start'])->name('subscription.start');
-    Route::post('/plans/request', [SubscriptionPlanController::class, 'store'])->name('subscription.plans.request');
+    Route::get('/plans/reference-code', [SubscriptionPlanController::class, 'checkReferenceCode'])->name('subscription.plans.reference-code');
+    Route::post('/plans/reference-code', [SubscriptionPlanController::class, 'linkReferenceCode'])->name('subscription.plans.reference-code.link');
+    Route::post('/plans/training-provider', [\App\Http\Controllers\TrainingProviderController::class, 'store'])->name('subscription.plans.training-provider');
+    Route::post('/plans/request',[SubscriptionPlanController::class, 'store'])->name('subscription.plans.request');
     Route::post('/plans/inspector-addon', [SubscriptionPlanController::class, 'storeInspectorAddon'])->name('subscription.plans.inspector-addon');
+    Route::get('/manage-package', [\App\Http\Controllers\ManagePackageController::class, 'index'])->name('manage.package');
+    Route::get('/manage-package/payments', [\App\Http\Controllers\ManagePackageController::class, 'payments'])->name('manage.package.payments');
+    Route::post('/manage-package/seats', [\App\Http\Controllers\ManagePackageController::class, 'store'])->name('manage.package.seats');
     Route::get('/module', [SubscriptionController::class, 'index'])->name('index.module');
+    Route::get('/training-provider/packages', [\App\Http\Controllers\ProviderPackageController::class, 'index'])->name('training-provider.packages');
+    Route::post('/training-provider/packages', [\App\Http\Controllers\ProviderPackageController::class, 'store'])->name('training-provider.packages.store');
+    Route::get('/training-provider/activation-codes', [\App\Http\Controllers\ProviderPackageController::class, 'codes'])->name('training-provider.codes');
+    Route::post('/plans/activation-code', [\App\Http\Controllers\ProviderPackageController::class, 'redeem'])->middleware('throttle:10,1')->name('subscription.plans.activation-code');
+    Route::get('/training-provider/trainees', [\App\Http\Controllers\TrainingProviderController::class, 'trainees'])->name('training-provider.trainees');
 });
 
 Route::middleware(['auth', 'role:2'])->group(function () {
@@ -404,5 +445,6 @@ Route::middleware(['auth', 'role:2,3,4,7,8'])->prefix('pdf')->name('pdf.')->grou
 Route::middleware(['auth', 'role:2'])->group(function () {
     Route::get('/company-details', [\App\Http\Controllers\CompanyDetailsController::class, 'show'])->name('company.details');
     Route::put('/company-details', [\App\Http\Controllers\CompanyDetailsController::class, 'update'])->name('company.details.update');
+    Route::post('/company-details/logo', [\App\Http\Controllers\CompanyDetailsController::class, 'uploadLogo'])->name('company.details.logo');
 });
 

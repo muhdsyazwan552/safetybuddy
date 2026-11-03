@@ -11,6 +11,18 @@ class ComplianceMetrics extends Model
 
     protected $table = 'compliance_metrics';
 
+
+    /** A signed-in company only ever sees its own rows. */
+
+    protected static function booted(): void
+
+    {
+
+        static::addGlobalScope(new \App\Models\Scopes\TenantScope());
+        static::saving(fn ($model) => \App\Models\Scopes\TenantScope::guardWrite($model));
+
+    }
+
     protected $fillable = [
         'title',
         'description',

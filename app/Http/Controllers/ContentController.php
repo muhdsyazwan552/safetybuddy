@@ -90,8 +90,9 @@ class ContentController extends Controller
             ->each(fn ($c) => $c->setAttribute('leader_key', $c->leaderKey()));
 
         return Inertia::render('WSIS/Executor_Project', [
-            'title' => 'Executor',
+            'title' => 'Contractor',
             'companies' => $companies, // 👈 send to React
+            'executorSeats' => CompanySeatLimits::snapshot((int) $user->company_id)['executors'],
         ]);
     }
 

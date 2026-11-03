@@ -81,16 +81,12 @@ class SeriesCodes
     public static function createCompany(array $attributes): Company
     {
         return DB::transaction(function () use ($attributes) {
-            DB::table('series_code_counters')->where('scope', 'company')->lockForUpdate()->first();
-
+            // One counter row per prefix: the number alone keeps codes unique (DJ-000001, DJ-000002, ...),
+            // so creating a company costs the same however many already share the prefix.
             $base = self::prefix($attributes['name']);
-            $candidate = $base;
-            $suffix = 2;
-            while (Company::where('code', $candidate)->exists()) {
-                $candidate = $base . $suffix++;
-            }
+            $code = $base . '-' . str_pad((string) self::next('company:' . $base), 6, '0', STR_PAD_LEFT);
 
-            return Company::create(array_merge($attributes, ['code' => $candidate]));
+            return Company::create(array_merge($attributes, ['code' => $code]));
         });
     }
 

@@ -1,0 +1,21 @@
+import { useState } from 'react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import SystemAdminLayout from '@/Layouts/SystemAdminLayout';
+import { StatusBadge } from './companyUi';
+import { AdminTablePagination, useAdminTablePagination } from './adminTablePagination';
+
+export default function TrainingProviderApprovals({ title, applications }) {
+  const { flash = {} } = usePage().props;
+  const [statusFilter, setStatusFilter] = useState('');
+  const rows = statusFilter ? applications.filter(item => item.status === statusFilter) : applications;
+  const pending = applications.filter(item => item.status === 'pending').length;
+  const pagination = useAdminTablePagination(rows, 10, statusFilter);
+
+  return <><Head title={title} /><SystemAdminLayout title={title} description="Open each application and review the company details and documents before making a decision.">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-200 bg-brand-50 px-5 py-4"><p className="text-sm font-semibold text-brand-900">{pending} application{pending === 1 ? '' : 's'} awaiting review</p><Link href="/admin/training-providers" className="text-sm font-semibold text-ink-800 hover:underline">Training Providers →</Link></div>
+    {flash.success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{flash.success}</div>}
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 p-5 sm:p-6"><div><h2 className="text-lg font-bold text-ink-900">Applications</h2><p className="mt-1 text-sm text-ink-500">Every decision is made from the full review page.</p></div><label className="text-xs font-semibold text-ink-500">Status<select value={statusFilter} onChange={event => setStatusFilter(event.target.value)} className="mt-1 block rounded-xl border-slate-200 text-sm focus:border-brand-500 focus:ring-brand-500"><option value="">All statuses</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select></label></div>
+      <div className="overflow-x-auto"><table className="min-w-[800px] w-full text-left text-sm"><thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-ink-400"><tr><th className="px-5 py-3">#</th><th className="px-5 py-3">Company</th><th className="px-5 py-3">Registration number</th><th className="px-5 py-3">Plan</th><th className="px-5 py-3">Documents</th><th className="px-5 py-3">Submitted</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Review</th></tr></thead><tbody className="divide-y divide-slate-100">{pagination.rows.map((application, index) => <tr key={application.id} className="hover:bg-slate-50/70"><td className="px-5 py-4 text-ink-400">{pagination.from + index}</td><td className="px-5 py-4"><p className="font-semibold text-ink-900">{application.company?.name || `Company #${application.company_id}`}</p><p className="mt-0.5 text-xs text-ink-400">{application.company?.code || `#${application.company_id}`}{application.company?.state ? ` · ${application.company.state}` : ''}</p></td><td className="px-5 py-4 text-ink-600">{application.registration_no || '—'}</td><td className="px-5 py-4 text-ink-600">{application.plan?.name || '—'}</td><td className="px-5 py-4 text-ink-600">Registration + {application.certificates_count} certificate{application.certificates_count === 1 ? '' : 's'}</td><td className="whitespace-nowrap px-5 py-4 text-ink-500">{application.created_at ? new Date(application.created_at).toLocaleDateString('en-MY') : '—'}</td><td className="px-5 py-4"><StatusBadge status={application.status} /></td><td className="px-5 py-4 text-right"><Link href={`/admin/training-providers/approvals/${application.id}`} className="inline-flex rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-ink-700 hover:bg-brand-50">Review details</Link></td></tr>)}{!rows.length && <tr><td colSpan="8" className="px-5 py-12 text-center text-ink-500">No applications found.</td></tr>}</tbody></table></div><AdminTablePagination pagination={pagination} />
+    </section>
+  </SystemAdminLayout></>;
+}

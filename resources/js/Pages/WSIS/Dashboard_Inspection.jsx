@@ -292,9 +292,9 @@ const Dashboard_Inspection = ({
               period: 'joined',
             },
             {
-              key: 'executors', label: 'Total Executors', icon: 'fa-user-tie', tone: 'amber',
+              key: 'executors', label: 'Total Contractors', icon: 'fa-user-tie', tone: 'amber',
               data: c.executors || { ...fallback, total: user_executor_count },
-              sub: (d) => `${d.active} active`,
+              sub: (d) => `${d.total} registered`,
               period: 'added',
             },
             {
@@ -314,7 +314,6 @@ const Dashboard_Inspection = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {cards.map((card) => {
                 const d = card.data;
-                const diff = d.this_month - d.last_month;
                 const [softBg, iconColor, barBg] = tones[card.tone];
                 return (
                   <div key={card.key} className="card bg-white rounded-2xl shadow-lg overflow-hidden transform transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02]">
@@ -326,10 +325,7 @@ const Dashboard_Inspection = ({
                           <p className="text-xs text-gray-500 mt-1">{card.sub(d)}</p>
                           <div className="flex flex-wrap items-center mt-3 gap-x-2 gap-y-1">
                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${d.this_month > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                              {d.this_month > 0 ? '+' : ''}{d.this_month} this month
-                            </span>
-                            <span className="text-gray-500 text-xs">
-                              {diff === 0 ? 'same as last month' : `${diff > 0 ? '+' : ''}${diff} vs last month`}
+                              {d.this_month > 0 ? '+' : ''}{d.this_month} {card.period} this month
                             </span>
                           </div>
                         </div>
@@ -407,7 +403,7 @@ const Dashboard_Inspection = ({
           <div className="bg-white rounded-xl shadow p-3 sm:p-6 border">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">
               {chartType === "compliance"
-                ? "Inspections by Compliance (Executor Company)"
+                ? "Inspections by Compliance (Contractor)"
                 : "Inspections by Project"}
             </h2>
             <div className="overflow-x-auto"><div style={{ minWidth: isMobile ? Math.max(320, chartData.length * 64) : "100%" }}>

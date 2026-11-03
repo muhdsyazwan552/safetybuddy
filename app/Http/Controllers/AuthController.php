@@ -34,6 +34,10 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required',
             'remember' => 'nullable|string'
+        ], [
+            'email.required' => 'Please enter your email address.',
+            'email.email' => 'Please enter a valid email address.',
+            'password.required' => 'Please enter your password.',
         ]);
 
         Log::debug('Validated credentials', ['email' => $credentials['email']]);
@@ -70,8 +74,14 @@ class AuthController extends Controller
 
         Log::debug('Authentication failed', ['email' => $credentials['email']]);
 
+        if (! User::where('email', $credentials['email'])->exists()) {
+            throw ValidationException::withMessages([
+                'email' => 'No account found with this email address.',
+            ]);
+        }
+
         throw ValidationException::withMessages([
-            'email' => 'The provided credentials do not match our records.',
+            'password' => 'The password you entered is incorrect.',
         ]);
     }
 

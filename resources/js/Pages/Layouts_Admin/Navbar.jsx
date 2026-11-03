@@ -1,8 +1,9 @@
-import { FaBars, FaUserCircle, FaChevronDown, FaSignOutAlt, FaHome } from 'react-icons/fa';
+import { FaBars, FaUserCircle, FaChevronDown, FaSignOutAlt, FaHome, FaCog } from 'react-icons/fa';
 import { useState, useRef, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import { FiAlignLeft } from 'react-icons/fi';
 import { confirmLogout } from '@/Helpers/logout';
+import CompanyAvatar from '@/Components/CompanyAvatar';
 
 export default function Navbar({ 
   collapsed, 
@@ -87,12 +88,12 @@ export default function Navbar({
       <div className="relative" ref={dropdownRef}>
         <button
           onClick={toggleDropdown}
-          className="group flex items-center gap-2 px-2 sm:px-3 py-2 rounded-full hover:bg-white/10 transition-all duration-200 focus:outline-none"
+          className={`group flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-white/10 transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 ${isCompanyUser ? 'sm:pr-2' : 'sm:px-3'}`}
+          aria-label={isCompanyUser ? 'Open company settings menu' : 'Open account menu'}
+          aria-expanded={isDropdownOpen}
         >
-          <FaUserCircle className="text-brand-400 text-2xl transition-colors duration-200" />
-          <span className="hidden md:inline max-w-[12rem] truncate text-sm font-medium text-gray-100 group-hover:text-brand-400">
-            {displayName}
-          </span>
+          {isCompanyUser ? <CompanyAvatar name={displayName} logoUrl={user?.company?.logo_url} className="h-10 w-10 text-base ring-1 ring-brand-400/60" /> : <FaUserCircle className="text-brand-400 text-2xl transition-colors duration-200" />}
+          {!isCompanyUser && <span className="hidden max-w-[12rem] truncate text-sm font-medium text-gray-100 group-hover:text-brand-400 md:inline">{displayName}</span>}
           <FaChevronDown
             className={`hidden sm:block text-ink-300 text-sm transition-transform duration-300 ${
               isDropdownOpen ? 'rotate-180' : ''
@@ -118,7 +119,7 @@ export default function Navbar({
                 onClick={() => openAccountPage('/settings')}
                 className="flex w-full items-center px-4 py-2.5 text-left text-sm text-gray-700 transition-colors duration-150 hover:bg-gray-50"
               >
-                <FaUserCircle className="mr-2 text-gray-500" />
+                <FaCog className="mr-2 text-gray-500" />
                 Settings
               </button>
             </div>

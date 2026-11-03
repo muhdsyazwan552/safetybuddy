@@ -6,6 +6,7 @@ use App\Models\Company;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 
 class CompanyDetailsController extends Controller
 {
@@ -30,10 +31,48 @@ class CompanyDetailsController extends Controller
             'email' => ['nullable', 'email', 'max:255'],
             'contact' => ['nullable', 'string', 'max:30'],
             'address' => ['nullable', 'string', 'max:1000'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'postcode' => ['nullable', 'string', 'max:10'],
+            'state' => ['nullable', 'string', 'in:'.implode(',', \App\Http\Controllers\PublicTrainingProviderController::STATES)],
         ]);
 
-        $company->update($validated);
+        $company->fill($validated);
+        $moved = $company->isDirty(['address', 'city', 'postcode', 'state']);
+        $company->save();
+
+        // work out the map position again only when the address changed
+        if ($moved) {
+            $point = \App\Services\Geocoder::locate($company->address, $company->city, $company->postcode, $company->state);
+            $company->update(['latitude' => $point[0] ?? null, 'longitude' => $point[1] ?? null]);
+        }
 
         return redirect('/profile#company')->with('success', 'Company details updated');
+    }
+
+    public function uploadLogo(Request $request): RedirectResponse
+    {
+        $company = Company::findOrFail($request->user()->company_id);
+        $validated = $request->validate([
+            'logo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+        ]);
+
+        $oldPath = $company->logo_path;
+        $newPath = $validated['logo']->store('company-logos', 'public');
+        if (! $newPath) {
+            return back()->withErrors(['logo' => 'The logo could not be saved. Please try again.']);
+        }
+
+        try {
+            $company->update(['logo_path' => $newPath]);
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($newPath);
+            throw $exception;
+        }
+
+        if ($oldPath) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        return redirect('/profile#company')->with('success', 'Company logo updated');
     }
 }

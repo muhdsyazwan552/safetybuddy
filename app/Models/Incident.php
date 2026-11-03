@@ -17,6 +17,18 @@ class Incident extends Model
 
     protected $table = 'incident';
 
+
+    /** A signed-in company only ever sees its own rows. */
+
+    protected static function booted(): void
+
+    {
+
+        static::addGlobalScope(new \App\Models\Scopes\TenantScope());
+        static::saving(fn ($model) => \App\Models\Scopes\TenantScope::guardWrite($model));
+
+    }
+
     protected $fillable = [
         'company_id',
         'incident_date',

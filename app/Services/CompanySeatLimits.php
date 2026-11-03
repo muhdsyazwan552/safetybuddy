@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\CompanyStaff;
+use App\Models\SubconCompany;
 use App\Models\SubscriptionAddon;
 use App\Models\SubscriptionPlanRequest;
 use App\Models\SubscriptionsCompany;
@@ -39,6 +40,9 @@ class CompanySeatLimits
         }
 
         $extraInspectors = self::extraInspectors($companyId);
+        $executorIncluded = $plan ? (int) ($plan->contractor_limit ?? 1) : null;
+        $executorExtra = self::extraExecutors($companyId);
+        $executorUsed = SubconCompany::where('company_id', $companyId)->count();
 
         $roles = [];
         foreach (self::ROLES as $roleId => $role) {
@@ -56,6 +60,13 @@ class CompanySeatLimits
         return [
             'configured' => $plan !== null,
             'plan_name' => $plan?->name,
+            'executor_included' => $executorIncluded,
+            'executors' => [
+                'used' => $executorUsed,
+                'included' => $executorIncluded,
+                'extra' => $executorExtra,
+                'limit' => $executorIncluded === null ? null : $executorIncluded + $executorExtra,
+            ],
             'subscription_id' => $subscription?->id,
             'roles' => $roles,
         ];
@@ -89,6 +100,30 @@ class CompanySeatLimits
     public static function extraInspectors(int $companyId): int
     {
         return (int) SubscriptionAddon::where('company_id', $companyId)->where('type', 'inspector')->sum('quantity');
+    }
+
+    /** Blocks a new executor company once the package's executor seats plus extra seats bought are all used. */
+    public static function assertExecutorAvailable(int $companyId): void
+    {
+        $snapshot = self::snapshot($companyId);
+        if (! $snapshot['configured']) {
+            throw ValidationException::withMessages([
+                'name' => 'No active package with Contractor limits is assigned to this company. Ask the system admin to select a package.',
+            ]);
+        }
+
+        $limit = $snapshot['executors']['limit'];
+        if ($snapshot['executors']['used'] >= $limit) {
+            throw ValidationException::withMessages([
+                'name' => "The {$snapshot['plan_name']} package allows {$limit} Contractor(s). This limit has been reached. Add Contractor slots (RM " . SubscriptionAddon::EXECUTOR_PRICE . ' each) on the Manage package page.',
+            ]);
+        }
+    }
+
+    /** Executor (contractor) seats the company bought beyond what its package includes. */
+    public static function extraExecutors(int $companyId): int
+    {
+        return (int) SubscriptionAddon::where('company_id', $companyId)->where('type', 'executor')->sum('quantity');
     }
 
     private static function used(int $companyId, int $roleId, ?int $exceptStaffId = null, ?int $exceptUserId = null): int

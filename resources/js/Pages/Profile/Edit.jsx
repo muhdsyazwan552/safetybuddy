@@ -1,36 +1,31 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
-    User, Mail, Phone, ShieldCheck, KeyRound, Eye, EyeOff, Building2, CalendarDays, BadgeCheck,
-    LogOut, Loader2, Check, Save, AlertCircle, MapPin, Hash, PackageCheck, Clock3, ArrowRight,
+    User, Mail, Phone, ShieldCheck, KeyRound, Eye, EyeOff, Building2,
+    LogOut, Loader2, Check, Save, AlertCircle, MapPin, Hash, PackageCheck, ChevronRight, ArrowLeft, Upload,
 } from 'lucide-react';
-import InspectorLayout from '@/Layouts/InspectorLayout';
-import AdminLayout from '@/Pages/WSIS/Layout';
-import ReviewLayout from '@/Layouts/ReviewLayout';
 import { confirmLogout } from '@/Helpers/logout';
-
-const INSPECTOR_ROLES = [4, 7, 8];
+import CompanyAvatar from '@/Components/CompanyAvatar';
 
 const inputClass =
-    'w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-900 placeholder-gray-400 ' +
-    'focus:bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 transition';
+    'w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 placeholder-gray-400 ' +
+    'focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition';
+const STATES = ['Johor', 'Kedah', 'Kelantan', 'Melaka', 'Negeri Sembilan', 'Pahang', 'Perak', 'Perlis', 'Pulau Pinang', 'Sabah', 'Sarawak', 'Selangor', 'Terengganu', 'Kuala Lumpur', 'Labuan', 'Putrajaya'];
 const labelClass = 'mb-1.5 ml-1 block text-[11px] font-bold uppercase tracking-wider text-gray-500';
 const formatDate = (value) => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 const formatMoney = (value) => value === null || value === undefined ? '—' : `RM ${Number(value).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 function Card({ icon: Icon, title, hint, children }) {
     return (
-        <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
-            <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-4">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-ink-900 text-brand-400">
-                    <Icon className="h-5 w-5" />
-                </span>
+        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="flex items-center gap-3 border-b border-gray-100 px-5 py-5 sm:px-6">
+                <Icon className="h-5 w-5 shrink-0 text-ink-900" />
                 <div className="min-w-0">
-                    <h2 className="text-sm font-extrabold text-gray-900">{title}</h2>
-                    {hint && <p className="truncate text-xs text-gray-500">{hint}</p>}
+                    <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+                    {hint && <p className="text-sm text-gray-500">{hint}</p>}
                 </div>
             </div>
-            <div className="p-5">{children}</div>
+            <div className="p-5 sm:p-6">{children}</div>
         </section>
     );
 }
@@ -89,7 +84,7 @@ function ProfileForm({ user }) {
     };
 
     return (
-        <Card icon={User} title="Profile information" hint="Your name and how we can reach you">
+        <Card icon={User} title="Personal profile" hint="Your name and how we can reach you">
             <form onSubmit={submit} className="space-y-4">
                 <Field label="Full name" error={errors.name} icon={User}>
                     <input className={`${inputClass} pl-12`} value={data.name} onChange={(e) => setData('name', e.target.value)} autoComplete="name" required />
@@ -122,15 +117,32 @@ function ProfileForm({ user }) {
 }
 
 function CompanyForm({ company }) {
+    const logoForm = useForm({ logo: null });
+    const logoInput = useRef(null);
+    const logoPreview = useMemo(() => logoForm.data.logo ? URL.createObjectURL(logoForm.data.logo) : null, [logoForm.data.logo]);
+    useEffect(() => () => { if (logoPreview) URL.revokeObjectURL(logoPreview); }, [logoPreview]);
     const { data, setData, put, processing, errors, recentlySuccessful, isDirty, reset } = useForm({
         name: company.name || '',
         registration_no: company.registration_no || '',
         email: company.email || '',
         contact: company.contact || '',
         address: company.address || '',
+        city: company.city || '',
+        postcode: company.postcode || '',
+        state: company.state || '',
     });
 
-    return <Card icon={Building2} title="Company details" hint="Business information for your account">
+    return <Card icon={Building2} title="Company profile" hint="Business information for your account">
+        <form onSubmit={(event) => { event.preventDefault(); logoForm.post('/company-details/logo', { forceFormData: true, preserveScroll: true, onSuccess: () => { logoForm.reset('logo'); if (logoInput.current) logoInput.current.value = ''; } }); }} className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-gray-200 bg-gray-50 p-4">
+            <CompanyAvatar name={company.name} logoUrl={logoPreview || company.logo_url} className="h-20 w-20 text-3xl shadow-sm" />
+            <div className="min-w-0 flex-1">
+                <label htmlFor="company-logo" className="block text-sm font-bold text-ink-950">Company logo</label>
+                <p className="mt-0.5 text-xs text-gray-500">JPG, PNG or WebP, up to 2 MB. A square image works best.</p>
+                <input ref={logoInput} id="company-logo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => logoForm.setData('logo', event.target.files?.[0] || null)} className="mt-3 block w-full max-w-sm text-xs text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-semibold file:text-ink-950 file:shadow-sm hover:file:bg-brand-50" />
+                {logoForm.errors.logo && <p className="mt-2 text-xs font-semibold text-red-600" role="alert">{logoForm.errors.logo}</p>}
+            </div>
+            <button type="submit" disabled={!logoForm.data.logo || logoForm.processing} className="inline-flex items-center gap-2 rounded-lg bg-ink-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40">{logoForm.processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{company.logo_url ? 'Replace logo' : 'Upload logo'}</button>
+        </form>
         <form onSubmit={(event) => { event.preventDefault(); put('/company-details', { preserveScroll: true }); }} className="space-y-4">
             <p className="text-sm text-gray-600">Company code: <span className="font-bold text-ink-900">{company.code || '—'}</span></p>
             <Field label="Company name" error={errors.name} icon={Building2}>
@@ -148,8 +160,19 @@ function CompanyForm({ company }) {
                 </Field>
             </div>
             <Field label="Company address" error={errors.address} icon={MapPin}>
-                <textarea rows={4} className={`${inputClass} pl-12`} value={data.address} onChange={(event) => setData('address', event.target.value)} placeholder="Street, city, postcode, state" />
+                <textarea rows={3} className={`${inputClass} pl-12`} value={data.address} onChange={(event) => setData('address', event.target.value)} placeholder="Street / building" />
             </Field>
+            <div className="grid gap-4 sm:grid-cols-3">
+                <Field label="City" error={errors.city}><input className={inputClass} value={data.city} onChange={(event) => setData('city', event.target.value)} /></Field>
+                <Field label="Postcode" error={errors.postcode}><input className={inputClass} value={data.postcode} onChange={(event) => setData('postcode', event.target.value)} inputMode="numeric" maxLength={10} /></Field>
+                <Field label="State" error={errors.state}>
+                    <select className={inputClass} value={data.state} onChange={(event) => setData('state', event.target.value)}>
+                        <option value="">Select state</option>
+                        {STATES.map((item) => <option key={item} value={item}>{item}</option>)}
+                    </select>
+                </Field>
+            </div>
+            <p className="-mt-2 pl-1 text-xs text-gray-400">A complete address lets us place your company on the Training Provider search by distance.</p>
             <div className="flex items-center justify-between gap-3 pt-1">
                 <Saved show={recentlySuccessful} />
                 <div className="ml-auto flex gap-2">
@@ -163,45 +186,48 @@ function CompanyForm({ company }) {
     </Card>;
 }
 
-function SubscriptionDetails({ subscription }) {
+function SubscriptionDetails({ subscription, accountType }) {
     const current = subscription?.currentPackage;
-    const history = subscription?.history || [];
     const active = current?.status === 'active';
+    // a company registered under a Training Provider does not see package prices: the provider pays for them
+    const hideAmount = Boolean(accountType?.provider);
+    const start = current?.start_date ? new Date(`${current.start_date}T00:00:00`).getTime() : null;
+    const end = current?.end_date ? new Date(`${current.end_date}T00:00:00`).getTime() : null;
+    const today = new Date().setHours(0, 0, 0, 0);
+    const progress = start !== null && end !== null && end > start
+        ? Math.max(0, Math.min(100, Math.round(((today - start) / (end - start)) * 100)))
+        : 0;
 
-    return <Card icon={PackageCheck} title="Subscription details" hint="Current package and payment history">
-        {current ? <div className="rounded-2xl bg-ink-950 p-5 text-white sm:p-6">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                    <p className="text-[11px] font-bold uppercase tracking-widest text-brand-400">{active ? 'Current package' : 'Previous package'}</p>
-                    <h3 className="mt-2 text-xl font-extrabold">{current.package_name}</h3>
-                    <p className="mt-1 text-xs text-gray-300">{current.module_name || 'Safety Buddy'} · {current.type === 'renew' ? 'Renewal' : 'Subscription'}</p>
+    return <div className="space-y-5">
+        <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm" aria-labelledby="membership-package-title">
+            <div className="h-1 bg-brand-500" />
+            {current ? <>
+                <div className="p-5 sm:p-6">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div><p className="text-xs font-bold uppercase tracking-widest text-brand-800">{active ? 'Current membership' : 'Previous membership'}</p><h3 id="membership-package-title" className="mt-2 text-2xl font-bold text-ink-950">{current.package_name}</h3><p className="mt-1 text-sm text-gray-500">{current.module_name || 'Safety Buddy'} · {current.type === 'renew' ? 'Renewal' : 'Membership'}</p></div>
+                        <div className="flex items-center gap-2"><span className="text-xs font-semibold text-gray-500">Subscription status</span><span className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${active ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>{active ? 'Active' : current.status || 'Inactive'}</span></div>
+                    </div>
+                    <div className={`mt-6 grid gap-4 border-t border-gray-100 pt-5 sm:grid-cols-2 ${hideAmount ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>
+                        <div><p className="text-xs font-semibold text-gray-500">Started</p><p className="mt-1 text-sm font-bold text-ink-900">{formatDate(current.start_date)}</p></div>
+                        <div><p className="text-xs font-semibold text-gray-500">Expires</p><p className="mt-1 text-sm font-bold text-ink-900">{formatDate(current.end_date)}</p></div>
+                        {!hideAmount && <div><p className="text-xs font-semibold text-gray-500">Amount</p><p className="mt-1 text-sm font-bold text-ink-900">{formatMoney(current.amount)}</p></div>}
+                        <div><p className="text-xs font-semibold text-gray-500">Time left</p><p className="mt-1 text-sm font-bold text-ink-900">{active && current.days_remaining !== null ? `${current.days_remaining} ${current.days_remaining === 1 ? 'day' : 'days'}` : '—'}</p></div>
+                    </div>
+                    <div className="mt-6 border-t border-gray-100 pt-5">
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-semibold text-gray-500"><span>Subscription period</span><span>{progress}% elapsed</span></div>
+                        <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100" role="progressbar" aria-label="Subscription period elapsed" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}><div className="h-full rounded-full bg-brand-500" style={{ width: `${progress}%` }} /></div>
+                        <div className="mt-2 flex justify-between gap-3 text-xs text-gray-500"><span>{formatDate(current.start_date)}</span><span>{formatDate(current.end_date)}</span></div>
+                    </div>
+                    {accountType?.provider && <div className="mt-5 rounded-lg bg-brand-50 p-4 text-sm text-ink-800"><span className="font-bold">Under Training Provider:</span> {accountType.provider.name}</div>}
                 </div>
-                <span className={`rounded-full px-3 py-1 text-xs font-bold ${active ? 'bg-emerald-400/20 text-emerald-300' : 'bg-orange-400/20 text-orange-200'}`}>{active ? 'Active' : current.status || 'Inactive'}</span>
+            </> : <p className="p-6 text-sm text-gray-500">No package has been recorded for this company yet.</p>}
+            <div className="divide-y divide-gray-100 border-t border-gray-100">
+                <Link href={active ? '/manage-package#membership' : '/plans'} className="flex items-center justify-between px-5 py-4 text-sm font-semibold text-ink-950 hover:bg-gray-50 sm:px-6">{active ? 'Manage Slot' : 'View packages'} <ChevronRight className="h-4 w-4" /></Link>
+                <Link href="/manage-package/payments" className="flex items-center justify-between px-5 py-4 text-sm font-semibold text-ink-950 hover:bg-gray-50 sm:px-6">Payment history <ChevronRight className="h-4 w-4" /></Link>
             </div>
-            <div className="mt-5 grid gap-4 border-t border-white/10 pt-5 sm:grid-cols-4">
-                <div><p className="text-xs text-gray-400">Started</p><p className="mt-1 text-sm font-bold">{formatDate(current.start_date)}</p></div>
-                <div><p className="text-xs text-gray-400">Expires</p><p className="mt-1 text-sm font-bold">{formatDate(current.end_date)}</p></div>
-                <div><p className="text-xs text-gray-400">Amount</p><p className="mt-1 text-sm font-bold">{formatMoney(current.amount)}</p></div>
-                <div><p className="text-xs text-gray-400">Time left</p><p className="mt-1 text-sm font-bold">{active && current.days_remaining !== null ? `${current.days_remaining} days` : '—'}</p></div>
-            </div>
-        </div> : <p className="rounded-2xl bg-gray-50 p-5 text-sm text-gray-500">No package has been recorded for this company yet.</p>}
+        </section>
 
-        {history.length > 0 && <div className="mt-6">
-            <h3 className="mb-3 flex items-center gap-2 text-sm font-extrabold text-gray-900"><Clock3 className="h-4 w-4" /> Subscription history</h3>
-            <div className="overflow-x-auto rounded-2xl border border-gray-100">
-                <table className="min-w-[640px] w-full text-left text-sm">
-                    <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500"><tr><th className="px-4 py-3">Package</th><th className="px-4 py-3">Period</th><th className="px-4 py-3">Amount</th><th className="px-4 py-3">Status</th></tr></thead>
-                    <tbody className="divide-y divide-gray-100">{history.map((item) => <tr key={item.id}>
-                        <td className="px-4 py-3 font-bold text-gray-900">{item.package_name}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-gray-600">{formatDate(item.start_date)} – {formatDate(item.end_date)}</td>
-                        <td className="whitespace-nowrap px-4 py-3 text-gray-600">{formatMoney(item.amount)}</td>
-                        <td className="px-4 py-3 capitalize text-gray-700">{item.status}</td>
-                    </tr>)}</tbody>
-                </table>
-            </div>
-        </div>}
-        <Link href="/plans" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-ink-900 hover:text-brand-700">Manage package <ArrowRight className="h-4 w-4" /></Link>
-    </Card>;
+    </div>;
 }
 
 function PasswordForm() {
@@ -235,7 +261,7 @@ function PasswordForm() {
     );
 
     return (
-        <Card icon={KeyRound} title="Password & security" hint="Use a long, unique password">
+        <Card icon={KeyRound} title="Security" hint="Use a long, unique password">
             <form onSubmit={submit} className="space-y-4">
                 <Field label="Current password" error={errors.current_password} icon={KeyRound}>
                     <input type={show ? 'text' : 'password'} className={`${inputClass} pl-12 pr-12`} value={data.current_password} onChange={(e) => setData('current_password', e.target.value)} autoComplete="current-password" />
@@ -276,31 +302,28 @@ function PasswordForm() {
     );
 }
 
-export default function Edit({ account = {}, company = null, subscription = null, mustVerifyEmail, status }) {
+export default function Edit({ account = {}, company = null, accountType = null, subscription = null, mustVerifyEmail, status }) {
     const { auth } = usePage().props;
     const user = auth.user;
-    // every role gets the shell of its own portal: Manager / Supervisor -> review, Inspector -> inspector, others -> admin
     const roleId = Number(user.role_id);
-    const isReviewer = [3, 4].includes(roleId);
-    const isInspector = !isReviewer && INSPECTOR_ROLES.includes(roleId);
-    const Layout = isReviewer ? ReviewLayout : isInspector ? InspectorLayout : AdminLayout;
-    const layoutProps = isReviewer ? { title: 'My profile' } : isInspector ? { user } : { title: company ? 'Profile & company' : 'Settings' };
+    const dashboard = [3, 4].includes(roleId) ? '/review/dashboard' : [7, 8].includes(roleId) ? '/inspector/dashboard' : '/dashboard';
     const tabs = [
-        { id: 'personal', label: 'Personal', icon: User },
         ...(company ? [
-            { id: 'company', label: 'Company', icon: Building2 },
-            { id: 'subscription', label: 'Subscription', icon: PackageCheck },
+            { id: 'membership', label: 'Membership', icon: PackageCheck },
         ] : []),
+        { id: 'personal', label: 'Personal', icon: User },
+        ...(company ? [{ id: 'company', label: 'Company', icon: Building2 }] : []),
         { id: 'security', label: 'Security', icon: KeyRound },
     ];
     const [activeTab, setActiveTab] = useState(() => {
         const hash = typeof window !== 'undefined' ? window.location.hash.slice(1) : '';
-        return tabs.some((tab) => tab.id === hash) ? hash : 'personal';
+        const normalized = hash === 'subscription' ? 'membership' : hash;
+        return tabs.some((tab) => tab.id === normalized) ? normalized : company ? 'membership' : 'personal';
     });
 
     useEffect(() => {
         const syncTab = () => {
-            const hash = window.location.hash.slice(1);
+            const hash = window.location.hash.slice(1) === 'subscription' ? 'membership' : window.location.hash.slice(1);
             if (tabs.some((tab) => tab.id === hash)) setActiveTab(hash);
         };
         window.addEventListener('hashchange', syncTab);
@@ -313,59 +336,47 @@ export default function Edit({ account = {}, company = null, subscription = null
     };
 
     const initial = (user.name || '?').charAt(0).toUpperCase();
-
-    const details = [
-        { icon: BadgeCheck, label: 'Role', value: account.role || user.role?.name || '-' },
-        { icon: Building2, label: 'Company', value: account.company || user.company?.name || '-' },
-        { icon: CalendarDays, label: 'Member since', value: account.member_since || '-' },
-        { icon: ShieldCheck, label: 'Email', value: account.email_verified ? 'Verified' : 'Not verified', ok: account.email_verified },
-    ];
+    const section = {
+        membership: { title: 'Membership', description: 'Your package and payment details' },
+        personal: { title: 'Personal', description: 'Your name and contact details' },
+        company: { title: 'Company', description: 'Business information for your account' },
+        security: { title: 'Security', description: 'Password and account access' },
+    }[activeTab];
 
     return (
-        <Layout {...layoutProps}>
-            <Head title={company ? 'Profile & company' : 'Settings'} />
-
-            <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
-                {/* Hero: avatar, name and the account facts in one card */}
-                <div className="relative mb-5 overflow-hidden rounded-[2rem] bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-xl shadow-ink-900/30 ring-1 ring-white/10 sm:p-7">
-                    {/* soft light blobs and a fine dot pattern */}
-                    <div className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-brand-500/25 blur-3xl" />
-                    <div className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-sky-400/10 blur-3xl" />
-                    <div className="pointer-events-none absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
-
-                    <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:gap-6">
-                        <div className="relative shrink-0">
-                            <span className="flex h-20 w-20 items-center justify-center rounded-[1.75rem] bg-gradient-to-br from-brand-400 to-brand-600 text-4xl font-extrabold text-ink-900 shadow-xl shadow-brand-500/30 ring-4 ring-white/10 sm:h-24 sm:w-24 sm:text-5xl">
-                                {initial}
-                            </span>
-                            <span className={`absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full ring-4 ring-ink-900 ${account.email_verified ? 'bg-emerald-500' : 'bg-amber-500'}`} title={account.email_verified ? 'Email verified' : 'Email not verified'}>
-                                <ShieldCheck className="h-4 w-4 text-white" />
-                            </span>
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-brand-400">My account</p>
-                            <h1 className="mt-1 truncate text-2xl font-extrabold tracking-tight sm:text-3xl">{user.name}</h1>
-                            <p className="mt-1 flex items-center gap-2 truncate text-sm text-gray-300"><Mail className="h-4 w-4 shrink-0 text-gray-500" />{user.email}</p>
-                            {account.role && (
-                                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-brand-400/30 bg-brand-400/10 px-3.5 py-1.5 text-xs font-extrabold uppercase tracking-wide text-brand-400">
-                                    <BadgeCheck className="h-4 w-4" /> {account.role}
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="relative mt-6 grid grid-cols-2 gap-3 border-t border-white/10 pt-5 lg:grid-cols-4">
-                        {details.map((d) => (
-                            <div key={d.label} className="min-w-0 rounded-2xl border border-white/10 bg-white/5 p-3.5 backdrop-blur">
-                                <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                                    <d.icon className="h-3.5 w-3.5 text-brand-400" /> {d.label}
-                                </p>
-                                <p className={`mt-1.5 truncate text-sm font-extrabold ${d.ok === false ? 'text-amber-300' : d.ok ? 'text-emerald-400' : 'text-white'}`}>{d.value}</p>
-                            </div>
-                        ))}
-                    </div>
+        <div className="min-h-screen bg-[#FAFAF9] text-ink-950">
+            <Head title="Account settings" />
+            <header className="border-b border-gray-200 bg-white shadow-sm">
+                <div className="mx-auto flex w-full max-w-[1480px] items-center justify-between gap-4 px-4 py-3 sm:px-7 lg:px-10">
+                    <Link href={dashboard} className="inline-flex min-w-0 items-center gap-3"><img src="/images/sbc-logo.png" alt="" className="h-10 w-10 shrink-0 rounded-full ring-1 ring-brand-400/60" /><span className="truncate text-sm font-black tracking-[.12em] text-ink-950 sm:text-base">SAFETY BUDDY</span></Link>
+                    {company ? <CompanyAvatar name={company.name || user.name} logoUrl={company.logo_url} className="h-10 w-10 text-sm ring-1 ring-brand-400/60" /> : <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-ink-950">{initial}</span>}
                 </div>
+            </header>
+
+            <div className="mx-auto grid w-full max-w-[1480px] gap-8 px-4 py-7 sm:px-7 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-12 lg:px-10 lg:py-10">
+                <aside className="min-w-0 lg:sticky lg:top-8 lg:self-start" aria-label="Account navigation">
+                    <nav role="tablist" aria-label="Account sections" className="flex gap-1 overflow-x-auto border-b border-gray-200 lg:flex-col lg:overflow-visible lg:border-0">
+                        {tabs.map((tab) => <button key={tab.id} id={`tab-${tab.id}`} type="button" role="tab" aria-selected={activeTab === tab.id} aria-controls={`panel-${tab.id}`} onClick={() => selectTab(tab.id)} className={`flex shrink-0 items-center gap-3 border-b-[3px] px-4 py-3 text-left text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-400 lg:w-full lg:rounded-lg lg:border-b-0 lg:border-l-[3px] ${activeTab === tab.id ? 'border-brand-500 bg-brand-50 text-ink-950' : 'border-transparent text-gray-600 hover:bg-gray-100 hover:text-ink-950'}`}><tab.icon className="h-5 w-5" />{tab.label}</button>)}
+                    </nav>
+                    <div className="mt-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                        <div className="flex min-w-0 items-center gap-3">
+                            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-500 text-xl font-bold text-ink-950">{initial}</span>
+                            <div className="min-w-0"><p className="truncate text-sm font-bold text-ink-950">{user.name}</p><p className="truncate text-xs text-gray-500">{user.email}</p></div>
+                        </div>
+                        <dl className="mt-4 space-y-2 border-t border-gray-100 pt-4 text-xs">
+                            <div className="flex justify-between gap-2"><dt className="text-gray-500">Role</dt><dd className="text-right font-semibold text-ink-900">{account.role || user.role?.name || '—'}</dd></div>
+                            {account.company && <div className="flex justify-between gap-2"><dt className="text-gray-500">Company</dt><dd className="text-right font-semibold text-ink-900">{account.company}</dd></div>}
+                            <div className="flex justify-between gap-2"><dt className="text-gray-500">Member since</dt><dd className="text-right font-semibold text-ink-900">{account.member_since || '—'}</dd></div>
+                            <div className="flex justify-between gap-2"><dt className="text-gray-500">Email</dt><dd className={`text-right font-semibold ${account.email_verified ? 'text-emerald-700' : 'text-amber-700'}`}>{account.email_verified ? 'Verified' : 'Not verified'}</dd></div>
+                        </dl>
+                    </div>
+                </aside>
+
+                <main className="min-w-0">
+                    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                        <div><h1 className="text-3xl font-bold tracking-tight text-ink-950">{section.title}</h1><p className="mt-1 text-sm text-gray-600">{section.description}</p></div>
+                        <Link href={dashboard} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition hover:border-brand-400 hover:bg-brand-50"><ArrowLeft className="h-4 w-4" />Back to dashboard</Link>
+                    </div>
                 {mustVerifyEmail && !account.email_verified && (
                     <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">
                         <span>Your email address is not verified.</span>
@@ -378,35 +389,19 @@ export default function Edit({ account = {}, company = null, subscription = null
                     <p className="mb-5 text-sm font-semibold text-emerald-600">A new verification link has been sent to your email.</p>
                 )}
 
-                <div className="grid gap-5 lg:grid-cols-[220px_minmax(0,1fr)] lg:items-start">
-                    <nav aria-label="Profile sections" role="tablist" className="flex gap-2 overflow-x-auto rounded-3xl border border-gray-100 bg-white p-2 shadow-sm lg:sticky lg:top-4 lg:flex-col lg:overflow-visible">
-                        {tabs.map((tab) => <button
-                            key={tab.id}
-                            id={`tab-${tab.id}`}
-                            type="button"
-                            role="tab"
-                            aria-selected={activeTab === tab.id}
-                            aria-controls={`panel-${tab.id}`}
-                            onClick={() => selectTab(tab.id)}
-                            className={`flex shrink-0 items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition lg:w-full ${activeTab === tab.id ? 'bg-ink-950 text-brand-400 shadow-sm' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
-                        >
-                            <tab.icon className="h-4 w-4" /> {tab.label}
-                        </button>)}
-                    </nav>
-
-                    <div className="min-w-0">
-                        <div id="panel-personal" role="tabpanel" aria-labelledby="tab-personal" hidden={activeTab !== 'personal'} className="max-w-3xl">
+                <div className="min-w-0">
+                        <div id="panel-personal" role="tabpanel" aria-labelledby="tab-personal" hidden={activeTab !== 'personal'} className="max-w-4xl">
                             <ProfileForm user={user} />
                         </div>
-                        {company && <div id="panel-company" role="tabpanel" aria-labelledby="tab-company" hidden={activeTab !== 'company'} className="max-w-3xl">
+                        {company && <div id="panel-company" role="tabpanel" aria-labelledby="tab-company" hidden={activeTab !== 'company'} className="max-w-4xl space-y-5">
                             <CompanyForm company={company} />
                         </div>}
-                        {company && <div id="panel-subscription" role="tabpanel" aria-labelledby="tab-subscription" hidden={activeTab !== 'subscription'}>
-                            <SubscriptionDetails subscription={subscription} />
+                        {company && <div id="panel-membership" role="tabpanel" aria-labelledby="tab-membership" hidden={activeTab !== 'membership'} className="max-w-5xl">
+                            <SubscriptionDetails subscription={subscription} accountType={accountType} />
                         </div>}
-                        <div id="panel-security" role="tabpanel" aria-labelledby="tab-security" hidden={activeTab !== 'security'} className="max-w-3xl space-y-5">
+                        <div id="panel-security" role="tabpanel" aria-labelledby="tab-security" hidden={activeTab !== 'security'} className="max-w-4xl space-y-5">
                             <PasswordForm />
-                            <div className="flex flex-col gap-3 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <h2 className="text-sm font-extrabold text-gray-900">Sign out</h2>
                                     <p className="text-xs text-gray-500">End your session on this device.</p>
@@ -416,9 +411,9 @@ export default function Edit({ account = {}, company = null, subscription = null
                                 </button>
                             </div>
                         </div>
-                    </div>
                 </div>
+                </main>
             </div>
-        </Layout>
+        </div>
     );
 }

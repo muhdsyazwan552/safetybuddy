@@ -17,7 +17,7 @@
 }
 
 html { -webkit-text-size-adjust: 100%; }
-body { background-color: #F3F4F6; color: #1F2937; overflow-x: hidden; }
+body { background-color: #F3F4F6; color: #1F2937; overflow-x: clip; }
 
 /* Text that used to be blue -> readable gold on light surfaces */
 .text-blue-400, .text-blue-500, .text-blue-600, .text-blue-700,

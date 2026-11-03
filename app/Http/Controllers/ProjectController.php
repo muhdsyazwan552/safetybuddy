@@ -201,17 +201,25 @@ class ProjectController extends Controller
             'address' => 'required|string'
         ]);
 
-        // a new executor stays Inactive until its leader acknowledges the Safety Passport rules
-        \App\Support\SeriesCodes::createSubconCompany((int) $user->company_id, [
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'contact' => $validated['contact'],
-            'address' => $validated['address'],
-            'status' => 'Inactive',
-            'company_id' => $user->company_id,
-        ]);
+        abort_unless($user->company_id, 403, 'No company is linked to your account.');
 
-        return redirect()->back()->with('success', 'Executor created successfully');
+        DB::transaction(function () use ($user, $validated) {
+            // Serialize creation per company so two requests cannot claim the last slot.
+            \App\Models\Company::whereKey($user->company_id)->lockForUpdate()->firstOrFail();
+            \App\Services\CompanySeatLimits::assertExecutorAvailable((int) $user->company_id);
+
+            // A new executor stays Inactive until its leader acknowledges the Safety Passport rules.
+            \App\Support\SeriesCodes::createSubconCompany((int) $user->company_id, [
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'contact' => $validated['contact'],
+                'address' => $validated['address'],
+                'status' => 'Inactive',
+                'company_id' => $user->company_id,
+            ]);
+        });
+
+        return redirect()->back()->with('success', 'Contractor company created successfully');
     }
 
 
@@ -244,7 +252,7 @@ class ProjectController extends Controller
     //     'staff' => $staff
     // ]);
 
-    return redirect()->back()->with('success', 'Executor created successfully');
+    return redirect()->back()->with('success', 'Contractor staff added successfully');
 }
 
 
@@ -261,7 +269,7 @@ class ProjectController extends Controller
 
         $executor->update($validated);
 
-        return redirect()->back()->with('success', 'Executor updated successfully');
+        return redirect()->back()->with('success', 'Contractor company updated successfully');
     }
 
     public function destroy(Executor $executor)
@@ -287,7 +295,7 @@ class ProjectController extends Controller
         }
 
         $executor->delete();
-        return redirect()->back()->with('success', 'Executor deleted successfully');
+        return redirect()->back()->with('success', 'Contractor company deleted successfully');
     }
 
 

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Company;
+use App\Models\AccountType;
 use App\Models\CompanyStaff;
 use App\Models\Manhour;
 use App\Models\Module;
@@ -12,10 +13,12 @@ use App\Models\Role;
 use App\Models\SubscriptionsCompany;
 use App\Models\SubscriptionPlan;
 use App\Models\SubscriptionPlanRequest;
+use App\Models\SubconCompany;
 use App\Models\User;
 use App\Services\CompanySeatLimits;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -23,22 +26,323 @@ use Inertia\Inertia;
 
 class SystemAdminController extends Controller
 {
+    public function companies(Request $request)
+    {
+        $filters = $request->validate([
+            'search' => ['nullable', 'string', 'max:100'],
+            'type' => ['nullable', 'integer', 'exists:account_types,id'],
+        ]);
+        $search = trim($filters['search'] ?? '');
+
+        $companies = Company::query()
+            ->with(['accountType:id,name', 'trainingProvider:id,name'])
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($query) use ($search) {
+                    $query->where('name', 'like', "%{$search}%")
+                        ->orWhere('code', 'like', "%{$search}%")
+                        ->orWhere('registration_no', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhereIn('id', User::query()->select('company_id')->where('role_id', 2)
+                            ->where(function ($users) use ($search) {
+                                $users->where('name', 'like', "%{$search}%")
+                                    ->orWhere('email', 'like', "%{$search}%");
+                            }));
+                });
+            })
+            ->when(! empty($filters['type']), fn ($query) => $query->where('account_type_id', $filters['type']))
+            ->orderBy('name')
+            ->paginate(25)
+            ->withQueryString();
+
+        $companyIds = $companies->getCollection()->pluck('id');
+        $admins = User::query()->whereIn('company_id', $companyIds)->where('role_id', 2)
+            ->orderBy('id')->get(['id', 'company_id', 'name', 'email', 'phone', 'email_verified_at'])
+            ->groupBy('company_id');
+        $subscriptions = SubscriptionsCompany::query()->whereIn('company_id', $companyIds)
+            ->with(['module:id,name,code', 'plan:id,name'])
+            ->orderByDesc('end_date')->orderByDesc('id')->get()->groupBy('company_id');
+
+        $companies->setCollection($companies->getCollection()->map(function (Company $company) use ($admins, $subscriptions) {
+            $records = $subscriptions->get($company->id, collect());
+            $current = $records->first(fn ($item) => in_array($item->status, ['active', 'trial'], true)
+                && $item->start_date?->lte(today()) && $item->end_date?->gte(today())) ?? $records->first();
+
+            return [
+                'id' => $company->id,
+                'name' => $company->name,
+                'code' => $company->code,
+                'email' => $company->email,
+                'contact' => $company->contact,
+                'status' => $company->status,
+                'logo_url' => $company->logo_url,
+                'account_type' => $company->accountType?->name ?? 'Unassigned',
+                'training_provider' => $company->trainingProvider?->name,
+                'admins' => $admins->get($company->id, collect())->map->only(['id', 'name', 'email'])->values(),
+                'subscription' => $current ? $this->companySubscriptionData($current) : null,
+                'subscription_count' => $records->count(),
+            ];
+        }));
+
+        return Inertia::render('Admin/Companies', [
+            'title' => 'Companies',
+            'companies' => $companies,
+            'accountTypes' => AccountType::orderBy('sort_order')->get(['id', 'name']),
+            'filters' => ['search' => $search, 'type' => (string) ($filters['type'] ?? '')],
+            'totalCompanies' => Company::count(),
+        ]);
+    }
+
+    public function showCompany(Company $company)
+    {
+        $company->load(['accountType:id,name', 'trainingProvider:id,name,email,contact']);
+        $admins = User::query()->where('company_id', $company->id)->where('role_id', 2)
+            ->orderBy('name')->get(['id', 'name', 'email', 'phone', 'created_at', 'email_verified_at']);
+        $subscriptions = $company->subscriptions()->with(['module:id,name,code,price', 'plan:id,name,price_yearly'])
+            ->orderByDesc('end_date')->orderByDesc('id')->get();
+        $staff = CompanyStaff::where('company_id', $company->id)->with('role:id,name,display_name')->orderBy('name')->get();
+        $directEmployees = User::where('company_id', $company->id)->whereIn('role_id', [3, 4, 7])
+            ->when($staff->pluck('user_id')->filter()->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $staff->pluck('user_id')->filter()->all()))
+            ->with('role:id,name,display_name')->orderBy('name')->get();
+        $contractors = SubconCompany::where('company_id', $company->id)->with('subconStaff')->orderBy('name')->get();
+        $linkedCompanies = (int) $company->account_type_id === AccountType::TRAINING_PROVIDER
+            ? $company->trainees()->with(['accountType:id,name', 'subscriptions' => fn ($query) => $query
+                ->with('plan:id,name')->orderByDesc('end_date')->orderByDesc('id')])
+                ->orderBy('name')->paginate(20)->through(function (Company $linked) {
+                    $current = $linked->subscriptions->first(fn ($item) => $item->status === 'active'
+                        && $item->start_date?->lte(today()) && $item->end_date?->gte(today())) ?? $linked->subscriptions->first();
+
+                    return [
+                        'id' => $linked->id,
+                        'name' => $linked->name,
+                        'code' => $linked->code,
+                        'account_type' => $linked->accountType?->name,
+                        'email' => $linked->email,
+                        'contact' => $linked->contact,
+                        'status' => $linked->status,
+                        'linked_at' => $linked->provider_linked_at?->format('Y-m-d'),
+                        'package' => $current?->plan?->name,
+                        'subscription_status' => $current?->status,
+                    ];
+                })
+            : null;
+
+        return Inertia::render('Admin/CompanyDetails', [
+            'title' => $company->name,
+            'company' => [
+                'id' => $company->id,
+                'name' => $company->name,
+                'code' => $company->code,
+                'reference_code' => $company->reference_code,
+                'registration_no' => $company->registration_no,
+                'email' => $company->email,
+                'contact' => $company->contact,
+                'address' => $company->address,
+                'city' => $company->city,
+                'postcode' => $company->postcode,
+                'state' => $company->state,
+                'status' => $company->status,
+                'logo_url' => $company->logo_url,
+                'account_type' => $company->accountType?->name ?? 'Unassigned',
+                'is_training_provider' => (int) $company->account_type_id === AccountType::TRAINING_PROVIDER,
+                'training_provider' => $company->trainingProvider?->only(['id', 'name', 'email', 'contact']),
+                'provider_linked_at' => $company->provider_linked_at?->format('Y-m-d'),
+                'created_at' => $company->created_at?->format('Y-m-d'),
+            ],
+            'admins' => $admins,
+            'subscriptions' => $subscriptions->map(fn ($subscription) => $this->companySubscriptionData($subscription))->values(),
+            'slots' => CompanySeatLimits::snapshot($company->id),
+            'employees' => $staff->map(fn ($person) => [
+                'id' => 'staff-'.$person->id,
+                'name' => $person->name,
+                'code' => $person->code,
+                'role' => $person->role?->display_name ?? $person->role?->name,
+                'email' => $person->email,
+                'contact' => $person->contact,
+                'status' => $person->status,
+            ])->concat($directEmployees->map(fn ($person) => [
+                'id' => 'user-'.$person->id,
+                'name' => $person->name,
+                'code' => null,
+                'role' => $person->role?->display_name ?? $person->role?->name,
+                'email' => $person->email,
+                'contact' => $person->phone,
+                'status' => null,
+            ]))->values(),
+            'contractors' => $contractors->map(fn ($contractor) => [
+                'id' => $contractor->id,
+                'name' => $contractor->name,
+                'code' => $contractor->code,
+                'email' => $contractor->email,
+                'contact' => $contractor->contact,
+                'address' => $contractor->address,
+                'status' => $contractor->status,
+                'staff' => $contractor->subconStaff->map->only(['id', 'name', 'code', 'role', 'email', 'contact', 'status'])->values(),
+            ])->values(),
+            'linkedCompanies' => $linkedCompanies,
+        ]);
+    }
+
+    private function companySubscriptionData(SubscriptionsCompany $subscription): array
+    {
+        return [
+            'id' => $subscription->id,
+            'code' => $subscription->code,
+            'module' => $subscription->module?->name ?? 'Legacy package',
+            'module_code' => $subscription->module?->code,
+            'plan' => $subscription->plan?->name,
+            'price' => $subscription->plan?->price_yearly ?? $subscription->module?->price,
+            'status' => $subscription->status,
+            'display_status' => in_array($subscription->status, ['active', 'trial'], true) && $subscription->end_date?->lt(today())
+                ? 'expired'
+                : (in_array($subscription->status, ['active', 'trial'], true) && $subscription->start_date?->gt(today()) ? 'upcoming' : $subscription->status),
+            'type' => $subscription->type,
+            'start_date' => $subscription->start_date?->format('Y-m-d'),
+            'end_date' => $subscription->end_date?->format('Y-m-d'),
+        ];
+    }
+
     public function dashboard()
     {
         return Inertia::render('Admin/System_Dashboard', [
             'title' => 'System Administration',
-            'stats' => [
-                'users' => User::count(),
-                'companies' => Company::count(),
-                'projects' => Project::count(),
-                'manhours' => Manhour::count(),
-            ],
+            'paymentCards' => $this->paymentCards(),
+            'approvals' => $this->pendingApprovals(),
+            'charts' => $this->activityCharts(),
+        ]);
+    }
+
+    public function users()
+    {
+        return Inertia::render('Admin/Users', [
+            'title' => 'Users',
             'users' => User::with(['role:id,display_name,name', 'company:id,name'])
                 ->latest('created_at')
                 ->get(['id', 'name', 'email', 'phone', 'company_id', 'role_id', 'created_at']),
             'roles' => Role::orderBy('id')->get(['id', 'name', 'display_name']),
             'companies' => Company::orderBy('name')->get(['id', 'name']),
         ]);
+    }
+
+    public function createUser()
+    {
+        return Inertia::render('Admin/UserCreate', [
+            'title' => 'Create user',
+            'roles' => Role::orderBy('id')->get(['id', 'name', 'display_name']),
+            'companies' => Company::orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    /** Confirmed payments since $from, each tagged with the plan audience so they can be split by who bought what. */
+    private function confirmedPayments($from)
+    {
+        return DB::table('payments as p')
+            ->leftJoin('subscriptions_company as s', 's.id', '=', 'p.subscription_id')
+            ->leftJoin('subscription_plans as sp', 'sp.id', '=', 's.subscription_plan_id')
+            ->where('p.payment_status', 'completed')
+            ->where('p.created_at', '>=', $from)
+            ->get(['p.created_at', 'p.total_amount', 'p.payment_type', 'sp.audience'])
+            ->map(function ($row) { $row->created_at = Carbon::parse($row->created_at); return $row; });
+    }
+
+    /** Slot add-ons are not in the confirmed list: they are billed when bought, so they come from their own table. */
+    private function paymentCategory(object $payment): ?string
+    {
+        if (str_starts_with((string) $payment->payment_type, 'addon_')) {
+            return null;
+        }
+        if ($payment->payment_type === 'activation_code_order') {
+            return 'provider_orders';
+        }
+
+        return $payment->audience === 'training_provider' ? 'provider_plan' : 'standard';
+    }
+
+    /** This month's money in, by who bought, with last month beside it. Extra slots also report how many seats were sold. */
+    private function paymentCards(): array
+    {
+        $thisMonth = now()->startOfMonth();
+        $lastMonth = now()->startOfMonth()->subMonth();
+        $sum = ['standard' => [0, 0], 'provider_plan' => [0, 0], 'provider_orders' => [0, 0]];
+
+        foreach ($this->confirmedPayments($lastMonth) as $payment) {
+            $category = $this->paymentCategory($payment);
+            if ($category) {
+                $sum[$category][$payment->created_at >= $thisMonth ? 0 : 1] += (float) $payment->total_amount;
+            }
+        }
+
+        $addons = DB::table('subscription_addons')->where('created_at', '>=', $lastMonth)->get(['type', 'quantity', 'total_amount', 'created_at'])->map(function ($row) { $row->created_at = Carbon::parse($row->created_at); return $row; });
+        $current = $addons->filter(fn ($row) => $row->created_at >= $thisMonth);
+        $slotAmount = [(float) $current->sum('total_amount'), (float) $addons->filter(fn ($row) => $row->created_at < $thisMonth)->sum('total_amount')];
+
+        return [
+            'month' => $thisMonth->format('F Y'),
+            'cards' => [
+                ['key' => 'standard', 'label' => 'Standard package', 'hint' => 'Companies buying a package directly', 'amount' => $sum['standard'][0], 'previous' => $sum['standard'][1]],
+                ['key' => 'provider_plan', 'label' => 'Training Provider plan', 'hint' => 'Providers buying their own plan', 'amount' => $sum['provider_plan'][0], 'previous' => $sum['provider_plan'][1]],
+                ['key' => 'provider_orders', 'label' => 'Packages bought by providers', 'hint' => 'Activation code orders', 'amount' => $sum['provider_orders'][0], 'previous' => $sum['provider_orders'][1]],
+                [
+                    'key' => 'slots', 'label' => 'Extra user slots', 'hint' => 'Inspector and contractor seats sold',
+                    'amount' => $slotAmount[0], 'previous' => $slotAmount[1],
+                    'slots' => ['inspector' => (int) $current->where('type', 'inspector')->sum('quantity'), 'contractor' => (int) $current->where('type', 'executor')->sum('quantity')],
+                ],
+            ],
+        ];
+    }
+
+    /** What only the system admin can act on, with how long the oldest has been waiting. */
+    private function pendingApprovals(): array
+    {
+        $pending = fn (string $table) => [DB::table($table)->where('status', 'pending')->count(), DB::table($table)->where('status', 'pending')->min('created_at')];
+        [$requests, $requestsOldest] = $pending('subscription_plan_requests');
+        [$applications, $applicationsOldest] = $pending('training_provider_applications');
+        $orders = DB::table('package_activation_codes')->where('status', 'pending')->distinct()->count('batch_ref');
+        $ordersOldest = DB::table('package_activation_codes')->where('status', 'pending')->min('created_at');
+
+        return [
+            ['label' => 'Purchase requests', 'hint' => 'Confirm payment to activate a package', 'count' => $requests, 'oldest' => $requestsOldest, 'href' => route('system.admin.approvals')],
+            ['label' => 'Training Provider applications', 'hint' => 'Verify registration and certificates', 'count' => $applications, 'oldest' => $applicationsOldest, 'href' => route('system.admin.training-providers.approvals')],
+            ['label' => 'Package orders', 'hint' => 'Confirm payment to release activation codes', 'count' => $orders, 'oldest' => $ordersOldest, 'href' => route('system.admin.training-providers.orders')],
+        ];
+    }
+
+    /** Last 8 weeks (Monday to Sunday) and last 6 months of money, new accounts and package purchases, one point per period. */
+    private function activityCharts(): array
+    {
+        $weeks = collect(range(7, 0))->map(function ($ago) {
+            $from = now()->startOfWeek()->subWeeks($ago);
+
+            return ['label' => $from->format('j M'), 'from' => $from, 'to' => $from->copy()->endOfWeek()];
+        });
+        $months = collect(range(5, 0))->map(function ($ago) {
+            $from = now()->startOfMonth()->subMonths($ago);
+
+            return ['label' => $from->format('M Y'), 'from' => $from, 'to' => $from->copy()->endOfMonth()];
+        });
+
+        $since = $months->first()['from']->lt($weeks->first()['from']) ? $months->first()['from'] : $weeks->first()['from'];
+        $payments = $this->confirmedPayments($since);
+        $addons = DB::table('subscription_addons')->where('created_at', '>=', $since)->get(['total_amount', 'created_at'])->map(function ($row) { $row->created_at = Carbon::parse($row->created_at); return $row; });
+        $signups = DB::table('users')->where('role_id', 2)->where('created_at', '>=', $since)->pluck('created_at')->map(fn ($date) => Carbon::parse($date));
+
+        $build = fn ($buckets) => $buckets->map(function ($bucket) use ($payments, $addons, $signups) {
+            $within = fn ($date) => $date >= $bucket['from'] && $date <= $bucket['to'];
+            $point = ['label' => $bucket['label'], 'standard' => 0, 'provider_plan' => 0, 'provider_orders' => 0, 'slots' => 0, 'registrations' => 0, 'purchases' => 0];
+
+            foreach ($payments->filter(fn ($payment) => $within($payment->created_at)) as $payment) {
+                $category = $this->paymentCategory($payment);
+                if ($category) {
+                    $point[$category] += (float) $payment->total_amount;
+                    $point['purchases']++;
+                }
+            }
+            $point['slots'] = (float) $addons->filter(fn ($addon) => $within($addon->created_at))->sum('total_amount');
+            $point['registrations'] = $signups->filter($within)->count();
+
+            return $point;
+        })->values()->all();
+
+        return ['weekly' => $build($weeks), 'monthly' => $build($months)];
     }
 
     public function storeUser(Request $request)
@@ -64,7 +368,7 @@ class SystemAdminController extends Controller
             User::create($validated);
         });
 
-        return redirect()->route('system.admin.dashboard')->with('success', 'User account created.');
+        return redirect()->route('system.admin.users.index')->with('success', 'User account created.');
     }
 
     public function updateUser(Request $request, User $user)
@@ -113,7 +417,7 @@ class SystemAdminController extends Controller
             ]);
         });
 
-        return redirect()->route('system.admin.dashboard')->with('success', 'User account updated.');
+        return redirect()->route('system.admin.users.index')->with('success', 'User account updated.');
     }
 
     public function subscriptions()
@@ -126,7 +430,7 @@ class SystemAdminController extends Controller
             ->where('status', 'approved')->whereNotNull('subscription_id')
             ->get()->keyBy('subscription_id');
 
-        $subscriptions = SubscriptionsCompany::with(['company:id,name,code', 'module:id,code,name,price', 'plan:id,name,price_yearly'])
+        $subscriptions = SubscriptionsCompany::with(['company:id,name,code,account_type_id,training_provider_company_id', 'company.accountType:id,name', 'company.trainingProvider:id,name','module:id,code,name,price', 'plan:id,name,price_yearly'])
             ->latest('created_at')
             ->get()
             ->map(fn (SubscriptionsCompany $subscription) => [
@@ -134,6 +438,9 @@ class SystemAdminController extends Controller
                 'company_id' => $subscription->company_id,
                 'company_name' => $subscription->company?->name ?? 'Unknown company',
                 'company_code' => $subscription->company?->code,
+                'account_type_id' => $subscription->company?->account_type_id,
+                'account_type' => $subscription->company?->accountType?->name,
+                'training_provider_name' => $subscription->company?->trainingProvider?->name,
                 'code' => $subscription->code,
                 'module_id' => $subscription->module_id,
                 'subscription_plan_id' => $subscription->subscription_plan_id,
@@ -160,12 +467,96 @@ class SystemAdminController extends Controller
                 'revenue' => $subscriptions->where('status', 'active')->sum('price'),
             ],
             'subscriptions' => $subscriptions,
+        ]);
+    }
+
+    public function createSubscription(Request $request)
+    {
+        $renew = $request->filled('renew')
+            ? SubscriptionsCompany::with(['company:id,name', 'module:id,name,code', 'plan:id,name'])->findOrFail($request->query('renew'))
+            : null;
+
+        return Inertia::render('Admin/SubscriptionCreate', [
+            'title' => $renew ? 'Renew Subscription' : 'Create Subscription',
             'companies' => Company::orderBy('name')->get(['id', 'name', 'code']),
+            'packages' => Module::orderBy('name')->get(['id', 'name', 'code', 'price', 'is_active']),
+            'subscriptionPlans' => SubscriptionPlan::where(function ($query) use ($renew) {
+                $query->where('is_active', true);
+                if ($renew?->subscription_plan_id) {
+                    $query->orWhereKey($renew->subscription_plan_id);
+                }
+            })->orderBy('sort_order')->get(['id', 'name', 'price_yearly', 'manager_limit', 'supervisor_limit', 'inspector_limit']),
+            'renew' => $renew ? [
+                'id' => $renew->id,
+                'company_id' => $renew->company_id,
+                'company_name' => $renew->company?->name,
+                'module_id' => $renew->module_id,
+                'module_name' => $renew->module?->name,
+                'subscription_plan_id' => $renew->subscription_plan_id,
+                'start_date' => ($renew->end_date?->gte(today()) ? $renew->end_date->copy()->addDay() : today())->format('Y-m-d'),
+                'end_date' => ($renew->end_date?->gte(today()) ? $renew->end_date->copy()->addYear() : today()->addYear()->subDay())->format('Y-m-d'),
+            ] : null,
+        ]);
+    }
+
+    public function showSubscription(SubscriptionsCompany $subscription)
+    {
+        $subscription->load(['company:id,name,code,email,contact,account_type_id', 'company.accountType:id,name', 'module:id,name,code,description,price', 'plan:id,name,price_yearly,manager_limit,supervisor_limit,inspector_limit,contractor_limit']);
+
+        return Inertia::render('Admin/SubscriptionDetails', [
+            'title' => 'Subscription Details',
+            'subscription' => [
+                'id' => $subscription->id,
+                'code' => $subscription->code,
+                'company' => $subscription->company?->only(['id', 'name', 'code', 'email', 'contact']),
+                'account_type' => $subscription->company?->accountType?->name,
+                'module' => $subscription->module?->only(['id', 'name', 'code', 'description', 'price']),
+                'plan' => $subscription->plan?->only(['id', 'name', 'price_yearly', 'manager_limit', 'supervisor_limit', 'inspector_limit', 'contractor_limit']),
+                'subscription_plan_id' => $subscription->subscription_plan_id,
+                'start_date' => $subscription->start_date?->format('Y-m-d'),
+                'end_date' => $subscription->end_date?->format('Y-m-d'),
+                'status' => $subscription->status,
+                'type' => $subscription->type,
+                'created_at' => $subscription->created_at?->format('Y-m-d H:i'),
+            ],
+            'payments' => Payments::where('subscription_id', $subscription->id)->latest()->get(['id', 'total_amount', 'payment_type', 'payment_status', 'created_at']),
+            'subscriptionPlans' => SubscriptionPlan::where(function ($query) use ($subscription) {
+                $query->where('is_active', true);
+                if ($subscription->subscription_plan_id) {
+                    $query->orWhereKey($subscription->subscription_plan_id);
+                }
+            })->orderBy('sort_order')->get(['id', 'name']),
+        ]);
+    }
+
+    public function packages()
+    {
+        return Inertia::render('Admin/Packages', [
+            'title' => 'Packages',
             'packages' => Module::orderBy('name')->get(['id', 'code', 'name', 'description', 'price', 'is_active']),
             'subscriptionPlans' => SubscriptionPlan::orderBy('sort_order')->get(),
-            'planRequests' => SubscriptionPlanRequest::with(['company:id,name', 'plan:id,name'])
-                ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
-                ->latest()->limit(50)->get(),
+        ]);
+    }
+
+    public function createPackage()
+    {
+        return Inertia::render('Admin/PackageForm', ['title' => 'Add Package', 'package' => null]);
+    }
+
+    public function editPackage(Module $module)
+    {
+        return Inertia::render('Admin/PackageForm', [
+            'title' => 'Edit Package',
+            'package' => $module->only(['id', 'code', 'name', 'description', 'price', 'is_active']),
+        ]);
+    }
+
+    public function approvals()
+    {
+        return Inertia::render('Admin/Approvals', [
+            'title' => 'Subscription Approvals',
+            'planRequests' => SubscriptionPlanRequest::with(['company:id,name,code', 'plan:id,name,code'])
+                ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")->latest()->get(),
         ]);
     }
 
@@ -189,7 +580,7 @@ class SystemAdminController extends Controller
             throw ValidationException::withMessages(['subscription_plan_id' => 'Select a Safety Buddy plan to set employee limits.']);
         }
 
-        DB::transaction(function () use ($validated, $isSafetyBuddy) {
+        $subscription = DB::transaction(function () use ($validated, $isSafetyBuddy) {
             $subscription = \App\Support\SeriesCodes::createSubscription((int) $validated['company_id'], [
                 'company_id' => $validated['company_id'],
                 'module_id' => $validated['module_id'],
@@ -213,16 +604,18 @@ class SystemAdminController extends Controller
                     'cash_flow' => 'cash_in',
                 ]);
             }
+
+            return $subscription;
         });
 
-        return redirect()->route('system.admin.subscriptions')->with('success', 'Subscription period created.');
+        return redirect()->route('system.admin.subscriptions.show', $subscription)->with('success', 'Subscription period created.');
     }
 
     public function updateSubscription(Request $request, SubscriptionsCompany $subscription)
     {
         $validated = $request->validate([
             'status' => ['required', Rule::in(['active', 'trial', 'suspended', 'expired', 'cancelled'])],
-            'end_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:'.$subscription->start_date->format('Y-m-d')],
             'subscription_plan_id' => ['nullable', 'exists:subscription_plans,id'],
         ]);
 
@@ -233,7 +626,7 @@ class SystemAdminController extends Controller
         }
         $subscription->update($validated);
 
-        return redirect()->route('system.admin.subscriptions')->with('success', 'Subscription updated.');
+        return redirect()->route('system.admin.subscriptions.show', $subscription)->with('success', 'Subscription updated.');
     }
 
     public function storePackage(Request $request)
@@ -248,6 +641,21 @@ class SystemAdminController extends Controller
 
         Module::create($validated);
 
-        return redirect()->route('system.admin.subscriptions')->with('success', 'Package created.');
+        return redirect()->route('system.admin.packages.index')->with('success', 'Package created.');
+    }
+
+    public function updatePackage(Request $request, Module $module)
+    {
+        $validated = $request->validate([
+            'code' => ['required', Rule::in([$module->code])],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'price' => ['required', 'numeric', 'min:0'],
+            'is_active' => ['required', Rule::in(['Y', 'N'])],
+        ]);
+
+        $module->update($validated);
+
+        return redirect()->route('system.admin.packages.index')->with('success', 'Package updated.');
     }
 }

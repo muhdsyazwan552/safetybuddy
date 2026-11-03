@@ -5,6 +5,7 @@ import {
     LogOut, Pencil, UserRound,
 } from 'lucide-react';
 import { confirmLogout } from '@/Helpers/logout';
+import CompanyAvatar from '@/Components/CompanyAvatar';
 
 const moduleArtwork = {
     'SB360-WSIS': { label: 'Safety', image: '/images/landing/module-wsis.jpg', path: '/dashboard' },
@@ -37,9 +38,9 @@ function AccountMenu({ user, company }) {
     }, []);
 
     return <div className="relative" ref={menuRef}>
-        <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Account menu" className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-2 py-1.5 text-white transition hover:border-white/40 hover:bg-white/10">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-400 text-xs font-black text-ink-950">{displayName.trim().charAt(0).toUpperCase()}</span>
-            <span className="hidden max-w-[130px] truncate text-sm font-semibold sm:block">{displayName}</span>
+        <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Account menu" className="flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-2 py-1.5 text-white transition hover:border-white/40 hover:bg-white/10">
+            <CompanyAvatar name={displayName} logoUrl={company?.logo_url} className="h-9 w-9 text-sm ring-1 ring-brand-400/60" />
+            {!company && <span className="hidden max-w-[130px] truncate text-sm font-semibold sm:block">{displayName}</span>}
             <ChevronDown className={`h-4 w-4 text-white/60 transition ${open ? 'rotate-180' : ''}`}/>
         </button>
         {open && <div className="absolute right-0 z-30 mt-3 w-64 rounded-2xl border border-white/15 bg-[#1E1B1D] p-2 text-white shadow-2xl">

@@ -25,9 +25,11 @@ const Login = () => {
       onError: (errors) => {
         setErrors(errors);
         setCredentials(prev => ({...prev, password: ''}));
-        setIsSubmitting(false);
       },
       onSuccess: () => {
+        setErrors({});
+      },
+      onFinish: () => {
         setIsSubmitting(false);
       }
     });
@@ -104,7 +106,7 @@ const Login = () => {
             </div>
           )}
 
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit} noValidate>
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                 Email address

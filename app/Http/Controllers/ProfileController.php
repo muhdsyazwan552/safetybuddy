@@ -29,8 +29,9 @@ class ProfileController extends Controller
             'mustVerifyEmail' => $user instanceof MustVerifyEmail && $user->email_verification_required,
             'status' => session('status'),
             'company' => $isCompanyAdmin ? $user->company->only([
-                'id', 'code', 'name', 'registration_no', 'email', 'contact', 'address', 'status',
-            ]) : null,
+                'id', 'code', 'name', 'registration_no', 'email', 'contact', 'address', 'city', 'postcode', 'state', 'status',
+            ]) + ['logo_url' => $user->company->logo_url] : null,
+            'accountType' => $isCompanyAdmin ? $this->accountType($user->company) : null,
             'subscription' => $subscription,
             'account' => [
                 'role' => $user->role->display_name ?? $user->role->name ?? null,
@@ -40,6 +41,27 @@ class ProfileController extends Controller
                 'email_verified' => (bool) $user->email_verified_at,
             ],
         ]);
+    }
+
+    /** Account type of the company, plus the Training Provider it is registered under (if any). */
+    private function accountType(\App\Models\Company $company): array
+    {
+        $company->loadMissing('accountType:id,name', 'trainingProvider:id,name,email,contact');
+        $provider = $company->trainingProvider;
+
+        return [
+            'id' => (int) $company->account_type_id,
+            'name' => $company->accountType?->name,
+            'provider' => $provider ? [
+                'name' => $provider->name,
+                'email' => $provider->email,
+                'contact' => $provider->contact,
+                'linked_at' => $company->provider_linked_at?->format('Y-m-d'),
+            ] : null,
+            'trainees' => (int) $company->account_type_id === \App\Models\AccountType::TRAINING_PROVIDER
+                ? \App\Models\Company::where('training_provider_company_id', $company->id)->count()
+                : null,
+        ];
     }
 
     /**

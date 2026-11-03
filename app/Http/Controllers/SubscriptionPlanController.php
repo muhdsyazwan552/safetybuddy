@@ -33,6 +33,68 @@ class SubscriptionPlanController extends Controller
             ->exists();
     }
 
+    /** A company counts as a Training Provider while it holds an active Training Provider package; the reference code is issued when its payment is confirmed. */
+    public static function findTrainingProvider(string $code, int $exceptCompanyId = 0): ?\App\Models\Company
+    {
+        $code = trim($code);
+        if ($code === '') {
+            return null;
+        }
+
+        return \App\Models\Company::where('reference_code', strtoupper($code))
+            ->where('id', '!=', $exceptCompanyId)
+            ->whereHas('subscriptions', fn ($query) => $query
+                ->where('status', 'active')
+                ->whereDate('start_date', '<=', today())
+                ->whereDate('end_date', '>=', today())
+                ->whereHas('plan', fn ($plan) => $plan->where('audience', 'training_provider')))
+            ->first();
+    }
+
+    /**
+     * The reference code only links a company to its Training Provider (it activates no package).
+     * Which company used which code is recorded on the company: the provider and the time it was linked.
+     */
+    public function linkReferenceCode(Request $request)
+    {
+        abort_unless((int) $request->user()->role_id === 2, 403, 'Only the company admin can use a reference code.');
+        $validated = $request->validate(['code' => ['required', 'string', 'max:50']]);
+        $company = $request->user()->company;
+        abort_unless($company, 403, 'No company is linked to your account.');
+
+        if ($company->training_provider_company_id) {
+            throw ValidationException::withMessages(['code' => 'Your company is already registered under a Training Provider.']);
+        }
+        if ((int) $company->account_type_id === \App\Models\AccountType::TRAINING_PROVIDER) {
+            throw ValidationException::withMessages(['code' => 'A Training Provider cannot register under another provider.']);
+        }
+
+        $provider = self::findTrainingProvider($validated['code'], (int) $company->id);
+        if (! $provider) {
+            throw ValidationException::withMessages(['code' => 'Reference code not found or no longer active. Check the code with your Training Provider.']);
+        }
+
+        $company->update([
+            'account_type_id' => \App\Models\AccountType::UNDER_TRAINING_PROVIDER,
+            'training_provider_company_id' => $provider->id,
+            'provider_linked_at' => now(),
+        ]);
+
+        return redirect()->route('subscription.plans')->with('success', "Your company is now registered under {$provider->name}.");
+    }
+
+    public function checkReferenceCode(Request $request)
+    {
+        $validated = $request->validate(['code' => ['required', 'string', 'max:50']]);
+        $provider = self::findTrainingProvider($validated['code'], (int) $request->user()->company_id);
+
+        if (! $provider) {
+            return response()->json(['valid' => false, 'message' => 'Reference code not found. Check the code with your Training Provider.'], 422);
+        }
+
+        return response()->json(['valid' => true, 'provider' => $provider->name]);
+    }
+
     public function start(Request $request)
     {
         $companyId = $request->user()->company_id;
@@ -50,6 +112,10 @@ class SubscriptionPlanController extends Controller
 
         return Inertia::render('Subscription/Plans', [
             'plans' => SubscriptionPlan::where('is_active', true)->orderBy('sort_order')->get(),
+            'linkedProvider' => $request->user()->company?->trainingProvider ? [
+                'name' => $request->user()->company->trainingProvider->name,
+                'linked_at' => $request->user()->company->provider_linked_at?->toDateString(),
+            ] : null,
             'hasPurchased' => self::hasPurchased((int) $companyId),
             'hasActiveSafety' => self::hasActiveSafety((int) $companyId),
             'canPurchase' => (int) $request->user()->role_id === 2,
@@ -63,6 +129,8 @@ class SubscriptionPlanController extends Controller
                 'purchases' => SubscriptionAddon::where('company_id', $companyId)->where('type', 'inspector')->latest('id')->limit(10)->get(['id', 'quantity', 'total_amount', 'created_at'])
                     ->map(fn ($a) => ['id' => $a->id, 'quantity' => $a->quantity, 'total_amount' => $a->total_amount, 'date' => $a->created_at->format('Y-m-d')])->values(),
             ] : null,
+            'trainingApplication' => \App\Models\TrainingProviderApplication::with('certificates:id,application_id,issuing_body,expiry_date,file_name')
+                ->where('company_id', $companyId)->latest('id')->first(),
             'latestRequest' => SubscriptionPlanRequest::with('plan:id,name')
                 ->where('company_id', $companyId)->latest()->first(),
         ]);
@@ -85,6 +153,7 @@ class SubscriptionPlanController extends Controller
         $payments = Payments::where('company_id', $companyId)
             ->whereIn('subscription_id', $subscriptionIds)
             ->where('payment_status', 'completed')
+            ->whereNotIn('payment_type', ['addon_inspector', 'addon_executor'])
             ->orderByDesc('id')
             ->get()
             ->keyBy('subscription_id');
@@ -109,7 +178,8 @@ class SubscriptionPlanController extends Controller
                 'end_date' => $subscription->end_date?->format('Y-m-d'),
                 'status' => $active ? 'active' : ($subscription->status === 'active' ? 'expired' : $subscription->status),
                 'type' => $subscription->type,
-                'days_remaining' => $active ? (int) today()->diffInDays($subscription->end_date, false) : null,
+                // the end date is the last valid day, so today counts: the last day shows 1 day left, not 0
+                'days_remaining' => $active ? (int) today()->diffInDays($subscription->end_date, false) + 1 : null,
             ];
         })->values();
 
@@ -133,6 +203,17 @@ class SubscriptionPlanController extends Controller
         }
 
         $plan = SubscriptionPlan::whereKey($validated['plan_id'])->where('is_active', true)->firstOrFail();
+        if ($plan->audience === 'training_provider') {
+            throw ValidationException::withMessages(['plan_id' => 'The Training Provider package is requested through the Training Provider application.']);
+        }
+        // companies registered under a Training Provider use the Contractor Training Provider package; everyone else uses the standard plans
+        $underProvider = (bool) $request->user()->company?->training_provider_company_id;
+        if ($plan->audience === 'contractor_provider' && ! $underProvider) {
+            throw ValidationException::withMessages(['plan_id' => 'This package is only for companies registered under a Training Provider.']);
+        }
+        if ($underProvider && $plan->audience !== 'contractor_provider') {
+            throw ValidationException::withMessages(['plan_id' => 'Companies registered under a Training Provider use the Contractor Training Provider package.']);
+        }
         if (SubscriptionPlanRequest::where('company_id', $companyId)->where('status', 'pending')->exists()) {
             throw ValidationException::withMessages(['plan_id' => 'A purchase request is already awaiting review.']);
         }
@@ -232,6 +313,19 @@ class SubscriptionPlanController extends Controller
                 'cash_flow' => 'cash_in',
             ]);
 
+            // payment confirmed: this is when the company's account type is fixed
+            $plan = SubscriptionPlan::find($planRequest->plan_id);
+            if ($plan?->audience === 'training_provider') {
+                $provider = \App\Models\Company::findOrFail($planRequest->company_id);
+                $provider->update(['account_type_id' => \App\Models\AccountType::TRAINING_PROVIDER]);
+                $provider->ensureReferenceCode();
+            } elseif ($planRequest->training_provider_company_id) {
+                \App\Models\Company::whereKey($planRequest->company_id)->update([
+                    'account_type_id' => \App\Models\AccountType::UNDER_TRAINING_PROVIDER,
+                    'training_provider_company_id' => $planRequest->training_provider_company_id,
+                ]);
+            }
+
             $planRequest->update(['status' => 'approved', 'subscription_id' => $subscription->id, 'reviewed_at' => now()]);
         });
 
@@ -248,12 +342,18 @@ class SubscriptionPlanController extends Controller
         return back()->with('success', 'Purchase request rejected.');
     }
 
+    public function createPlan()
+    {
+        return Inertia::render('Admin/PlanCreate', ['title' => 'Add Safety Buddy Plan']);
+    }
+
     public function storePlan(Request $request)
     {
         $validated = $request->validate([
             'code' => ['required', 'string', 'max:50', 'unique:subscription_plans,code'],
             'name' => ['required', 'string', 'max:100'],
             'price_yearly' => ['required', 'integer', 'min:0'],
+            'provider_price_yearly' => ['nullable', 'integer', 'min:0'],
             'manager_limit' => ['required', 'integer', 'min:0'],
             'supervisor_limit' => ['required', 'integer', 'min:0'],
             'inspector_limit' => ['required', 'integer', 'min:0'],
@@ -263,8 +363,51 @@ class SubscriptionPlanController extends Controller
         ]);
         $validated['sort_order'] = (SubscriptionPlan::max('sort_order') ?? 0) + 1;
         $validated['is_active'] = true;
-        SubscriptionPlan::create($validated);
+        $plan = SubscriptionPlan::create($validated);
 
-        return back()->with('success', 'Subscription plan created.');
+        return redirect()->route('system.admin.plans.show', $plan)->with('success', 'Subscription plan created.');
+    }
+
+    public function showPlan(SubscriptionPlan $subscriptionPlan)
+    {
+        return Inertia::render('Admin/PlanDetails', [
+            'title' => $subscriptionPlan->name,
+            'plan' => $subscriptionPlan,
+            'usage' => [
+                'subscriptions' => SubscriptionsCompany::where('subscription_plan_id', $subscriptionPlan->id)->count(),
+                'active_subscriptions' => SubscriptionsCompany::where('subscription_plan_id', $subscriptionPlan->id)
+                    ->where('status', 'active')->whereDate('start_date', '<=', today())->whereDate('end_date', '>=', today())->count(),
+                'pending_requests' => SubscriptionPlanRequest::where('plan_id', $subscriptionPlan->id)->where('status', 'pending')->count(),
+            ],
+        ]);
+    }
+
+    public function editPlan(SubscriptionPlan $subscriptionPlan)
+    {
+        return Inertia::render('Admin/PlanEdit', [
+            'title' => 'Edit '.$subscriptionPlan->name,
+            'plan' => $subscriptionPlan,
+        ]);
+    }
+
+    public function updatePlan(Request $request, SubscriptionPlan $subscriptionPlan)
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:100'],
+            'price_yearly' => ['required', 'integer', 'min:0'],
+            'provider_price_yearly' => ['nullable', 'integer', 'min:0'],
+            'manager_limit' => ['required', 'integer', 'min:0', 'max:65535'],
+            'supervisor_limit' => ['required', 'integer', 'min:0', 'max:65535'],
+            'inspector_limit' => ['required', 'integer', 'min:0', 'max:65535'],
+            'contractor_limit' => ['required', 'integer', 'min:0', 'max:65535'],
+            'daily_pdf_limit' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'monthly_pdf_limit' => ['nullable', 'integer', 'min:0', 'max:65535'],
+            'is_active' => ['required', 'boolean'],
+            'sort_order' => ['required', 'integer', 'min:0', 'max:65535'],
+        ]);
+
+        $subscriptionPlan->update($validated);
+
+        return redirect()->route('system.admin.plans.show', $subscriptionPlan)->with('success', 'Safety Buddy plan updated.');
     }
 }

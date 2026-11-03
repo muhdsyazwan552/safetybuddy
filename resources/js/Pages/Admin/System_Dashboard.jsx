@@ -1,35 +1,88 @@
-import React, { useState } from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
-import { confirmLogout } from '@/Helpers/logout';
+import React from 'react';
+import { Head, Link } from '@inertiajs/react';
+import SystemAdminLayout from '@/Layouts/SystemAdminLayout';
+import ActivityCharts from './ActivityCharts';
 
-const Field = ({ label, children }) => <label className="block"><span className="mb-1 block text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</span>{children}</label>;
-const inputClass = 'w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600';
+const rm = (value) => `RM ${Number(value || 0).toLocaleString('en-MY', { maximumFractionDigits: 0 })}`;
 
-export default function SystemDashboard({ title, stats, users, roles, companies }) {
-  const [editingUser, setEditingUser] = useState(null);
-  const create = useForm({ name: '', email: '', phone: '', password: '', password_confirmation: '', role_id: '2', company_id: '' });
-  const edit = useForm({ name: '', email: '', phone: '', password: '', password_confirmation: '', role_id: '', company_id: '' });
+const waitingFor = (iso) => {
+  if (!iso) return null;
+  const days = Math.floor((Date.now() - new Date(iso.replace(' ', 'T')).getTime()) / 86400000);
+  return days < 1 ? 'Waiting since today' : `Oldest waiting ${days} day${days === 1 ? '' : 's'}`;
+};
 
-  const openEdit = (user) => {
-    setEditingUser(user);
-    edit.setData({ name: user.name || '', email: user.email || '', phone: user.phone || '', password: '', password_confirmation: '', role_id: String(user.role_id || ''), company_id: user.company_id ? String(user.company_id) : '' });
-    edit.clearErrors();
-  };
+function Change({ amount, previous }) {
+  if (!previous) return <span className="text-slate-400">{amount ? 'Nothing last month' : 'No payments yet'}</span>;
+  const pct = Math.round(((amount - previous) / previous) * 100);
+  if (pct === 0) return <span className="text-slate-500">Same as last month <span className="text-slate-400">({rm(previous)})</span></span>;
+  const up = pct > 0;
+  return <span className={up ? 'text-emerald-600' : 'text-rose-600'}>{up ? '▲' : '▼'} {Math.abs(pct)}% <span className="text-slate-400">vs {rm(previous)} last month</span></span>;
+}
+
+function PaymentCard({ card }) {
+  const slots = card.slots;
+  const total = slots ? slots.inspector + slots.contractor : null;
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+      <span className="absolute right-0 top-0 h-20 w-20 translate-x-8 -translate-y-8 rounded-full bg-brand-100" aria-hidden="true" />
+      <span className="mb-4 block h-1 w-8 rounded-full bg-brand-500" aria-hidden="true" />
+      <p className="relative text-xs font-semibold uppercase tracking-[0.1em] text-ink-500">{card.label}</p>
+      {slots ? (
+        <>
+          <p className="relative mt-2 text-3xl font-bold tracking-tight text-ink-900">{total} <span className="text-base font-semibold text-slate-400">{total === 1 ? 'slot' : 'slots'}</span></p>
+          <p className="relative mt-1 text-sm text-slate-600">Inspector <b>{slots.inspector}</b> · Contractor <b>{slots.contractor}</b></p>
+          <p className="relative mt-3 text-xs"><span className="font-semibold text-slate-700">{rm(card.amount)} billed</span> · <Change amount={card.amount} previous={card.previous} /></p>
+        </>
+      ) : (
+        <>
+          <p className="relative mt-2 text-3xl font-bold tracking-tight text-ink-900">{rm(card.amount)}</p>
+          <p className="relative mt-1 text-sm text-slate-500">{card.hint}</p>
+          <p className="relative mt-3 text-xs"><Change amount={card.amount} previous={card.previous} /></p>
+        </>
+      )}
+    </div>
+  );
+}
+
+export default function SystemDashboard({ title, paymentCards, approvals, charts }) {
+  const needsAction = approvals.reduce((sum, item) => sum + item.count, 0);
 
   return (
     <>
       <Head title={title} />
-      <div className="min-h-screen bg-slate-100 p-4 sm:p-8">
-        <div className="mx-auto max-w-7xl space-y-6">
-          <header className="flex flex-col gap-2 border-b border-slate-200 pb-5 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-blue-600">Restricted area</p><h1 className="mt-1 text-3xl font-bold text-slate-800">{title}</h1><p className="mt-1 text-sm text-slate-500">Manage user accounts, access roles, and company assignments.</p></div><div className="flex flex-wrap items-center gap-3"><Link href="/admin/subscriptions" className="rounded-md border border-blue-600 bg-white px-3 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50">Subscriptions</Link><span className="w-fit rounded-full bg-red-100 px-3 py-1 text-xs font-bold text-red-700">System Admin only</span><button onClick={() => confirmLogout(route('system.admin.logout'))} className="rounded-md bg-slate-800 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-700">Logout</button></div></header>
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[['User accounts', stats.users], ['Companies', stats.companies], ['Projects', stats.projects], ['Manhour entries', stats.manhours]].map(([label, value]) => <div key={label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p><p className="mt-2 text-3xl font-bold text-slate-800">{value}</p></div>)}</div>
-          <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
-            <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"><h2 className="font-bold text-slate-800">Create user</h2><form onSubmit={(event) => { event.preventDefault(); create.post(route('system.admin.users.store'), { onSuccess: () => create.reset() }); }} className="mt-4 space-y-4"><Field label="Full name"><input className={inputClass} value={create.data.name} onChange={(e) => create.setData('name', e.target.value)} required /></Field><Field label="Email"><input type="email" className={inputClass} value={create.data.email} onChange={(e) => create.setData('email', e.target.value)} required /></Field><Field label="Phone"><input className={inputClass} value={create.data.phone} onChange={(e) => create.setData('phone', e.target.value)} /></Field><Field label="Role"><select className={inputClass} value={create.data.role_id} onChange={(e) => create.setData('role_id', e.target.value)} required>{roles.map((role) => <option key={role.id} value={role.id}>{role.display_name || role.name}</option>)}</select></Field><Field label="Company (optional)"><select className={inputClass} value={create.data.company_id} onChange={(e) => create.setData('company_id', e.target.value)}><option value="">No company</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></Field><Field label="Password"><input type="password" minLength="10" className={inputClass} value={create.data.password} onChange={(e) => create.setData('password', e.target.value)} required /></Field><Field label="Confirm password"><input type="password" minLength="10" className={inputClass} value={create.data.password_confirmation} onChange={(e) => create.setData('password_confirmation', e.target.value)} required /></Field>{Object.values(create.errors).map((error) => <p key={error} className="text-xs text-red-600">{error}</p>)}<button disabled={create.processing} className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{create.processing ? 'Creating…' : 'Create user'}</button></form></section>
-            <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 px-5 py-4"><h2 className="font-bold text-slate-800">All users</h2><p className="text-sm text-slate-500">Change roles, company assignments, and passwords from Edit.</p></div><div className="overflow-x-auto"><table className="min-w-full divide-y divide-slate-200 text-sm"><thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500"><tr><th className="px-4 py-3 w-12">#</th><th className="px-4 py-3">User</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Company</th><th className="px-4 py-3">Created</th><th className="px-4 py-3" /></tr></thead><tbody className="divide-y divide-slate-100">{users.map((user, index) => <tr key={user.id}><td className="px-4 py-3 text-slate-500">{index + 1}</td><td className="px-4 py-3"><p className="font-semibold text-slate-800">{user.name}</p><p className="text-xs text-slate-500">{user.email}</p></td><td className="px-4 py-3">{user.role?.display_name || user.role?.name || 'No role'}</td><td className="px-4 py-3">{user.company?.name || '—'}</td><td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">{user.created_at ? new Date(user.created_at).toLocaleDateString('en-MY') : '—'}</td><td className="px-4 py-3 text-right"><button onClick={() => openEdit(user)} className="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Edit</button></td></tr>)}</tbody></table></div></section>
+      <SystemAdminLayout title={title} description="Payments, new accounts and approvals at a glance.">
+        <section>
+          <div className="mb-3">
+            <h2 className="font-bold text-slate-800">Payments this month</h2>
+            <p className="text-sm text-slate-500">{paymentCards.month} · confirmed payments only, compared with last month.</p>
           </div>
-        </div>
-      </div>
-      {editingUser && <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4"><form onSubmit={(event) => { event.preventDefault(); edit.put(route('system.admin.users.update', editingUser.id), { onSuccess: () => setEditingUser(null) }); }} className="w-full max-w-lg rounded-xl bg-white p-6 shadow-xl"><div className="flex items-start justify-between"><div><h2 className="text-lg font-bold text-slate-800">Edit user</h2><p className="text-sm text-slate-500">Leave password blank to keep it unchanged.</p></div><button type="button" onClick={() => setEditingUser(null)} className="text-xl text-slate-400">×</button></div><div className="mt-5 grid gap-4 sm:grid-cols-2"><Field label="Full name"><input className={inputClass} value={edit.data.name} onChange={(e) => edit.setData('name', e.target.value)} required /></Field><Field label="Email"><input type="email" className={inputClass} value={edit.data.email} onChange={(e) => edit.setData('email', e.target.value)} required /></Field><Field label="Phone"><input className={inputClass} value={edit.data.phone} onChange={(e) => edit.setData('phone', e.target.value)} /></Field><Field label="Role"><select className={inputClass} value={edit.data.role_id} onChange={(e) => edit.setData('role_id', e.target.value)} required>{roles.map((role) => <option key={role.id} value={role.id}>{role.display_name || role.name}</option>)}</select></Field><Field label="Company"><select className={inputClass} value={edit.data.company_id} onChange={(e) => edit.setData('company_id', e.target.value)}><option value="">No company</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></Field><div /><Field label="New password"><input type="password" minLength="10" className={inputClass} value={edit.data.password} onChange={(e) => edit.setData('password', e.target.value)} /></Field><Field label="Confirm password"><input type="password" minLength="10" className={inputClass} value={edit.data.password_confirmation} onChange={(e) => edit.setData('password_confirmation', e.target.value)} /></Field></div>{Object.values(edit.errors).map((error) => <p key={error} className="mt-3 text-xs text-red-600">{error}</p>)}<div className="mt-6 flex justify-end gap-3"><button type="button" onClick={() => setEditingUser(null)} className="rounded-md px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100">Cancel</button><button disabled={edit.processing} className="rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">{edit.processing ? 'Saving…' : 'Save changes'}</button></div></form></div>}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{paymentCards.cards.map((card) => <PaymentCard key={card.key} card={card} />)}</div>
+        </section>
+
+        <section>
+          <div className="mb-3">
+            <h2 className="font-bold text-slate-800">Needs your approval</h2>
+            <p className="text-sm text-slate-500">{needsAction ? `${needsAction} item${needsAction === 1 ? '' : 's'} waiting for the system admin.` : 'Nothing is waiting for you.'}</p>
+          </div>
+          <div className="grid gap-4 md:grid-cols-3">
+            {approvals.map((item) => (
+              <Link key={item.label} href={item.href} className={`group rounded-xl border p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${item.count ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-700">{item.label}</p>
+                  <span className={`text-3xl font-black leading-none ${item.count ? 'text-amber-600' : 'text-slate-300'}`}>{item.count}</span>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">{item.hint}</p>
+                <p className="mt-3 flex items-center justify-between text-xs font-semibold">
+                  <span className={item.count ? 'text-amber-700' : 'text-slate-400'}>{item.count ? waitingFor(item.oldest) : 'All clear'}</span>
+                  <span className="text-blue-600 group-hover:underline">Review →</span>
+                </p>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        <ActivityCharts charts={charts} />
+      </SystemAdminLayout>
     </>
   );
 }

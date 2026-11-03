@@ -9,8 +9,10 @@ import {
   FaCalendar,
   FaCalendarWeek,
   FaUser,
+  FaUsers,
   FaPeopleCarry,
   FaLayerGroup,
+  FaKey,
   FaObjectGroup,
   FaParagraph,
   FaChartLine
@@ -35,7 +37,7 @@ const NAVIGATION = [  // Changed to uppercase constant
     category: 'Project Setting',
     items: [
       { name: 'Employee', href: '/manage-employee', icon: FaUser },
-      { name: 'Executor', href: '/executor-project', icon: FaPeopleCarry },
+      { name: 'Contractor', href: '/executor-project', icon: FaPeopleCarry },
       { name: 'Project', href: '/manage-project', icon: FaHardHat },
     ],
   },
@@ -85,13 +87,24 @@ const NAVIGATION = [  // Changed to uppercase constant
   // },
 ];
 
+const TRAINEES_SECTION = {
+  category: 'Training Provider',
+  items: [
+    { name: 'Buy Package', href: '/training-provider/packages', icon: FaLayerGroup },
+    { name: 'Activation Codes', href: '/training-provider/activation-codes', icon: FaKey },
+    { name: 'Trainees', href: '/training-provider/trainees', icon: FaUsers },
+  ],
+};
+
 export default function Sidebar({
   collapsed,
   setCollapsed,
   mobileSidebarOpen,
   setMobileSidebarOpen,
 }) {
-  const { url } = usePage();
+  const { url, props } = usePage();
+  const company = props.auth?.user?.company;
+  const navigation = company?.account_type_id === 2 ? [...NAVIGATION, TRAINEES_SECTION] : NAVIGATION;
 
   const isActive = (href) => {
     if (href === '/dashboard') return url === href;
@@ -131,7 +144,7 @@ export default function Sidebar({
       </div>
 
       <nav className={`flex-1 overflow-y-auto sb-scroll px-3 py-4 ${compact ? 'space-y-3' : 'space-y-5'}`}>
-        {NAVIGATION.map((section, index) => (
+        {navigation.map((section, index) => (
           <div key={index}>
             {!compact && section.category && (
               <div className="px-2 mb-2 text-[11px] font-bold tracking-wider text-ink-300 uppercase">

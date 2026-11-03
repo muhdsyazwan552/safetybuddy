@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { AnimatePresence, motion, useInView, useScroll, useTransform } from 'framer-motion';
+import PublicNavbar from './PublicNavbar';
+import { AnimatePresence, animate, motion, useInView, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import {
     ArrowUpRight, ArrowRight, Phone, Menu, X, ChevronDown, Check, Play, Quote, Star, ShieldCheck, ClipboardCheck,
     HardHat, AlertTriangle, MessageSquareWarning, BarChart3, Clock3, Users, Handshake, FileText, Smartphone,
@@ -13,14 +14,6 @@ import {
    Content (edit freely – images live in public/images/landing)
 ────────────────────────────────────────────────────────────── */
 const CONTACT = { phone: '+60 16-886 5619', email: 'hello@safetybuddy.my', address: 'Kuala Lumpur, Malaysia' };
-
-const NAV = [
-    { label: 'Framework', href: '#cmeri' },
-    { label: 'Modules', href: '#modules' },
-    { label: 'Pricing', href: '#pricing' },
-    { label: 'Guides', href: '#guides' },
-    { label: 'Contact', href: '#contact' },
-];
 
 /** Sections kept in the code but hidden on the page (flip to true to show them again) */
 const SHOW = { about: false, serve: false, reviews: false };
@@ -243,41 +236,136 @@ function Counter({ to, suffix = '+', duration = 1.8 }) {
 /* ──────────────────────────────────────────────────────────────
    Page
 ────────────────────────────────────────────────────────────── */
-export default function Landing({ subscriptionPlans = [] }) {
-    const [bar, setBar] = useState(true);
-    const [menu, setMenu] = useState(false);
-    const [stuck, setStuck] = useState(false);
-    const [faq, setFaq] = useState(0);
-
+/** Counts the price up to its value; shows the final number straight away when motion is reduced. */
+function PriceCount({ value, reduce }) {
+    const [shown, setShown] = useState(reduce ? Number(value) : 0);
     useEffect(() => {
-        const on = () => setStuck(window.scrollY > 40);
-        on();
-        window.addEventListener('scroll', on, { passive: true });
-        return () => window.removeEventListener('scroll', on);
-    }, []);
+        if (reduce) { setShown(Number(value)); return undefined; }
+        const controls = animate(0, Number(value), { duration: 1.1, ease, onUpdate: (v) => setShown(Math.round(v)) });
+        return () => controls.stop();
+    }, [value, reduce]);
+    return <>{shown.toLocaleString()}</>;
+}
 
-    const plans = useMemo(
-        () => subscriptionPlans.map(plan => ({
-            name: plan.name,
-            seats: [
-                { n: plan.manager_limit, label: 'Manager' },
-                { n: plan.supervisor_limit, label: 'Supervisor' },
-                { n: plan.inspector_limit, label: 'Inspector' },
-                { n: plan.contractor_limit ?? 1, label: 'Contractor' },
-            ].map((s) => ({ n: s.n, label: s.n === 1 ? s.label : `${s.label}s` })),
-            price: plan.price_yearly,
-            popular: plan.code === 'PROFESSIONAL',
-            items: [
-                plan.daily_pdf_limit === null ? 'Unlimited Daily Report PDFs' : `${plan.daily_pdf_limit} Daily Report PDFs per month (shared)`,
-                plan.monthly_pdf_limit === null ? 'Unlimited Monthly Report PDFs' : `${plan.monthly_pdf_limit} Monthly Report PDFs per month (shared)`,
-                'All Safety Buddy modules and features',
-                'Contractor Portal access',
-                'Unlimited projects and contractor companies',
-                'Unlimited inspections, toolbox talks and NCR / CC records',
-            ],
-        })),
-        [subscriptionPlans]
+/** The plan cards for the active pricing tab: staggered entrance, lift on hover, glowing popular plan. */
+function PricingPlans({ plans, tab }) {
+    const ref = useRef(null);
+    const inView = useInView(ref, { once: true, margin: '-80px' });
+    const reduce = useReducedMotion();
+    const rise = reduce ? 0 : 36;
+
+    const list = { hidden: {}, show: { transition: { staggerChildren: 0.12, delayChildren: 0.05 } }, exit: { opacity: 0, transition: { duration: 0.15 } } };
+    const card = { hidden: { opacity: 0, y: rise, scale: reduce ? 1 : 0.97 }, show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.6, ease } } };
+    const group = { hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.3 } } };
+    const row = { hidden: { opacity: 0, x: reduce ? 0 : -12 }, show: { opacity: 1, x: 0, transition: { duration: 0.35, ease } } };
+
+    return (
+        <div ref={ref} className="mx-auto mt-12">
+            <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                    key={tab}
+                    id="pricing-panel"
+                    role="tabpanel"
+                    aria-labelledby={`pricing-tab-${tab}`}
+                    variants={list}
+                    initial="hidden"
+                    animate={inView ? 'show' : 'hidden'}
+                    exit="exit"
+                    className={`mx-auto grid gap-5 ${tab === 'provider' ? 'max-w-md' : 'max-w-6xl md:grid-cols-3'}`}
+                >
+                    {!plans.length && <p className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">No plans available here yet.</p>}
+                    {plans.map((p) => (
+                        <motion.div
+                            key={p.name}
+                            variants={card}
+                            whileHover={reduce ? undefined : { y: -10 }}
+                            transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                            className={`relative flex h-full flex-col rounded-[24px] p-7 ${p.popular ? 'bg-ink-900 text-white shadow-2xl ring-1 ring-brand-500/40' : 'bg-white shadow-sm ring-1 ring-gray-200 hover:shadow-xl'}`}
+                        >
+                            {p.popular && !reduce && (
+                                <motion.span aria-hidden="true" className="pointer-events-none absolute -inset-px rounded-[24px] ring-2 ring-brand-500" animate={{ opacity: [0.15, 0.85, 0.15] }} transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }} />
+                            )}
+                            <div className="flex items-center justify-between gap-3">
+                                <p className="text-2xl font-medium tracking-tight">{p.name}</p>
+                                {p.popular && (
+                                    <motion.span initial={reduce ? false : { scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 14, delay: 0.5 }} className="rounded-full bg-brand-500 px-3 py-1 text-xs font-bold text-ink-900">Most popular</motion.span>
+                                )}
+                            </div>
+                            <p className={`mt-1 text-sm ${p.popular ? 'text-gray-400' : 'text-gray-500'}`}>Annual package</p>
+                            <p className="mt-6 text-5xl font-medium tracking-[-0.06em]">
+                                {p.price === 0 ? 'Free' : <>RM <PriceCount value={p.price} reduce={reduce} /></>}
+                                {p.price > 0 && <span className={`ml-1 text-base font-normal tracking-normal ${p.popular ? 'text-gray-400' : 'text-gray-500'}`}>/ year</span>}
+                            </p>
+                            <Link href="/register-view" className={`group mt-6 flex items-center justify-between rounded-full py-2 pl-5 pr-2 text-sm font-semibold transition ${p.popular ? 'bg-brand-500 text-ink-900 hover:bg-brand-400' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
+                                {tab === 'provider' ? 'Apply as Training Provider' : 'Get started'}
+                                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
+                            </Link>
+                            <p className={`mt-8 text-[11px] font-bold uppercase tracking-widest ${p.popular ? 'text-brand-400' : 'text-brand-700'}`}>Included user accounts</p>
+                            <motion.div variants={group} className="mt-3 grid grid-cols-2 gap-2">
+                                {p.seats.map((s) => (
+                                    <motion.div key={s.label} variants={row} className={`flex items-center gap-3 rounded-2xl px-3.5 py-3 ${p.popular ? 'bg-white/10' : 'bg-gray-50'}`}>
+                                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold ${p.popular ? 'bg-brand-500 text-ink-900' : 'bg-ink-900 text-brand-400'}`}>{s.n}</span>
+                                        <span className="text-sm font-medium leading-tight">{s.label}</span>
+                                    </motion.div>
+                                ))}
+                            </motion.div>
+
+                            <p className={`mt-8 text-[11px] font-bold uppercase tracking-widest ${p.popular ? 'text-brand-400' : 'text-brand-700'}`}>What’s included</p>
+                            <motion.ul variants={group} className="mt-3 space-y-3 text-sm">
+                                {p.items.map((it) => (
+                                    <motion.li key={it} variants={row} className="flex items-start gap-2.5">
+                                        <Check className={`mt-0.5 h-4 w-4 shrink-0 ${p.popular ? 'text-brand-400' : 'text-brand-700'}`} strokeWidth={3} /> {it}
+                                    </motion.li>
+                                ))}
+                            </motion.ul>
+                        </motion.div>
+                    ))}
+                </motion.div>
+            </AnimatePresence>
+        </div>
     );
+}
+
+const PRICING_TABS = [
+    { id: 'standard', label: 'Standard' },
+    { id: 'provider', label: 'Training Provider' },
+];
+
+const toPlanCard = (plan, extraItems = []) => ({
+    name: plan.name,
+    seats: [
+        { n: plan.manager_limit, label: 'Manager' },
+        { n: plan.supervisor_limit, label: 'Supervisor' },
+        { n: plan.inspector_limit, label: 'Inspector' },
+        { n: plan.contractor_limit ?? 1, label: 'Contractor' },
+    ].map((s) => ({ n: s.n, label: s.n === 1 ? s.label : `${s.label}s` })),
+    price: plan.price_yearly,
+    popular: plan.code === 'PROFESSIONAL',
+    items: [
+        plan.daily_pdf_limit === null ? 'Unlimited Daily Report PDFs' : `${plan.daily_pdf_limit} Daily Report PDFs per month (shared)`,
+        plan.monthly_pdf_limit === null ? 'Unlimited Monthly Report PDFs' : `${plan.monthly_pdf_limit} Monthly Report PDFs per month (shared)`,
+        'All Safety Buddy modules and features',
+        'Contractor Portal access',
+        'Unlimited projects and contractor companies',
+        'Unlimited inspections, toolbox talks and NCR / CC records',
+        ...extraItems,
+    ],
+});
+
+export default function Landing({ subscriptionPlans = [], providerPlans = [] }) {
+    const [bar, setBar] = useState(true);
+    const [faq, setFaq] = useState(0);
+    const [pricingTab, setPricingTab] = useState('standard');
+
+    const plans = useMemo(() => subscriptionPlans.map((plan) => toPlanCard(plan)), [subscriptionPlans]);
+    const providerCards = useMemo(
+        () => providerPlans.map((plan) => toPlanCard(plan, [
+            'Listed in Find My Training Provider once verified',
+            'Buy packages for your trainees and share activation codes',
+        ])),
+        [providerPlans]
+    );
+    const shownPlans = pricingTab === 'provider' ? providerCards : plans;
 
     return (
         <div className="font-geist min-h-screen bg-white text-ink-950 antialiased selection:bg-brand-300">
@@ -301,52 +389,7 @@ export default function Landing({ subscriptionPlans = [] }) {
             </AnimatePresence>
 
             {/* nav */}
-            <header className={`sticky top-0 z-40 transition ${stuck ? 'bg-white/85 shadow-sm backdrop-blur-md' : 'bg-white'}`}>
-                <div className="mx-auto flex max-w-[1400px] items-center justify-between px-5 py-4 sm:px-8">
-                    <a href="#top" className="flex shrink-0 items-center" aria-label="Safety Buddy home">
-                        <img src="/images/sbc-header.png" alt="Safety Buddy – Cmeri" className="h-14 w-auto max-w-[180px] object-contain" />
-                    </a>
-
-                    <nav className="hidden items-center gap-8 text-[15px] font-medium text-ink-900 lg:flex">
-                        {NAV.map((n) => (
-                            <a key={n.label} href={n.href} className="relative transition hover:text-brand-700 after:absolute after:-bottom-1 after:left-0 after:h-0.5 after:w-0 after:bg-brand-500 after:transition-all hover:after:w-full">
-                                {n.label}
-                            </a>
-                        ))}
-                    </nav>
-
-                    <div className="hidden items-center gap-3 lg:flex">
-                        <a href={`tel:${CONTACT.phone}`} className="flex items-center gap-2 rounded-full border border-gray-200 px-5 py-2.5 text-sm font-medium">
-                            <Phone className="h-4 w-4 text-brand-700" /> {CONTACT.phone}
-                        </a>
-                        <Link href="/login" className="rounded-full px-4 py-2.5 text-sm font-semibold hover:bg-gray-100">Sign in</Link>
-                        <Link href="/register-view" className="group flex items-center gap-2.5 rounded-full bg-gray-100 py-2 pl-2 pr-5 text-sm font-semibold transition hover:bg-gray-200">
-                            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
-                            Get started
-                        </Link>
-                    </div>
-
-                    <button onClick={() => setMenu(!menu)} className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 lg:hidden" aria-label="Menu">
-                        {menu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-                    </button>
-                </div>
-
-                <AnimatePresence>
-                    {menu && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden border-t border-gray-100 bg-white lg:hidden">
-                            <div className="space-y-1 px-5 py-4">
-                                {NAV.map((n) => (
-                                    <a key={n.label} href={n.href} onClick={() => setMenu(false)} className="block rounded-xl px-3 py-3 text-base font-medium hover:bg-gray-50">{n.label}</a>
-                                ))}
-                                <div className="flex gap-2 pt-3">
-                                    <Link href="/login" className="flex-1 rounded-full border border-gray-200 py-3 text-center text-sm font-semibold">Sign in</Link>
-                                    <Link href="/register-view" className="flex-1 rounded-full bg-brand-500 py-3 text-center text-sm font-semibold text-ink-900">Get started</Link>
-                                </div>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </header>
+            <PublicNavbar onLanding />
 
             <main id="top">
                 {/* HERO */}
@@ -580,50 +623,21 @@ export default function Landing({ subscriptionPlans = [] }) {
                         <div className="text-center">
                             <Reveal><SectionTag>Simple pricing</SectionTag></Reveal>
                             <Reveal delay={0.05}><H2>Clear pricing, no surprises.</H2></Reveal>
-                            <Reveal delay={0.1}><p className="mx-auto mt-4 max-w-md text-gray-500">Choose an annual Safety Buddy package. After your first purchase, explore every Safety Buddy module.</p></Reveal>
+                            <Reveal delay={0.1}><p className="mx-auto mt-4 max-w-md text-gray-500">{pricingTab === 'provider'
+                                ? 'Deliver safety training through Safety Buddy. Apply, get verified and list your company for contractors to find.'
+                                : 'Choose an annual Safety Buddy package. After your first purchase, explore every Safety Buddy module.'}</p></Reveal>
+                            <div role="tablist" aria-label="Plan type" className="mx-auto mt-8 inline-flex rounded-full bg-white p-1.5 shadow-sm ring-1 ring-gray-200">
+                                {PRICING_TABS.map((tab) => (
+                                    <button key={tab.id} type="button" role="tab" id={`pricing-tab-${tab.id}`} aria-selected={pricingTab === tab.id} aria-controls="pricing-panel" onClick={() => setPricingTab(tab.id)}
+                                        className={`relative rounded-full px-6 py-2.5 text-sm font-semibold transition-colors ${pricingTab === tab.id ? 'text-brand-400' : 'text-gray-600 hover:text-ink-900'}`}>
+                                        {pricingTab === tab.id && <motion.span layoutId="pricing-pill" aria-hidden="true" className="absolute inset-0 rounded-full bg-ink-900 shadow" transition={{ type: 'spring', stiffness: 380, damping: 32 }} />}
+                                        <span className="relative">{tab.label}</span>
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
-                        <div className="mx-auto mt-12 grid max-w-6xl gap-5 md:grid-cols-3">
-                            {plans.map((p, i) => (
-                                <Reveal key={p.name} delay={i * 0.1}>
-                                    <div className={`relative flex h-full flex-col rounded-[24px] p-7 transition hover:-translate-y-1.5 ${p.popular ? 'bg-ink-900 text-white shadow-2xl ring-1 ring-brand-500/40' : 'bg-white shadow-sm ring-1 ring-gray-200'}`}>
-                                        <div className="flex items-center justify-between gap-3">
-                                            <p className="text-2xl font-medium tracking-tight">{p.name}</p>
-                                            {p.popular && (
-                                                <span className="rounded-full bg-brand-500 px-3 py-1 text-xs font-bold text-ink-900">Most popular</span>
-                                            )}
-                                        </div>
-                                        <p className={`mt-1 text-sm ${p.popular ? 'text-gray-400' : 'text-gray-500'}`}>Annual package</p>
-                                        <p className="mt-6 text-5xl font-medium tracking-[-0.06em]">
-                                            {p.price === 0 ? 'Free' : <>RM {Number(p.price).toLocaleString()}</>}
-                                            {p.price > 0 && <span className={`ml-1 text-base font-normal tracking-normal ${p.popular ? 'text-gray-400' : 'text-gray-500'}`}>/ year</span>}
-                                        </p>
-                                        <Link href="/register-view" className={`group mt-6 flex items-center justify-between rounded-full py-2 pl-5 pr-2 text-sm font-semibold transition ${p.popular ? 'bg-brand-500 text-ink-900 hover:bg-brand-400' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
-                                            Get started
-                                            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
-                                        </Link>
-                                        <p className={`mt-8 text-[11px] font-bold uppercase tracking-widest ${p.popular ? 'text-brand-400' : 'text-brand-700'}`}>Included user accounts</p>
-                                        <div className="mt-3 grid grid-cols-2 gap-2">
-                                            {p.seats.map((s) => (
-                                                <div key={s.label} className={`flex items-center gap-3 rounded-2xl px-3.5 py-3 ${p.popular ? 'bg-white/10' : 'bg-gray-50'}`}>
-                                                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold ${p.popular ? 'bg-brand-500 text-ink-900' : 'bg-ink-900 text-brand-400'}`}>{s.n}</span>
-                                                    <span className="text-sm font-medium leading-tight">{s.label}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        <p className={`mt-8 text-[11px] font-bold uppercase tracking-widest ${p.popular ? 'text-brand-400' : 'text-brand-700'}`}>What’s included</p>
-                                        <ul className="mt-3 space-y-3 text-sm">
-                                            {p.items.map((it) => (
-                                                <li key={it} className="flex items-start gap-2.5">
-                                                    <Check className={`mt-0.5 h-4 w-4 shrink-0 ${p.popular ? 'text-brand-400' : 'text-brand-700'}`} strokeWidth={3} /> {it}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                </Reveal>
-                            ))}
-                        </div>
+                        <PricingPlans plans={shownPlans} tab={pricingTab} />
                         <p className="mx-auto mt-7 max-w-4xl text-center text-sm text-gray-500">Need more Inspectors? Add one for RM800 per Inspector per year, prorated to the remaining subscription term. A self-learning user manual is included; a formal training certificate is not.</p>
                     </div>
                 </section>
