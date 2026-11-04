@@ -37,39 +37,32 @@ class ProviderPackageController extends Controller
         return $company;
     }
 
+    /** Plan menu: buy a package or renew one. */
     public function index(Request $request)
     {
-        $provider = $this->provider($request);
-
-        return Inertia::render('Company/ProviderPackages', [
-            'plans' => SubscriptionPlan::where('is_active', true)->whereIn('audience', self::SELLABLE_AUDIENCES)->orderBy('sort_order')->get()
-                ->map(fn (SubscriptionPlan $plan) => [
-                    'id' => $plan->id,
-                    'name' => $plan->name,
-                    'price' => (int) ($plan->provider_price_yearly ?? $plan->price_yearly),
-                    'normal_price' => (int) $plan->price_yearly,
-                    'manager_limit' => $plan->manager_limit,
-                    'supervisor_limit' => $plan->supervisor_limit,
-                    'inspector_limit' => $plan->inspector_limit,
-                    'contractor_limit' => $plan->contractor_limit,
-                ])->values(),
-            'trainees' => $this->renewalTrainees($provider),
-            'renewWindowDays' => self::RENEW_WINDOW_DAYS,
-            'codeCounts' => PackageActivationCode::where('provider_company_id', $provider->id)->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status'),
-        ]);
+        return $this->page($request, 'plan');
     }
 
-    /** The provider's activation codes, newest first, ten to a page, optionally narrowed to one status. */
+    /** Log menu: the purchase log and the activation codes. */
     public function codes(Request $request)
     {
-        $provider = $this->provider($request);
-        $status = $request->query('status');
-        $status = in_array($status, ['pending', 'available', 'used', 'rejected'], true) ? $status : null;
-        $type = $request->query('type');
-        $type = in_array($type, ['purchase', 'renewal'], true) ? $type : null;
+        return $this->page($request, 'log');
+    }
 
-        $codes = PackageActivationCode::with(['plan:id,name', 'usedBy:id,name', 'renewalFor:id,name'])
+    private function page(Request $request, string $section)
+    {
+        $provider = $this->provider($request);
+        $tabs = $section === 'plan' ? ['purchase', 'renew'] : ['log', 'codes'];
+        $tab = in_array($request->query('tab'), $tabs, true) ? $request->query('tab') : $tabs[0];
+        $listTab = in_array($tab, ['log', 'codes'], true);
+        $allowed = $tab === 'codes' ? ['available', 'used'] : ['pending', 'available', 'used', 'rejected'];
+        $status = $listTab && in_array($request->query('status'), $allowed, true) ? $request->query('status') : null;
+        $type = $tab === 'log' && in_array($request->query('type'), ['purchase', 'renewal'], true) ? $request->query('type') : null;
+
+        // the order rows are only needed on the two list tabs; "log" shows every order, "codes" only the paid ones
+        $codes = ! $listTab ? null : PackageActivationCode::with(['plan:id,name', 'usedBy:id,name', 'renewalFor:id,name'])
             ->where('provider_company_id', $provider->id)
+            ->when($tab === 'codes', fn ($query) => $query->whereIn('status', ['available', 'used']))
             ->when($status, fn ($query) => $query->where('status', $status))
             ->when($type === 'renewal', fn ($query) => $query->whereNotNull('renewal_for_company_id'))
             ->when($type === 'purchase', fn ($query) => $query->whereNull('renewal_for_company_id'))
@@ -89,12 +82,29 @@ class ProviderPackageController extends Controller
                 'used_at' => $code->used_at?->format('Y-m-d'),
             ]);
 
-        return Inertia::render('Company/ActivationCodes', [
+        return Inertia::render('Company/ProviderPackages', [
+            'section' => $section,
+            'tab' => $tab,
             'codes' => $codes,
             'status' => $status,
             'type' => $type,
-            'typeCounts' => PackageActivationCode::where('provider_company_id', $provider->id)->selectRaw('IF(renewal_for_company_id IS NULL, \'purchase\', \'renewal\') as kind, COUNT(*) as total')->groupBy('kind')->pluck('total', 'kind'),
+            'plans' => SubscriptionPlan::where('is_active', true)->whereIn('audience', self::SELLABLE_AUDIENCES)->orderBy('sort_order')->get()
+                ->map(fn (SubscriptionPlan $plan) => [
+                    'id' => $plan->id,
+                    'name' => $plan->name,
+                    'price' => (int) ($plan->provider_price_yearly ?? $plan->price_yearly),
+                    'normal_price' => (int) $plan->price_yearly,
+                    'manager_limit' => $plan->manager_limit,
+                    'supervisor_limit' => $plan->supervisor_limit,
+                    'inspector_limit' => $plan->inspector_limit,
+                    'contractor_limit' => $plan->contractor_limit,
+                    'daily_pdf_limit' => $plan->daily_pdf_limit,
+                    'monthly_pdf_limit' => $plan->monthly_pdf_limit,
+                ])->values(),
+            'trainees' => $this->renewalTrainees($provider),
+            'renewWindowDays' => self::RENEW_WINDOW_DAYS,
             'counts' => PackageActivationCode::where('provider_company_id', $provider->id)->selectRaw('status, COUNT(*) as total')->groupBy('status')->pluck('total', 'status'),
+            'typeCounts' => PackageActivationCode::where('provider_company_id', $provider->id)->selectRaw("IF(renewal_for_company_id IS NULL, 'purchase', 'renewal') as kind, COUNT(*) as total")->groupBy('kind')->pluck('total', 'kind'),
         ]);
     }
 

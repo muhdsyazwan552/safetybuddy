@@ -5,6 +5,7 @@ import {
   FileText, History, Package, Pencil, Phone, Trash2, Upload,
 } from 'lucide-react';
 import { confirmLogout } from '@/Helpers/logout';
+import OrderReview from '@/Components/OrderReview';
 
 const common = [
   'All Safety Buddy modules and features',
@@ -17,9 +18,9 @@ const money = value => value === null || value === undefined ? '—' : `RM ${Num
 const date = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
 const TABS = [
-  { id: 'normal', label: 'Normal' },
-  { id: 'provider', label: 'Training Provider' },
-  { id: 'under', label: 'Under Training Provider' },
+  { id: 'normal', label: 'Buy a plan', text: 'Pick an annual package for your company and pay Safety Buddy for it.' },
+  { id: 'under', label: 'I have an activation code', text: 'Your Training Provider gave you a code. Enter it to activate your package. No payment needed.' },
+  { id: 'provider', label: 'Register as Training Provider', text: 'Apply to deliver safety training and buy packages for the companies you train.' },
 ];
 
 
@@ -189,7 +190,9 @@ function TrainingProviderApply({ application, plan, canPurchase, hasActiveSafety
 function PlanCard({ plan, pending, hasActiveSafety, canPurchase, referenceCode = null, hideAction = false, actionLabel = null }) {
   const form = useForm({ plan_id: plan.id });
   form.transform(data => ({ ...data, reference_code: referenceCode || '' }));
+  const [reviewing, setReviewing] = useState(false);
   const popular = plan.code === 'PROFESSIONAL';
+  const isRenewal = /renew/i.test(actionLabel || '');
   const seats = [
     { count: plan.manager_limit, label: 'Manager' },
     { count: plan.supervisor_limit, label: 'Supervisor' },
@@ -209,9 +212,22 @@ function PlanCard({ plan, pending, hasActiveSafety, canPurchase, referenceCode =
     </div>
     <p className={`mt-1 text-sm ${popular ? 'text-gray-400' : 'text-gray-500'}`}>Annual package</p>
     <p className="mt-6 text-5xl font-medium tracking-[-0.06em]">{Number(plan.price_yearly) === 0 ? 'Free' : <>RM {Number(plan.price_yearly).toLocaleString('en-MY')}</>}{Number(plan.price_yearly) > 0 && <span className={`ml-1 text-base font-normal tracking-normal ${popular ? 'text-gray-400' : 'text-gray-500'}`}>/ year</span>}</p>
-    {!hideAction && <form onSubmit={event => { event.preventDefault(); form.post('/plans/request'); }} className="mt-6">
-      <button disabled={!canPurchase || pending || hasActiveSafety || form.processing} className={`group flex w-full items-center justify-between rounded-full py-2 pl-5 pr-2 text-left text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-50 ${popular ? 'bg-brand-500 text-ink-900 hover:bg-brand-400' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
-        <span>{!canPurchase ? 'Contact your company admin' : hasActiveSafety ? 'Current subscription active' : pending ? 'Request pending' : form.processing ? 'Sending…' : (actionLabel || 'Request purchase')}</span><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4"/></span>
+    {!hideAction && <form onSubmit={event => { event.preventDefault(); setReviewing(true); }} className="mt-6">
+      {reviewing && <OrderReview
+        title={isRenewal ? 'Review your renewal' : 'Review your subscription request'}
+        details={[
+          { label: 'Order type', value: isRenewal ? 'Renewal of Safety Buddy package' : 'New Safety Buddy package' },
+          { label: 'Package', value: plan.name },
+          { label: 'Billing', value: 'Annual package, 1 year' },
+          { label: 'User accounts included', value: seats.map(seat => `${seat.count} ${seat.count === 1 ? seat.label : `${seat.label}s`}`).join(' · ') },
+          ...(referenceCode ? [{ label: 'Reference code', value: referenceCode }] : []),
+        ]}
+        lines={[{ name: plan.name, note: 'Annual package', qty: 1, unit: Number(plan.price_yearly) }]}
+        notes={['Your request is sent to us for approval.', 'Contact Ramzi at 016-8865619 to arrange payment.', 'Your package starts once payment is confirmed.']}
+        confirmLabel="Confirm request" processing={form.processing} error={form.errors.plan_id || form.errors.reference_code}
+        onConfirm={() => form.post('/plans/request', { onSuccess: () => setReviewing(false) })} onBack={() => setReviewing(false)}/>}
+      <button disabled={!canPurchase || pending || hasActiveSafety} className={`group flex w-full items-center justify-between rounded-full py-2 pl-5 pr-2 text-left text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-50 ${popular ? 'bg-brand-500 text-ink-900 hover:bg-brand-400' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
+        <span>{!canPurchase ? 'Contact your company admin' : hasActiveSafety ? 'Current subscription active' : pending ? 'Request pending' : actionLabel || 'Review request'}</span><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4"/></span>
       </button>
       {form.errors.plan_id && <p className="mt-2 text-sm text-rose-500">{form.errors.plan_id}</p>}
       {form.errors.reference_code && <p className="mt-2 text-sm text-rose-500">{form.errors.reference_code}</p>}
@@ -255,6 +271,7 @@ function InspectorAddon({ seats, canPurchase }) {
   const qty = Math.max(0, Number(form.data.quantity) || 0);
   const total = qty * seats.price;
   const limit = seats.included + seats.extra;
+  const [reviewing, setReviewing] = useState(false);
 
   return <section className="mt-10 rounded-[28px] border border-brand-300 bg-white p-7 shadow-sm sm:p-9" aria-labelledby="addon-title">
     <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
@@ -268,11 +285,24 @@ function InspectorAddon({ seats, canPurchase }) {
           <div className="rounded-2xl bg-ink-50 p-3"><p className="text-2xl font-black">{seats.used}<span className="text-base text-ink-400"> / {limit}</span></p><p className="text-[11px] font-bold uppercase tracking-wider text-ink-400">In use</p></div>
         </div>
       </div>
-      {canPurchase ? <form onSubmit={event => { event.preventDefault(); form.post('/plans/inspector-addon', { preserveScroll: true, onSuccess: () => form.reset() }); }} className="w-full shrink-0 rounded-2xl bg-ink-950 p-6 text-white lg:w-80">
+      {canPurchase ? <form onSubmit={event => { event.preventDefault(); if (qty >= 1) setReviewing(true); }} className="w-full shrink-0 rounded-2xl bg-ink-950 p-6 text-white lg:w-80">
+        {reviewing && <OrderReview
+          title="Review your extra Inspectors"
+          details={[
+            { label: 'Order type', value: 'Extra Inspector slots (add-on)' },
+            { label: 'Inspectors to add', value: qty },
+            { label: 'Inspector slots now', value: `${limit} (${seats.included} included + ${seats.extra} extra) · ${seats.used} in use` },
+            { label: 'Inspector slots after', value: limit + qty },
+            { label: 'Payment', value: 'Paid once, not yearly' },
+          ]}
+          lines={[{ name: 'Extra Inspector slot', note: 'One-time add-on', qty, unit: seats.price }]}
+          notes={['The slots are added to your company as soon as you confirm.', 'They stay with your company when the package renews.']}
+          confirmLabel={`Confirm ${qty === 1 ? 'Inspector' : 'Inspectors'}`} processing={form.processing} error={form.errors.quantity}
+          onConfirm={() => form.post('/plans/inspector-addon', { preserveScroll: true, onSuccess: () => { form.reset(); setReviewing(false); } })} onBack={() => setReviewing(false)}/>}
         <label htmlFor="addon-qty" className="text-xs font-bold uppercase tracking-wider text-white/60">Extra Inspectors</label>
         <input id="addon-qty" type="number" min="1" max="50" value={form.data.quantity} onChange={event => form.setData('quantity', event.target.value)} className="mt-2 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-lg font-bold text-white"/>
         <p className="mt-4 flex items-baseline justify-between"><span className="text-sm text-white/60">{qty} × RM {seats.price}</span><span className="text-2xl font-black text-brand-300">RM {total.toLocaleString('en-MY')}</span></p>
-        <button disabled={form.processing || qty < 1} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-400 px-5 py-3 font-black text-ink-950 transition hover:bg-brand-300 disabled:opacity-50">{form.processing ? 'Adding…' : 'Add Inspectors'} <ArrowRight className="h-4 w-4"/></button>
+        <button disabled={qty < 1} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-400 px-5 py-3 font-black text-ink-950 transition hover:bg-brand-300 disabled:opacity-50">Review Inspectors <ArrowRight className="h-4 w-4"/></button>
         {form.errors.quantity && <p className="mt-2 text-sm text-rose-300">{form.errors.quantity}</p>}
       </form> : <p className="rounded-2xl bg-ink-50 p-5 text-sm text-ink-500 lg:w-80">Only your company admin can buy extra Inspectors.</p>}
     </div>
@@ -295,7 +325,8 @@ export default function Plans({ plans = [], hasPurchased = false, hasActiveSafet
   const [showExpiryModal, setShowExpiryModal] = useState(expired);
   // a company registered under a Training Provider uses the Contractor Training Provider package only
   const underProvider = Boolean(linkedProvider);
-  const [tab, setTab] = useState(underProvider ? 'under' : 'normal');
+  // one path at a time: a new company picks how it wants to start, and only that section is shown
+  const [tab, setTab] = useState(underProvider ? 'under' : trainingApplication ? 'provider' : hasPurchased ? 'normal' : null);
   const contractorPlans = plans.filter(plan => plan.audience === 'contractor_provider');
   const normalPlans = underProvider ? contractorPlans : plans.filter(plan => (plan.audience ?? 'normal') === 'normal');
   const providerPlans = plans.filter(plan => plan.audience === 'training_provider');
@@ -312,11 +343,20 @@ export default function Plans({ plans = [], hasPurchased = false, hasActiveSafet
 
       {hasPurchased && <div className="mt-9"><CurrentPackage currentPackage={currentPackage} dashboard={dashboard} hideAmount={Boolean(linkedProvider)}/>{canPurchase && <Link href={route('manage.package.payments')} className="mt-4 inline-flex text-sm font-bold text-ink-900 underline decoration-brand-500 decoration-2 underline-offset-4">View payment history</Link>}{inspectorSeats && <InspectorAddon seats={inspectorSeats} canPurchase={canPurchase}/>}<SubscriptionHistory history={subscriptionHistory} hideAmount={Boolean(linkedProvider)}/></div>}
 
-      <section id="available-plans" className={hasPurchased ? 'mt-14 scroll-mt-8' : 'scroll-mt-8'}><div className="mb-7"><p className="text-xs font-black uppercase tracking-[.2em] text-brand-800">Find your fit</p><h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{hasPurchased ? 'Available packages' : 'Choose a package'}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">Compare what’s included, then request the package that fits your team.</p>{hasActiveSafety && <p className="mt-2 text-sm text-ink-500">Your current package is active. Contact Ramzi if you would like to change it before expiry.</p>}</div>
-        <div role="tablist" aria-label="Package type" className="mb-8 grid gap-1 rounded-2xl border border-ink-100 bg-white p-1.5 shadow-sm sm:inline-flex sm:flex-wrap">
-          {TABS.map(item => <button key={item.id} role="tab" id={`tab-${item.id}`} aria-selected={tab === item.id} aria-controls="plans-panel" type="button" onClick={() => setTab(item.id)} className={`rounded-xl px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500 ${tab === item.id ? 'bg-ink-950 text-brand-300 shadow-sm' : 'text-ink-600 hover:bg-brand-50 hover:text-ink-950'}`}>{item.label}</button>)}
-        </div>
-        <div role="tabpanel" id="plans-panel" aria-labelledby={`tab-${tab}`}>
+      <section id="available-plans" className={hasPurchased ? 'mt-14 scroll-mt-8' : 'scroll-mt-8'}><div className="mb-7"><p className="text-xs font-black uppercase tracking-[.2em] text-brand-800">Find your fit</p><h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{tab === null ? 'How do you want to start?' : hasPurchased ? 'Available packages' : 'Choose a package'}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">{tab === null ? 'Choose one option below. You only see the steps for the option you pick.' : 'Compare what’s included, then request the package that fits your team.'}</p>{hasActiveSafety && <p className="mt-2 text-sm text-ink-500">Your current package is active. Contact Ramzi if you would like to change it before expiry.</p>}</div>
+        {tab === null
+          ? <div className="grid gap-4 md:grid-cols-3">
+            {TABS.map(item => <button key={item.id} type="button" onClick={() => setTab(item.id)} className="group flex flex-col rounded-2xl border border-ink-100 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-brand-400 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500">
+              <span className="text-lg font-black text-ink-950">{item.label}</span>
+              <span className="mt-2 flex-1 text-sm leading-6 text-ink-500">{item.text}</span>
+              <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-ink-950">Continue <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1"/></span>
+            </button>)}
+          </div>
+          : <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-white px-5 py-3 shadow-sm">
+            <p className="text-sm text-ink-500">You chose: <strong className="text-ink-950">{TABS.find(item => item.id === tab)?.label}</strong></p>
+            {!(underProvider || trainingApplication) && <button type="button" onClick={() => setTab(null)} className="text-sm font-bold text-ink-950 underline decoration-brand-500 decoration-2 underline-offset-4">Change option</button>}
+          </div>}
+        {tab !== null && <div role="tabpanel" id="plans-panel">
           {tab === 'under' && !hasActiveSafety && <ActivationCodeForm/>}
           {tab === 'under' && (linkedProvider
             ? <div className="mb-8 flex items-start gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0"/><p>Your company is registered under <strong>{linkedProvider.name}</strong>{linkedProvider.linked_at ? <> since {date(linkedProvider.linked_at)}</> : null}. Choose a package below.</p></div>
@@ -328,7 +368,7 @@ export default function Plans({ plans = [], hasPurchased = false, hasActiveSafet
           : tab === 'under' && !linkedProvider ? null : tabPlans.length
             ? <div className={`mx-auto grid gap-5 ${tabPlans.length === 1 ? 'max-w-md' : 'max-w-6xl md:grid-cols-3'}`}>{tabPlans.map(plan => <PlanCard key={plan.id} plan={plan} pending={pending} hasActiveSafety={hasActiveSafety} canPurchase={canPurchase}/>)}</div>
             : <p className="rounded-2xl border border-dashed border-ink-200 bg-white p-6 text-sm text-ink-500">No packages available here yet.</p>}
-        </div>
+        </div>}
       </section>
       <div className="mt-9 grid gap-4 rounded-2xl border border-ink-100 bg-white p-6 text-sm text-ink-500 sm:grid-cols-2"><p><strong className="text-ink-900">Additional Inspector:</strong> optional on any package, RM800 per Inspector, paid once. Added instantly from this page after your package is active.</p><p><strong className="text-ink-900">Training:</strong> Self-learning user manual is included. Formal training certificate is not included.</p></div>
       <p className="mt-7 flex items-center justify-center gap-2 text-sm text-ink-400"><Phone className="h-4 w-4"/> Questions? Ramzi <a href="tel:+60168865619" className="font-semibold text-brand-800">016-8865619</a></p>

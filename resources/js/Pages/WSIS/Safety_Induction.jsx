@@ -259,7 +259,7 @@ export default function Safety_Induction({ topics = [], defaultCount = 14 }) {
         <AppLayout title="Safety Passport">
             <Head title="Safety Passport" />
 
-            <div className="mx-auto max-w-5xl space-y-5 pb-10">
+            <div className="w-full space-y-5 pb-10">
                 {/* header */}
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg sm:p-7">
                     <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-brand-500/20 blur-2xl" />

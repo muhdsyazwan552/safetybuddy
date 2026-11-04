@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
+import OrderReview from '@/Components/OrderReview';
 import AccountPageLayout from '@/Layouts/AccountPageLayout';
 
 const rm = value => `RM ${Number(value).toLocaleString('en-MY')}`;
@@ -10,7 +11,9 @@ function SeatCard({ seat }) {
   const qty = Math.max(0, Number(form.data.quantity) || 0);
   const limit = (seat.included ?? 0) + seat.extra;
   const noun = seat.type === 'executor' ? 'Contractor' : seat.label;
-  const submit = event => { event.preventDefault(); form.post('/manage-package/seats', { preserveScroll: true, onSuccess: () => form.reset('quantity') }); };
+  const [reviewing, setReviewing] = useState(false);
+  const review = event => { event.preventDefault(); if (qty >= 1) setReviewing(true); };
+  const confirm = () => form.post('/manage-package/seats', { preserveScroll: true, onSuccess: () => { form.reset('quantity'); setReviewing(false); } });
 
   return <section id={seat.type === 'executor' ? 'contractor-slots' : 'inspector-slots'} className="flex scroll-mt-6 flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
     <h2 className="text-xl font-bold text-gray-900">Extra {noun} slots</h2>
@@ -20,11 +23,24 @@ function SeatCard({ seat }) {
       <div className="rounded-xl bg-gray-50 p-3"><p className="text-2xl font-black">{seat.extra}</p><p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Extra bought</p></div>
       <div className="rounded-xl bg-gray-50 p-3"><p className="text-2xl font-black">{seat.used}<span className="text-base text-gray-400"> / {limit}</span></p><p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">In use</p></div>
     </div>
-    <form onSubmit={submit} className="mt-5 rounded-xl bg-ink-900 p-5 text-white">
+    <form onSubmit={review} className="mt-5 rounded-xl bg-ink-900 p-5 text-white">
+      {reviewing && <OrderReview
+        title={`Review your extra ${noun} slots`}
+        details={[
+          { label: 'Order type', value: `Extra ${noun} slots (add-on)` },
+          { label: 'Slots to add', value: qty },
+          { label: `${noun} slots now`, value: `${limit} (${seat.included ?? 0} included + ${seat.extra} extra) · ${seat.used} in use` },
+          { label: `${noun} slots after`, value: `${limit + qty}` },
+          { label: 'Payment', value: 'Paid once, not yearly' },
+        ]}
+        lines={[{ name: `Extra ${noun} slot`, note: 'One-time add-on', qty, unit: seat.price }]}
+        notes={['The slots are added to your company as soon as you confirm.', 'They stay with your company when the package renews.']}
+        confirmLabel={`Confirm ${noun} ${qty === 1 ? 'slot' : 'slots'}`} processing={form.processing} error={form.errors.quantity}
+        onConfirm={confirm} onBack={() => setReviewing(false)}/>}
       <label htmlFor={`qty-${seat.type}`} className="text-xs font-bold uppercase tracking-wider text-white/60">Seats to add</label>
       <input id={`qty-${seat.type}`} type="number" min="1" max="50" value={form.data.quantity} onChange={event => form.setData('quantity', event.target.value)} className="mt-2 w-full rounded-lg border border-white/20 bg-white/10 px-4 py-2.5 text-lg font-bold text-white"/>
       <p className="mt-3 flex items-baseline justify-between"><span className="text-sm text-white/60">{qty} × {rm(seat.price)}</span><span className="text-2xl font-black text-brand-300">{rm(qty * seat.price)}</span></p>
-      <button disabled={form.processing || qty < 1} className="mt-4 w-full rounded-lg bg-brand-400 px-5 py-2.5 font-black text-ink-900 transition hover:bg-brand-300 disabled:opacity-50">{form.processing ? 'Adding…' : `Add ${noun} ${qty === 1 ? 'slot' : 'slots'}`}</button>
+      <button disabled={qty < 1} className="mt-4 w-full rounded-lg bg-brand-400 px-5 py-2.5 font-black text-ink-900 transition hover:bg-brand-300 disabled:opacity-50">Review {noun} {qty === 1 ? 'slot' : 'slots'}</button>
       {form.errors.quantity && <p className="mt-2 text-sm text-rose-300">{form.errors.quantity}</p>}
     </form>
   </section>;

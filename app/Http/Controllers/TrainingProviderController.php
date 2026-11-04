@@ -75,45 +75,86 @@ class TrainingProviderController extends Controller
     }
 
     /** Companies that registered under this Training Provider's reference code (even before payment is confirmed). */
-    public function trainees(Request $request)
+    private function providerCompany(Request $request): Company
     {
         $company = $request->user()->company;
         abort_unless($company && (int) $company->account_type_id === \App\Models\AccountType::TRAINING_PROVIDER, 403, 'Only Training Providers can open this page.');
 
-        // every company that entered this provider's reference code, whether or not it has a package yet
-        $trainees = \App\Models\Company::where('training_provider_company_id', $company->id)
-            ->orderByDesc('provider_linked_at')->get(['id', 'name', 'code', 'email', 'contact', 'provider_linked_at', 'training_provider_company_id'])
-            ->map(function (\App\Models\Company $trainee) use ($company) {
-                $subscription = \App\Models\SubscriptionsCompany::with('plan:id,name')
-                    ->where('company_id', $trainee->id)
-                    ->whereHas('module', fn ($query) => $query->where('code', 'SB360-WSIS'))
-                    ->latest('end_date')->first();
-                $pending = SubscriptionPlanRequest::where('company_id', $trainee->id)->where('status', 'pending')->exists();
-                $usedCodes = \App\Models\PackageActivationCode::with('plan:id,name')
-                    ->where('used_by_company_id', $trainee->id)->where('provider_company_id', $trainee->training_provider_company_id)
-                    ->latest('used_at')->get()
-                    ->map(fn ($code) => ['code' => $code->code, 'package' => $code->plan?->name, 'used_at' => $code->used_at?->format('Y-m-d')])->values();
-                $active = $subscription && $subscription->status === 'active' && $subscription->end_date >= today();
+        return $company;
+    }
 
-                return [
-                    'id' => $trainee->id,
-                    'company_name' => $trainee->name,
-                    'company_code' => $trainee->code,
-                    'email' => $trainee->email,
-                    'contact' => $trainee->contact,
-                    'package' => $subscription?->plan?->name,
-                    'reference_code' => $company->reference_code,
-                    'activation_codes' => $usedCodes,
-                    'registered_at' => $trainee->provider_linked_at?->format('Y-m-d'),
-                    'end_date' => $subscription?->end_date?->format('Y-m-d'),
-                    'active' => (bool) $active,
-                    'state' => $active ? 'active' : ($pending ? 'pending' : ($subscription ? 'expired' : 'no_package')),
-                ];
-            })->values();
+    /** One company under the provider: who it is and where its package stands. */
+    private function traineeSummary(Company $provider, Company $trainee): array
+    {
+        $subscription = \App\Models\SubscriptionsCompany::with('plan:id,name')
+            ->where('company_id', $trainee->id)
+            ->whereHas('module', fn ($query) => $query->where('code', 'SB360-WSIS'))
+            ->latest('end_date')->first();
+        $pending = SubscriptionPlanRequest::where('company_id', $trainee->id)->where('status', 'pending')->exists();
+        $active = $subscription && $subscription->status === 'active' && $subscription->end_date >= today();
+
+        return [
+            'id' => $trainee->id,
+            'company_name' => $trainee->name,
+            'company_code' => $trainee->code,
+            'email' => $trainee->email,
+            'contact' => $trainee->contact,
+            'package' => $subscription?->plan?->name,
+            'registered_at' => $trainee->provider_linked_at?->format('Y-m-d'),
+            'start_date' => $subscription?->start_date?->format('Y-m-d'),
+            'end_date' => $subscription?->end_date?->format('Y-m-d'),
+            'days_left' => $subscription ? (int) today()->diffInDays($subscription->end_date, false) : null,
+            'active' => (bool) $active,
+            'state' => $active ? 'active' : ($pending ? 'pending' : ($subscription ? 'expired' : 'no_package')),
+        ];
+    }
+
+    public function trainees(Request $request)
+    {
+        $company = $this->providerCompany($request);
+
+        // every company that entered this provider's reference code, whether or not it has a package yet
+        $trainees = Company::where('training_provider_company_id', $company->id)
+            ->orderByDesc('provider_linked_at')->get(['id', 'name', 'code', 'email', 'contact', 'provider_linked_at', 'training_provider_company_id'])
+            ->map(fn (Company $trainee) => $this->traineeSummary($company, $trainee))->values();
 
         return \Inertia\Inertia::render('Company/Trainees', [
             'referenceCode' => $company->reference_code,
             'trainees' => $trainees,
+        ]);
+    }
+
+    /** Detail page of one company under this provider: its package, package history and the activation codes it used. */
+    public function showTrainee(Request $request, int $trainee)
+    {
+        $provider = $this->providerCompany($request);
+        $company = Company::where('training_provider_company_id', $provider->id)->findOrFail($trainee);
+
+        return \Inertia\Inertia::render('Company/TraineeDetails', [
+            'trainee' => $this->traineeSummary($provider, $company),
+            'subscriptions' => \App\Models\SubscriptionsCompany::with('plan:id,name')
+                ->where('company_id', $company->id)
+                ->whereHas('module', fn ($query) => $query->where('code', 'SB360-WSIS'))
+                ->orderByDesc('end_date')->get()
+                ->map(fn ($subscription) => [
+                    'id' => $subscription->id,
+                    'package' => $subscription->plan?->name,
+                    'type' => $subscription->type,
+                    'start_date' => $subscription->start_date?->format('Y-m-d'),
+                    'end_date' => $subscription->end_date?->format('Y-m-d'),
+                    'status' => $subscription->status === 'active' && $subscription->end_date < today() ? 'expired' : $subscription->status,
+                ])->values(),
+            'codes' => \App\Models\PackageActivationCode::with('plan:id,name')
+                ->where('used_by_company_id', $company->id)->where('provider_company_id', $provider->id)
+                ->latest('used_at')->get()
+                ->map(fn ($code) => [
+                    'id' => $code->id,
+                    'code' => $code->code,
+                    'package' => $code->plan?->name,
+                    'price' => $code->price_yearly,
+                    'batch_ref' => $code->batch_ref,
+                    'used_at' => $code->used_at?->format('Y-m-d'),
+                ])->values(),
         ]);
     }
 

@@ -165,6 +165,7 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::get('/training-provider/activation-codes', [\App\Http\Controllers\ProviderPackageController::class, 'codes'])->name('training-provider.codes');
     Route::post('/plans/activation-code', [\App\Http\Controllers\ProviderPackageController::class, 'redeem'])->middleware('throttle:10,1')->name('subscription.plans.activation-code');
     Route::get('/training-provider/trainees', [\App\Http\Controllers\TrainingProviderController::class, 'trainees'])->name('training-provider.trainees');
+    Route::get('/training-provider/trainees/{trainee}', [\App\Http\Controllers\TrainingProviderController::class, 'showTrainee'])->whereNumber('trainee')->name('training-provider.trainees.show');
 });
 
 Route::middleware(['auth', 'role:2'])->group(function () {

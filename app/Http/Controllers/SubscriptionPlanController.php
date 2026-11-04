@@ -108,6 +108,18 @@ class SubscriptionPlanController extends Controller
         $companyId = $request->user()->company_id;
         abort_unless($companyId, 403, 'No company is linked to your account.');
 
+        // This page is for buying a first package (or renewing an expired one). A company with a running package
+        // manages it elsewhere, so it is sent there instead of seeing the purchase options again.
+        if (self::hasActiveSafety((int) $companyId)) {
+            $role = (int) $request->user()->role_id;
+
+            return redirect()->to(match (true) {
+                $role === 2 => route('manage.package'),
+                in_array($role, [3, 4], true) => '/review/dashboard',
+                default => '/inspector/dashboard',
+            });
+        }
+
         $details = self::detailsForCompany((int) $companyId);
 
         return Inertia::render('Subscription/Plans', [

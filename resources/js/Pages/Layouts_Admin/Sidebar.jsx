@@ -90,8 +90,8 @@ const NAVIGATION = [  // Changed to uppercase constant
 const TRAINEES_SECTION = {
   category: 'Training Provider',
   items: [
-    { name: 'Buy Package', href: '/training-provider/packages', icon: FaLayerGroup },
-    { name: 'Activation Codes', href: '/training-provider/activation-codes', icon: FaKey },
+    { name: 'Plan', href: '/training-provider/packages', icon: FaLayerGroup },
+    { name: 'Log', href: '/training-provider/activation-codes', icon: FaKey },
     { name: 'Trainees', href: '/training-provider/trainees', icon: FaUsers },
   ],
 };

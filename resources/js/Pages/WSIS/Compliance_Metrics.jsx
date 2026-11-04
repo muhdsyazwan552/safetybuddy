@@ -8,7 +8,7 @@ export default function ComplianceMetrics({ title, performance = null }) {
         <AppLayout title={title}>
             <Head title={title} />
 
-            <div className="mx-auto max-w-6xl space-y-5 pb-10">
+            <div className="w-full space-y-5 pb-10">
                 {performance && <PerformanceSettingsCard settings={performance} />}
             </div>
         </AppLayout>
