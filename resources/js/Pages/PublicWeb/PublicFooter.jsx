@@ -1,7 +1,7 @@
 import React from 'react';
 import { Mail, MapPin, Phone } from 'lucide-react';
 
-const CONTACT = { phone: '+60 16-886 5619', email: 'hello@safetybuddy.my', address: 'Kuala Lumpur, Malaysia' };
+const CONTACT = { phone: '+60 16-886 5619', email: 'hello@sbcmeri.com', address: 'Kuala Lumpur, Malaysia' };
 
 // hash links point at sections of the landing page, so on any other page they need the "/" in front
 const COLUMNS = [

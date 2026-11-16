@@ -13,7 +13,7 @@ import {
 /* ──────────────────────────────────────────────────────────────
    Content (edit freely – images live in public/images/landing)
 ────────────────────────────────────────────────────────────── */
-const CONTACT = { phone: '+60 16-886 5619', email: 'hello@safetybuddy.my', address: 'Kuala Lumpur, Malaysia' };
+const CONTACT = { phone: '+60 16-886 5619', email: 'hello@sbcmeri.com', address: 'Kuala Lumpur, Malaysia' };
 
 /** Sections kept in the code but hidden on the page (flip to true to show them again) */
 const SHOW = { about: false, serve: false, reviews: false };
@@ -302,9 +302,9 @@ function PricingPlans({ plans, tab }) {
                             </Link>
                             <p className={`mt-8 text-[11px] font-bold uppercase tracking-widest ${p.popular ? 'text-brand-400' : 'text-brand-700'}`}>Included user accounts</p>
                             <motion.div variants={group} className="mt-3 grid grid-cols-2 gap-2">
-                                {p.seats.map((s) => (
-                                    <motion.div key={s.label} variants={row} className={`flex items-center gap-3 rounded-2xl px-3.5 py-3 ${p.popular ? 'bg-white/10' : 'bg-gray-50'}`}>
-                                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold ${p.popular ? 'bg-brand-500 text-ink-900' : 'bg-ink-900 text-brand-400'}`}>{s.n}</span>
+                                {p.seats.map((s, i) => (
+                                    <motion.div key={s.label} variants={row} className={`flex items-center gap-3 rounded-2xl px-3.5 py-3 ${p.seats.length % 2 === 1 && i === p.seats.length - 1 ? 'col-span-2' : ''} ${p.popular ? 'bg-gradient-to-br from-white/15 to-white/5 ring-1 ring-white/15 shadow-lg shadow-black/30' : 'bg-gradient-to-br from-white to-gray-100 ring-1 ring-gray-200 shadow-md shadow-gray-300/60'}`}>
+                                        <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold shadow-md ${p.popular ? 'bg-brand-500 text-ink-900 shadow-black/40' : 'bg-ink-900 text-brand-400 shadow-gray-400'}`}>{s.n}</span>
                                         <span className="text-sm font-medium leading-tight">{s.label}</span>
                                     </motion.div>
                                 ))}
@@ -334,6 +334,7 @@ const PRICING_TABS = [
 const toPlanCard = (plan, extraItems = []) => ({
     name: plan.name,
     seats: [
+        { n: 1, label: 'Admin' },
         { n: plan.manager_limit, label: 'Manager' },
         { n: plan.supervisor_limit, label: 'Supervisor' },
         { n: plan.inspector_limit, label: 'Inspector' },
@@ -638,7 +639,7 @@ export default function Landing({ subscriptionPlans = [], providerPlans = [] }) 
                         </div>
 
                         <PricingPlans plans={shownPlans} tab={pricingTab} />
-                        <p className="mx-auto mt-7 max-w-4xl text-center text-sm text-gray-500">Need more Inspectors? Add one for RM800 per Inspector per year, prorated to the remaining subscription term. A self-learning user manual is included; a formal training certificate is not.</p>
+                        <p className="mx-auto mt-7 max-w-4xl text-center text-sm text-gray-500">Need more Inspectors? Add an Inspector for RM1,000 or a Subcontractor for RM1,500 per slot, paid once. A self-learning user manual is included; a formal training certificate is not.</p>
                     </div>
                 </section>
 

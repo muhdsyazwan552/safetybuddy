@@ -112,7 +112,7 @@ class CompanySeatLimitsTest extends TestCase
             CompanySeatLimits::assertAvailable(2, 7);
             $this->fail('Included Inspector seat is used up.');
         } catch (ValidationException $exception) {
-            $this->assertStringContainsString('RM 800', $exception->errors()['role_id'][0]);
+            $this->assertStringContainsString('RM 1000', $exception->errors()['role_id'][0]);
         }
 
         DB::table('subscription_addons')->insert(['company_id' => 2, 'type' => 'inspector', 'quantity' => 2]);
