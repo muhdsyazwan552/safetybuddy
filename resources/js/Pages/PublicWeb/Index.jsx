@@ -103,12 +103,6 @@ const STEPS = [
     { title: 'Inspect & report', text: 'Run inspections and toolbox talks on site, then pull reports in one click.' },
 ];
 
-const GUIDES = [
-    { date: 'Jun 10, 2026', read: '5 min read', title: 'A 10-minute site walk checklist', text: 'What to look at first, how to rate it and how to document it properly.', img: 'guide-1.jpg' },
-    { date: 'Jun 11, 2026', read: '4 min read', title: 'Run toolbox talks people remember', text: 'Short, specific and recorded — a simple structure that works.', img: 'guide-2.jpg' },
-    { date: 'Jun 11, 2026', read: '6 min read', title: 'Closing non-conformances on time', text: 'Ownership, due dates and follow-up habits that stop repeat findings.', img: 'guide-3.jpg' },
-];
-
 const FAQ = [
     { q: 'How quickly can we start?', a: 'Most companies are up and running within a day. We set up your company, projects and metrics, then you invite inspectors and contractors.' },
     { q: 'Do contractor staff need an account?', a: 'No. Each contractor company gets a secure link where staff register themselves. Only the company leader can edit or remove staff.' },
@@ -338,17 +332,17 @@ const toPlanCard = (plan, extraItems = []) => ({
         { n: plan.manager_limit, label: 'Manager' },
         { n: plan.supervisor_limit, label: 'Supervisor' },
         { n: plan.inspector_limit, label: 'Inspector' },
-        { n: plan.contractor_limit ?? 1, label: 'Contractor' },
+        { n: plan.contractor_limit ?? 1, label: 'Contractor Representative' },
     ].map((s) => ({ n: s.n, label: s.n === 1 ? s.label : `${s.label}s` })),
     price: plan.price_yearly,
-    popular: plan.code === 'PROFESSIONAL',
+    popular: plan.code === 'ENTERPRISE',
     items: [
         plan.daily_pdf_limit === null ? 'Unlimited Daily Report PDFs' : `${plan.daily_pdf_limit} Daily Report PDFs per month (shared)`,
         plan.monthly_pdf_limit === null ? 'Unlimited Monthly Report PDFs' : `${plan.monthly_pdf_limit} Monthly Report PDFs per month (shared)`,
         'All Safety Buddy modules and features',
         'Contractor Portal access',
         'Unlimited projects and contractor companies',
-        'Unlimited inspections, toolbox talks and NCR / CC records',
+        'Unlimited inspections, toolbox talks and NC / CC records',
         ...extraItems,
     ],
 });
@@ -574,7 +568,7 @@ export default function Landing({ subscriptionPlans = [], providerPlans = [] }) 
                     <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
                         <Reveal><p className="mb-3 text-base text-gray-400">Built for every role</p></Reveal>
                         <Reveal delay={0.05}><h2 className="font-geist text-[34px] font-medium leading-[1.1] tracking-[-0.06em] sm:text-5xl">Safety is about people</h2></Reveal>
-                        <Reveal delay={0.1}><p className="mt-4 max-w-md text-gray-400">Admin, Manager, Supervisor, Inspector and Contractor — every role in your package works together on one platform for simpler, safer sites.</p></Reveal>
+                        <Reveal delay={0.1}><p className="mt-4 max-w-md text-gray-400">Admin, Manager, Supervisor, Inspector and Contractor Representative — every role in your package works together on one platform for simpler, safer sites.</p></Reveal>
 
                         <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
                             {VOICES.map((v, i) => (
@@ -639,30 +633,7 @@ export default function Landing({ subscriptionPlans = [], providerPlans = [] }) 
                         </div>
 
                         <PricingPlans plans={shownPlans} tab={pricingTab} />
-                        <p className="mx-auto mt-7 max-w-4xl text-center text-sm text-gray-500">Need more Inspectors? Add an Inspector for RM1,000 or a Subcontractor for RM1,500 per slot, paid once. A self-learning user manual is included; a formal training certificate is not.</p>
-                    </div>
-                </section>
-
-                {/* guides */}
-                <section id="guides" className="mx-auto max-w-[1400px] scroll-mt-20 px-5 py-20 sm:px-8">
-                    <div className="flex items-end justify-between gap-4">
-                        <div>
-                            <Reveal><SectionTag>Safety tips & guides</SectionTag></Reveal>
-                            <Reveal delay={0.05}><H2>Advice from the field</H2></Reveal>
-                        </div>
-                        <Reveal><a href="#guides" className="hidden rounded-full bg-gray-100 px-5 py-2.5 text-sm font-semibold hover:bg-gray-200 sm:inline-block">See all</a></Reveal>
-                    </div>
-                    <div className="mt-10 grid gap-6 md:grid-cols-3">
-                        {GUIDES.map((g, i) => (
-                            <Reveal key={g.title} delay={i * 0.08}>
-                                <article className="group cursor-pointer">
-                                    <Photo src={g.img} alt={g.title} className="aspect-[4/3] rounded-3xl" />
-                                    <p className="mt-4 text-xs text-gray-500">{g.date} • {g.read}</p>
-                                    <h3 className="mt-1.5 text-xl font-medium leading-snug tracking-tight transition group-hover:text-brand-700">{g.title}</h3>
-                                    <p className="mt-1.5 text-sm text-gray-500">{g.text}</p>
-                                </article>
-                            </Reveal>
-                        ))}
+                        <p className="mx-auto mt-7 max-w-4xl text-center text-sm text-gray-500"><strong className="text-ink-900">Additional User Options</strong> (applicable to all packages): Additional Inspector RM1,000 / year per inspector · Subcontractor (Contractor Representative) RM1,500 / year per representative.</p>
                     </div>
                 </section>
 
@@ -861,7 +832,7 @@ export default function Landing({ subscriptionPlans = [], providerPlans = [] }) 
 
                     {[
                         { t: 'Product', l: [['What is CMERI', '#top'], ['Framework', '#cmeri'], ['Key modules', '#modules'], ['Pricing', '#pricing']] },
-                        { t: 'Company', l: [['Pricing', '#pricing'], ['Guides', '#guides'], ['Contact', '#contact']] },
+                        { t: 'Company', l: [['Pricing', '#pricing'],['Contact', '#contact']] },
                         { t: 'Access', l: [['Sign in', '/login'], ['Create account', '/register-view']] },
                     ].map((c) => (
                         <div key={c.t}>

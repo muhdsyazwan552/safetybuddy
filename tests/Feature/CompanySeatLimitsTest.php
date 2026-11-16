@@ -57,6 +57,7 @@ class CompanySeatLimitsTest extends TestCase
             $table->unsignedBigInteger('company_id');
             $table->unsignedBigInteger('user_id')->nullable();
             $table->unsignedInteger('role_id');
+            $table->string('status')->nullable();
         });
         Schema::create('subcon_company', function (Blueprint $table) {
             $table->id();
@@ -66,6 +67,7 @@ class CompanySeatLimitsTest extends TestCase
             $table->id();
             $table->unsignedBigInteger('company_id');
             $table->unsignedInteger('role_id');
+            $table->timestamp('deactivated_at')->nullable();
         });
 
         DB::table('modules')->insert(['id' => 1, 'code' => 'SB360-WSIS']);
@@ -131,6 +133,16 @@ class CompanySeatLimitsTest extends TestCase
 
         $this->assertSame(1, CompanySeatLimits::snapshot(2)['roles'][7]['used']);
         $this->expectException(ValidationException::class);
+        CompanySeatLimits::assertAvailable(2, 7);
+    }
+
+    public function test_deactivated_employee_frees_the_seat(): void
+    {
+        DB::table('subscriptions_company')->where('id', 1)->update(['subscription_plan_id' => 1]);
+        DB::table('users')->insert(['id' => 10, 'company_id' => 2, 'role_id' => 7, 'deactivated_at' => now()]);
+        DB::table('company_staff')->insert(['id' => 20, 'company_id' => 2, 'user_id' => 10, 'role_id' => 7, 'status' => 'inactive']);
+
+        $this->assertSame(0, CompanySeatLimits::snapshot(2)['roles'][7]['used']);
         CompanySeatLimits::assertAvailable(2, 7);
     }
 

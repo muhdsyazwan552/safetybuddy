@@ -6,7 +6,7 @@ const CONTACT = { phone: '+60 16-886 5619', email: 'hello@sbcmeri.com', address:
 // hash links point at sections of the landing page, so on any other page they need the "/" in front
 const COLUMNS = [
     { t: 'Product', l: [['What is CMERI', '/#top'], ['Framework', '/#cmeri'], ['Key modules', '/#modules'], ['Pricing', '/#pricing']] },
-    { t: 'Company', l: [['Training Provider', '/training-providers'], ['Guides', '/#guides'], ['Contact', '/#contact']] },
+    { t: 'Company', l: [['Training Provider', '/training-providers'], ['Contact', '/#contact']] },
     { t: 'Access', l: [['Sign in', '/login'], ['Create account', '/register-view']] },
 ];
 

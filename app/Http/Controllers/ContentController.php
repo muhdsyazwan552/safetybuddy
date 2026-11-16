@@ -222,6 +222,7 @@ class ContentController extends Controller
             ->toArray();
 
         $availableStaff = CompanyStaff::with('company', 'role')
+            ->active()
             ->whereIn('role_id', [4, 8, 7])
             ->whereNotIn('id', $assignedStaffIds)
             ->get();

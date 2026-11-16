@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use App\Models\CompanyStaff;
 use App\Models\Company;
+use App\Mail\StaffAccountCreated;
 use App\Services\CompanySeatLimits;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Illuminate\Validation\Rules;
@@ -28,6 +31,10 @@ public function store(Request $request)
         'email' => 'required|email|unique:company_staff,email|unique:users,email',
         // only the three tiers can be created here (never e.g. system admin)
         'role_id' => ['required', \Illuminate\Validation\Rule::in([3, 4, 7])],
+    ], [
+        // deactivated employees stay in the table, so their email / phone can never be registered again
+        'contact.unique' => 'This phone number is already registered (it may belong to a deactivated employee) and cannot be used again.',
+        'email.unique' => 'This email is already registered (it may belong to a deactivated employee) and cannot be used again.',
     ]);
 
     // ✅ Step 2: Get the current authenticated user (admin)
@@ -40,7 +47,7 @@ public function store(Request $request)
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['contact']),
+            'password' => Hash::make($validated['contact']), // the password is always the phone number
             'phone' => $validated['contact'],
             'company_id' => $admin->company_id,
             'role_id' => $validated['role_id'],
@@ -61,9 +68,26 @@ public function store(Request $request)
     // Load the role relationship
     $staff->load('role');
 
+    // email the new user: login email, password and the steps to sign in (a mail failure never undoes the registration)
+    $emailSent = true;
+    try {
+        Mail::to($validated['email'])->send(new StaffAccountCreated(
+            name: $validated['name'],
+            email: $validated['email'],
+            password: $validated['contact'],
+            roleName: optional($staff->role)->display_name ?: optional($staff->role)->name ?: 'Staff',
+            companyName: (string) optional(Company::find($admin->company_id))->name,
+            loginUrl: route('login'),
+        ));
+    } catch (\Throwable $e) {
+        $emailSent = false;
+        Log::warning('Staff login email failed', ['email' => $validated['email'], 'error' => $e->getMessage()]);
+    }
+
     return response()->json([
         'success' => true,
         'message' => 'Staff added successfully',
+        'email_sent' => $emailSent,
         'staff'   => $staff,
     ]);
 }
@@ -75,6 +99,13 @@ public function store(Request $request)
 public function update(Request $request, $id)
 {
     $staff = CompanyStaff::where('company_id', Auth::user()->company_id)->findOrFail($id);
+
+    if ($staff->isInactive()) {
+        return response()->json([
+            'success' => false,
+            'message' => 'This employee is deactivated. The record is kept and cannot be changed or reactivated.',
+        ], 422);
+    }
 
     $allowedRoles = [3, 4, 7];
     // a legacy role (e.g. old "Project Manager") may stay untouched while other fields are edited
@@ -118,39 +149,44 @@ public function update(Request $request, $id)
 }
 
 /**
- * Delete a staff member - refused while inspections / toolbox talks still belong to them.
+ * "Delete" a staff member = deactivate. Nothing is removed: inspections, toolbox talks and every other record
+ * keep pointing at the employee. The login is blocked for good, the seat is freed, and the email / phone number
+ * stay in the table so they can never be registered again. There is no way to reactivate.
  */
 public function destroy($id)
 {
     $staff = CompanyStaff::where('company_id', Auth::user()->company_id)->findOrFail($id);
 
-    $inspections = \App\Models\Inspection::where('inspection_by', $staff->id)->count();
-    $talks = \App\Models\ToolboxTalks::where('inspection_by', $staff->id)->count();
-
-    if ($inspections || $talks) {
-        return response()->json([
-            'success' => false,
-            'message' => "{$staff->name} still has {$inspections} inspection(s) and {$talks} toolbox talk(s) recorded. "
-                . 'Keep the record so the history stays correct.',
-        ], 422);
+    if ($staff->isInactive()) {
+        return response()->json(['success' => true, 'message' => 'Staff is already deactivated']);
     }
 
-    \Illuminate\Support\Facades\DB::transaction(function () use ($staff) {
-        \Illuminate\Support\Facades\DB::table('project_assign')
+    $user = $staff->user_id ? User::find($staff->user_id) : null;
+    if ($user && in_array((int) $user->role_id, [1, 2], true)) {
+        return response()->json(['success' => false, 'message' => 'An admin account cannot be deactivated here.'], 422);
+    }
+
+    DB::transaction(function () use ($staff, $user) {
+        // stop appearing in project teams; the records they created stay untouched
+        DB::table('project_assign')
             ->where('entity_type', 'staff')
             ->where('entity_id', $staff->id)
             ->delete();
 
-        if ($staff->user_id) {
-            $user = User::find($staff->user_id);
-            if ($user && !in_array((int) $user->role_id, [1, 2], true)) {
-                $user->delete();
+        $staff->update(['status' => 'inactive']);
+
+        if ($user) {
+            $user->forceFill(['deactivated_at' => now(), 'remember_token' => null])->save();
+            if (Schema::hasTable('sessions')) {
+                DB::table('sessions')->where('user_id', $user->id)->delete(); // sign out open sessions
             }
         }
-
-        $staff->delete();
     });
 
-    return response()->json(['success' => true, 'message' => 'Staff deleted successfully']);
+    return response()->json([
+        'success' => true,
+        'message' => 'Staff deactivated. Records are kept and the email and phone number cannot be used again.',
+        'staff' => $staff->fresh('role'),
+    ]);
 }
 }

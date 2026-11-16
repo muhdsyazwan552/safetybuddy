@@ -45,7 +45,8 @@ class AuthController extends Controller
         // Attempt to authenticate
         if (Auth::attempt([
             'email' => $credentials['email'],
-            'password' => $credentials['password']
+            'password' => $credentials['password'],
+            'deactivated_at' => null, // deactivated employees can never sign in again
         ], $request->remember === 'on')) {
 
             Log::debug('Authentication successful', ['user_id' => Auth::id()]);

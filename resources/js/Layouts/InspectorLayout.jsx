@@ -36,7 +36,7 @@ const TITLES = [
     ['/inspector/subcon-companies', 'Subcontractors'],
     ['/inspector/reports', 'Reports'],
     ['/profile', 'My Profile'],
-    ['/inspector/dashboard', 'Dashboard'],
+    ['/inspector/dashboard', 'Home'],
 ];
 
 // pages that show the bottom tab bar instead of a back button
@@ -102,11 +102,9 @@ export default function InspectorLayout({ children, user }) {
 
                     <div className="flex-1 min-w-0">
                         <h1 className="text-base font-bold leading-tight truncate">{title}</h1>
-                        {isTopLevel && (
-                            <p className="text-[10px] font-semibold tracking-wider text-brand-400 uppercase leading-none">
-                                Safety Buddy
-                            </p>
-                        )}
+                        <p className="text-[10px] font-semibold tracking-wider text-brand-400 uppercase leading-none">
+                            Inspector
+                        </p>
                     </div>
 
                     <Link

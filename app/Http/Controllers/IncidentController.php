@@ -70,6 +70,7 @@ class IncidentController extends Controller
             'injuryTypes'     => InjuryType::orderBy('name')->get(['id', 'name']),
             'subconCompanies' => SubconCompany::orderBy('name')->get(['id', 'name']),
             'staffList'       => CompanyStaff::with('role:id,name')
+                ->active()
                 ->where('company_id', $companyId)
                 ->orderBy('name')
                 ->get(['id', 'name', 'role_id', 'user_id'])

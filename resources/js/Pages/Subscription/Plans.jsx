@@ -11,7 +11,7 @@ const common = [
   'All Safety Buddy modules and features',
   'Contractor Portal access',
   'Unlimited projects and contractor companies',
-  'Unlimited inspections, toolbox talks and NCR / CC records',
+  'Unlimited inspections, toolbox talks and NC / CC records',
 ];
 
 const money = value => value === null || value === undefined ? '—' : `RM ${Number(value).toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -252,14 +252,14 @@ function PlanCard({ plan, pending, hasActiveSafety, canPurchase, referenceCode =
   const form = useForm({ plan_id: plan.id });
   form.transform(data => ({ ...data, reference_code: referenceCode || '' }));
   const [reviewing, setReviewing] = useState(false);
-  const popular = plan.code === 'PROFESSIONAL';
+  const popular = plan.code === 'ENTERPRISE';
   const isRenewal = /renew/i.test(actionLabel || '');
   const seats = [
     { count: 1, label: 'Admin' },
     { count: plan.manager_limit, label: 'Manager' },
     { count: plan.supervisor_limit, label: 'Supervisor' },
     { count: plan.inspector_limit, label: 'Inspector' },
-    { count: plan.contractor_limit ?? 1, label: 'Contractor' },
+    { count: plan.contractor_limit ?? 1, label: 'Contractor Representative' },
   ];
   const features = [
     plan.daily_pdf_limit === null ? 'Unlimited Daily Report PDFs' : `${plan.daily_pdf_limit} Daily Report PDFs per month (shared)`,
@@ -450,7 +450,7 @@ export default function Plans({ plans = [], hasPurchased = false, hasActiveSafet
               : <p className="rounded-2xl border border-dashed border-ink-200 bg-white p-6 text-sm text-ink-500">No packages available here yet.</p>}
         </div>}
       </section>
-      <div className="mt-9 grid gap-4 rounded-2xl border border-ink-100 bg-white p-6 text-sm text-ink-500 sm:grid-cols-2"><p><strong className="text-ink-900">Additional slots:</strong> optional on any package, RM1,000 per Inspector and RM1,500 per Subcontractor, paid once. Added instantly after your package is active.</p><p><strong className="text-ink-900">Training:</strong> Self-learning user manual is included. Formal training certificate is not included.</p></div>
+      <div className="mt-9 rounded-2xl border border-ink-100 bg-white p-6 text-sm text-ink-500"><p><strong className="text-ink-900">Additional User Options</strong> (applicable to all packages): Additional Inspector RM1,000 / year per inspector · Subcontractor (Contractor Representative) RM1,500 / year per representative.</p></div>
       <p className="mt-7 flex items-center justify-center gap-2 text-sm text-ink-400"><Phone className="h-4 w-4" /> Questions? Ramzi <a href="tel:+60168865619" className="font-semibold text-brand-800">016-8865619</a></p>
     </div>
   </main>

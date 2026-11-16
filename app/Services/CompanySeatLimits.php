@@ -128,14 +128,17 @@ class CompanySeatLimits
 
     private static function used(int $companyId, int $roleId, ?int $exceptStaffId = null, ?int $exceptUserId = null): int
     {
+        // deactivated employees keep their records but no longer take a seat
         $staff = CompanyStaff::where('company_id', $companyId)
             ->where('role_id', $roleId)
+            ->active()
             ->when($exceptStaffId, fn ($query) => $query->where('id', '!=', $exceptStaffId))
             ->get(['id', 'user_id']);
 
         $linkedUserIds = $staff->pluck('user_id')->filter()->all();
         $otherUsers = User::where('company_id', $companyId)
             ->where('role_id', $roleId)
+            ->whereNull('deactivated_at')
             ->when($linkedUserIds, fn ($query) => $query->whereNotIn('id', $linkedUserIds))
             ->when($exceptUserId, fn ($query) => $query->where('id', '!=', $exceptUserId))
             ->count();

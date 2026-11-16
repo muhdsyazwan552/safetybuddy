@@ -66,7 +66,7 @@ const planItems = plan => [
   'All Safety Buddy modules and features',
   'Contractor Portal access',
   'Unlimited projects and contractor companies',
-  'Unlimited inspections, toolbox talks and NCR / CC records',
+  'Unlimited inspections, toolbox talks and NC / CC records',
 ];
 
 /** Landing-page pricing content laid out across the full width: plan details on the left, the order controls on the right. */

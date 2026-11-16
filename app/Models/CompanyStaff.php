@@ -35,6 +35,17 @@ class CompanyStaff extends Model
         'status'
     ];
 
+    public function isInactive(): bool
+    {
+        return $this->status === 'inactive';
+    }
+
+    /** Staff who can still work: everyone except deactivated accounts. */
+    public function scopeActive($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'inactive'));
+    }
+
     public function company()
     {
         return $this->belongsTo(Company::class, 'company_id', 'id');

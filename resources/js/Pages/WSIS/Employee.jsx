@@ -64,9 +64,12 @@ const StaffManagement = ({ title }) => {
   const { staff: initialStaff, roles, auth, seatLimits } = props;
 
   const [staffMembers, setStaffMembers] = useState(initialStaff || []);
+  // deactivated staff keep their record but no longer take a seat
+  const isInactive = (staff) => staff.status === 'inactive';
+  const countRole = (list, roleId) => list.filter((staff) => Number(staff.role_id) === roleId && !isInactive(staff)).length;
   const seatsUsed = (roleId) => (seatLimits?.roles?.[roleId]?.used || 0)
-    - (initialStaff || []).filter((staff) => Number(staff.role_id) === roleId).length
-    + staffMembers.filter((staff) => Number(staff.role_id) === roleId).length;
+    - countRole(initialStaff || [], roleId)
+    + countRole(staffMembers, roleId);
   const roleFull = (roleId) => !seatLimits?.configured || seatsUsed(roleId) >= seatLimits.roles[roleId].limit;
   const allRolesFull = [3, 4, 7].every(roleFull);
 
@@ -141,19 +144,19 @@ const StaffManagement = ({ title }) => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const handleDeactivate = async (id) => {
     const ok = await showAlert.confirmDelete(
-      'This staff member will be permanently removed.',
-      'Delete this staff member?'
+      'The account is deactivated and can never be activated again. All records (inspections, toolbox talks, reports) are kept, the seat is freed, and this email and phone number cannot be registered again.',
+      'Deactivate this staff member?'
     );
     if (ok) {
       try {
         await axios.delete(`/staff/${id}`);
-        setStaffMembers(staffMembers.filter(item => item.id !== id));
-        showAlert.success('Staff member deleted successfully!');
+        setStaffMembers(staffMembers.map(item => item.id === id ? { ...item, status: 'inactive' } : item));
+        showAlert.success('Staff member deactivated. Records are kept.');
       } catch (error) {
-        console.error('Error deleting staff:', error);
-        showAlert.error(error.response?.data?.message || 'Failed to delete staff member. Please try again.', 'Cannot delete');
+        console.error('Error deactivating staff:', error);
+        showAlert.error(error.response?.data?.message || 'Failed to deactivate staff member. Please try again.', 'Cannot deactivate');
       }
     }
   };
@@ -186,7 +189,11 @@ const StaffManagement = ({ title }) => {
           company_id: auth.user.company_id
         });
         setIsAdding(false);
-        showAlert.success('Staff member added successfully!');
+        if (response.data.email_sent) {
+          showAlert.success(`Staff member added. The login email, password and steps were sent to ${payload.email}.`);
+        } else {
+          showAlert.warning(`Staff member added, but the login email could not be sent to ${payload.email}. Please give the email and password (the phone number) to the staff directly.`, 'Email not sent');
+        }
       }
     } catch (error) {
       console.error('Error adding staff:', error);
@@ -310,7 +317,7 @@ const StaffManagement = ({ title }) => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {paginatedStaff.length > 0 ? (
                   paginatedStaff.map((staff, index) => (
-                    <tr key={staff.id}>
+                    <tr key={staff.id} className={isInactive(staff) ? 'bg-gray-50 text-gray-400' : ''}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {(currentPage - 1) * entriesToShow + index + 1}
                       </td>
@@ -324,7 +331,7 @@ const StaffManagement = ({ title }) => {
                             onChange={(e) => setEditValues({...editValues, name: e.target.value})}
                           />
                         ) : (
-                          <span>{staff.name}<span className="block text-xs font-semibold text-gray-500">{staff.code}</span></span>
+                          <span>{staff.name}{isInactive(staff) && <span className="ml-2 rounded-full bg-gray-200 px-2 py-0.5 text-[11px] font-bold uppercase text-gray-600">Inactive</span>}<span className="block text-xs font-semibold text-gray-500">{staff.code}</span></span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -373,9 +380,11 @@ const StaffManagement = ({ title }) => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {editingId === staff.id ? (
+                        {isInactive(staff) ? (
+                          <span className="text-xs font-semibold text-gray-400" title="Deactivated accounts are kept for records and cannot be reactivated">Kept for records</span>
+                        ) : editingId === staff.id ? (
                           <>
-                            <button 
+                            <button
                               onClick={() => handleSaveEdit(staff.id)}
                               className="text-green-600 hover:text-green-900 mr-3"
                             >
@@ -405,9 +414,9 @@ const StaffManagement = ({ title }) => {
                               </svg>
                             </button>
                             <button 
-                              onClick={() => handleDelete(staff.id)}
+                              onClick={() => handleDeactivate(staff.id)}
                               className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                              title="Delete"
+                              title="Deactivate"
                             >
                               <svg 
                                 xmlns="http://www.w3.org/2000/svg" 
@@ -546,6 +555,20 @@ const StaffManagement = ({ title }) => {
                       value={newStaff.contact}  // Changed from newStaff.phone
                       onChange={handleInputChange}
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input
+                      type="text"
+                      readOnly
+                      tabIndex={-1}
+                      aria-describedby="staff-password-note"
+                      className="w-full cursor-not-allowed px-3 py-2 border border-gray-200 rounded-md bg-gray-100 text-gray-600"
+                      placeholder="Same as the contact number"
+                      value={newStaff.contact}
+                    />
+                    <p id="staff-password-note" className="mt-1 text-xs text-gray-500">The password is the contact number and cannot be changed here. Login details are emailed to the staff after registration.</p>
                   </div>
                 </div>
 
