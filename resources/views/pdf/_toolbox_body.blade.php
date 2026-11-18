@@ -10,15 +10,15 @@
 <tr><td class="k">Safety Passport sampled</td><td class="v">{{ $t->sp_sampled ?? '-' }}</td></tr>
 <tr><td class="k">Not registered</td><td class="v">{{ $t->sp_not_registered ?? '-' }}</td></tr>
 <tr><td class="k">SP compliance</td><td class="v">{{ $t->sp_compliance !== null ? $t->sp_compliance . '%' : '-' }}</td></tr>
-<tr><td class="k">Status</td><td class="v"><span class="badge b-approved">APPROVED</span></td></tr>
+<tr><td class="k">Status</td><td class="v"><span @if(empty($plainText)) class="badge b-approved" @endif>APPROVED</span></td></tr>
 </table>
 <h2>Attendees ({{ $t->attendees->count() }})</h2>
 @if($t->attendees->count())
-<table class="grid"><tr><th width="30">#</th><th>Name</th><th>Role</th></tr>
+<table class="grid attendees"><tr><th style="width:6%">#</th><th style="width:56%">Name</th><th style="width:38%">Role</th></tr>
 @foreach($t->attendees as $n => $a)<tr><td>{{ $n + 1 }}</td><td>{{ $a->name }}</td><td>{{ $a->role ?: '-' }}</td></tr>@endforeach
 </table>
 @else<div class="muted">No attendee list recorded.</div>@endif
-@if($t->inspections->count())
+@if(empty($hideVisitInspections) && $t->inspections->count())
 <h2>Inspections in this visit ({{ $t->inspections->count() }})</h2>
 <table class="grid"><tr><th>Topic</th><th>Subcontractor</th><th>Evaluation</th></tr>
 @foreach($t->inspections as $x)<tr><td>{{ optional($x->topic)->name ?: '-' }}</td><td>{{ optional($x->subconCompany)->name ?: '-' }}</td><td>{{ strtoupper($x->evaluation) }}</td></tr>@endforeach

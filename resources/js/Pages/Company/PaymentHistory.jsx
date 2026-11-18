@@ -1,6 +1,7 @@
-import React from "react";
-import { Head, Link } from "@inertiajs/react";
-import { ArrowLeft } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Head, Link, router } from "@inertiajs/react";
+import TableToolbar, { ToolbarSelect } from "@/Components/shared/TableToolbar";
+import { ArrowLeft, FileText, MessageCircle } from "lucide-react";
 import AccountPageLayout from "@/Layouts/AccountPageLayout";
 
 const money = (value) =>
@@ -60,7 +61,20 @@ export default function PaymentHistory({
     orders = [],
     yearlyPayment = null,
     underProvider = false,
+    filters = {},
 }) {
+    const [search, setSearch] = useState(filters.search || "");
+    const [status, setStatus] = useState(filters.status || "");
+    const firstRun = useRef(true);
+    const go = (next) => {
+        const data = { ...(next.search ? { search: next.search } : {}), ...(next.status ? { status: next.status } : {}) };
+        router.get("/manage-package/payments", data, { preserveScroll: true, preserveState: true, replace: true });
+    };
+    useEffect(() => {
+        if (firstRun.current) { firstRun.current = false; return; }
+        const timer = setTimeout(() => go({ search: search.trim(), status }), 350);
+        return () => clearTimeout(timer);
+    }, [search, status]);
     return (
         <AccountPageLayout>
             <Head title="Payment history" />
@@ -140,61 +154,54 @@ export default function PaymentHistory({
                         aria-labelledby="orders-title"
                     >
                         <div className="border-b border-brand-100 bg-brand-50 px-5 py-4">
-                            <h2
-                                id="orders-title"
-                                className="font-bold text-ink-950"
-                            >
+                            <h2 id="orders-title" className="font-bold text-ink-950">
                                 Orders awaiting payment or review
                             </h2>
                             <p className="mt-1 text-xs text-ink-500">
-                                These requests do not have a completed payment
-                                record.
+                                These orders do not have a completed payment record yet. For a pending order, tap Pay by WhatsApp to send us the order details.
                             </p>
                         </div>
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[680px] text-left text-sm">
-                                <thead className="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500">
+                            <table className="w-full min-w-[820px] text-left text-sm">
+                                <thead className="bg-ink-950 text-xs font-bold uppercase tracking-wider text-brand-400">
                                     <tr>
-                                        <th
-                                            scope="col"
-                                            className="w-44 px-5 py-3"
-                                        >
-                                            Date
-                                        </th>
-                                        <th scope="col" className="px-5 py-3">
-                                            Description
-                                        </th>
-                                        <th
-                                            scope="col"
-                                            className="w-40 px-5 py-3 text-right"
-                                        >
-                                            Total
-                                        </th>
+                                        <th scope="col" className="px-5 py-3">Date</th>
+                                        <th scope="col" className="px-5 py-3">Order no.</th>
+                                        <th scope="col" className="px-5 py-3">Description</th>
+                                        <th scope="col" className="px-5 py-3">Status</th>
+                                        <th scope="col" className="px-5 py-3 text-right">Total</th>
+                                        <th scope="col" className="px-5 py-3 text-right">Action</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {orders.map((order) => (
-                                        <tr key={order.key}>
-                                            <td className="whitespace-nowrap px-5 py-4 text-gray-600">
-                                                {dateTime(order.date)}
-                                            </td>
+                                        <tr key={order.key} className="align-top">
+                                            <td className="whitespace-nowrap px-5 py-4 text-gray-600">{dateTime(order.date)}</td>
+                                            <td className="whitespace-nowrap px-5 py-4 font-bold text-ink-950">{order.order_no || "—"}</td>
                                             <td className="px-5 py-4">
-                                                <p className="font-semibold text-ink-950">
-                                                    {order.title}
-                                                </p>
-                                                <div className="mt-1 flex items-center gap-2 text-xs text-gray-500">
-                                                    {order.detail && (
-                                                        <span>
-                                                            {order.detail}
-                                                        </span>
-                                                    )}
-                                                    <Status
-                                                        value={order.status}
-                                                    />
-                                                </div>
+                                                <p className="font-semibold text-ink-950">{order.title}</p>
+                                                {order.detail && <p className="mt-1 text-xs font-medium text-gray-700">{order.detail}</p>}
                                             </td>
+                                            <td className="whitespace-nowrap px-5 py-4"><Status value={order.status} /></td>
                                             <td className="whitespace-nowrap px-5 py-4 text-right font-bold text-ink-950">
                                                 {underProvider ? "—" : money(order.amount)}
+                                            </td>
+                                            <td className="whitespace-nowrap px-5 py-4 text-right">
+                                                {order.status === "pending" && order.order_no ? (
+                                                    <a
+                                                        href={`https://wa.me/60168865619?text=${encodeURIComponent(`Hello Safety Buddy, I would like to make payment for my order.
+Order number: ${order.order_no}
+Item: ${order.title}${order.detail ? ` (${order.detail})` : ""}
+Amount: ${money(order.amount)}`)}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="inline-flex items-center gap-1.5 rounded-lg bg-brand-400 px-3 py-1.5 text-xs font-black text-ink-950 hover:bg-brand-300"
+                                                    >
+                                                        <MessageCircle className="h-3.5 w-3.5" /> Pay by WhatsApp
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-xs text-gray-400">—</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -220,65 +227,54 @@ export default function PaymentHistory({
                             records.
                         </p>
                     </div>
+                    <TableToolbar search={search} onSearch={setSearch} placeholder="Search order no., package or record no…" count={payments.total} onClear={(search || status) ? () => { setSearch(""); setStatus(""); } : null}>
+                        <ToolbarSelect label="Status" value={status} onChange={setStatus}>
+                            <option value="">All statuses</option>
+                            <option value="completed">Completed</option>
+                            <option value="pending">Pending</option>
+                            <option value="failed">Failed</option>
+                        </ToolbarSelect>
+                    </TableToolbar>
                     {payments.data.length ? (
                         <div className="overflow-x-auto">
-                            <table className="w-full min-w-[680px] text-left text-sm">
-                                <thead className="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500">
+                            <table className="w-full min-w-[820px] text-left text-sm">
+                                <thead className="bg-ink-950 text-xs font-bold uppercase tracking-wider text-brand-400">
                                     <tr>
-                                        <th
-                                            scope="col"
-                                            className="w-44 px-5 py-3"
-                                        >
-                                            Date
-                                        </th>
-                                        <th scope="col" className="px-5 py-3">
-                                            Description
-                                        </th>
-                                        <th
-                                            scope="col"
-                                            className="w-40 px-5 py-3 text-right"
-                                        >
-                                            Total
-                                        </th>
+                                        <th scope="col" className="px-5 py-3">Date</th>
+                                        <th scope="col" className="px-5 py-3">Order no.</th>
+                                        <th scope="col" className="px-5 py-3">Description</th>
+                                        <th scope="col" className="px-5 py-3">Status</th>
+                                        <th scope="col" className="px-5 py-3 text-right">Total</th>
+                                        <th scope="col" className="px-5 py-3 text-right">Receipt</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
                                     {payments.data.map((payment) => (
-                                        <tr key={payment.id}>
-                                            <td className="whitespace-nowrap px-5 py-4 text-gray-600">
-                                                {dateTime(payment.date)}
-                                            </td>
+                                        <tr key={payment.id} className="align-top">
+                                            <td className="whitespace-nowrap px-5 py-4 text-gray-600">{dateTime(payment.date)}</td>
+                                            <td className="whitespace-nowrap px-5 py-4 font-bold text-ink-950">{payment.order_no || "—"}</td>
                                             <td className="px-5 py-4">
-                                                <p className="font-semibold text-ink-950">
-                                                    {description(payment)}
+                                                <p className="font-semibold text-ink-950">{description(payment)}</p>
+                                                <p className="mt-1 text-xs font-medium text-gray-700">
+                                                    {[
+                                                        payment.period_start && !["addon_inspector", "addon_executor", "activation_code_order"].includes(payment.payment_type) ? payment.title : null,
+                                                        `Record #${payment.id}`,
+                                                    ].filter(Boolean).join(" · ")}
                                                 </p>
-                                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                                                    {payment.period_start &&
-                                                        ![
-                                                            "addon_inspector",
-                                                            "addon_executor",
-                                                            "activation_code_order",
-                                                        ].includes(
-                                                            payment.payment_type,
-                                                        ) && (
-                                                            <span>
-                                                                {payment.title}
-                                                            </span>
-                                                        )}
-                                                    <span>
-                                                        Record #{payment.id}
-                                                    </span>
-                                                    <Status
-                                                        value={payment.status}
-                                                    />
-                                                </div>
                                             </td>
+                                            <td className="whitespace-nowrap px-5 py-4"><Status value={payment.status} /></td>
                                             <td className="whitespace-nowrap px-5 py-4 text-right font-bold text-ink-950">
-                                                {payment.cash_flow ===
-                                                "cash_out"
-                                                    ? "−"
-                                                    : ""}
+                                                {payment.cash_flow === "cash_out" ? "−" : ""}
                                                 {money(payment.amount)}
+                                            </td>
+                                            <td className="whitespace-nowrap px-5 py-4 text-right">
+                                                {payment.receipt_no ? (
+                                                    <a href={`/manage-package/payments/${payment.id}/receipt`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-bold text-ink-900 hover:border-brand-400 hover:bg-brand-50">
+                                                        <FileText className="h-3.5 w-3.5" /> {payment.receipt_no}
+                                                    </a>
+                                                ) : (
+                                                    <span className="text-xs font-medium text-gray-600">After approval</span>
+                                                )}
                                             </td>
                                         </tr>
                                     ))}
@@ -287,7 +283,7 @@ export default function PaymentHistory({
                         </div>
                     ) : (
                         <p className="px-5 py-12 text-center text-sm text-gray-500">
-                            No payment records yet.
+                            {search || status ? "No payments match your search." : "No payment records yet."}
                         </p>
                     )}
                     {payments.last_page > 1 && (

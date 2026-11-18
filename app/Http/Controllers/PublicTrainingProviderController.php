@@ -76,6 +76,34 @@ class PublicTrainingProviderController extends Controller
         ]);
     }
 
+    /** JSON list for the in-page "check registered Training Providers" window, so signed-in users do not leave the Plans page. */
+    public function list(Request $request)
+    {
+        $q = trim((string) $request->query('q', ''));
+        $providers = Company::query()
+            ->where('account_type_id', AccountType::TRAINING_PROVIDER)
+            ->whereHas('subscriptions', fn ($query) => $query
+                ->where('status', 'active')
+                ->whereDate('start_date', '<=', today())
+                ->whereDate('end_date', '>=', today())
+                ->whereHas('plan', fn ($plan) => $plan->where('audience', 'training_provider')))
+            ->when($q !== '', fn ($query) => $query->where(fn ($w) => $w
+                ->where('name', 'like', '%'.$q.'%')
+                ->orWhere('state', 'like', '%'.$q.'%')
+                ->orWhere('city', 'like', '%'.$q.'%')))
+            ->orderBy('name')->limit(30)->get()
+            ->map(fn (Company $company) => [
+                'id' => $company->id,
+                'name' => $company->name,
+                'logo_url' => $company->logo_url,
+                'location' => $this->clean(implode(', ', array_filter([$company->city, $company->state], fn ($part) => trim((string) $part) !== '' && trim((string) $part) !== '-'))),
+                'email' => $this->clean($company->email),
+                'contact' => $this->clean($company->contact),
+            ])->values();
+
+        return response()->json(['providers' => $providers]);
+    }
+
     private function clean(?string $value): ?string
     {
         $value = trim((string) $value);

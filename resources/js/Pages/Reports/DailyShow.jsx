@@ -5,6 +5,7 @@ import ReportShell from '@/Components/reports/ReportShell';
 import DailyReportView from '@/Components/reports/DailyReportView';
 import { Panel } from '@/Components/reports/parts';
 import PdfButton from '@/Components/shared/PdfButton';
+import LockNotice from '@/Components/reports/LockNotice';
 
 function PenaltyReview({ report, can_approve }) {
     const [busy, setBusy] = useState(false);
@@ -38,6 +39,7 @@ export default function DailyShow({ portal, report, links, can_approve }) {
                 <Link href={back} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500"><ArrowLeft className="h-4 w-4" /> Back to reports</Link>
                 <PdfButton href={`/pdf/daily/${report.id}`} className="ml-auto mr-2" />
             </div>
+            <LockNotice status={report.status} kind="daily report" />
             <DailyReportView report={report}>
                 <PenaltyReview report={report} can_approve={can_approve} />
             </DailyReportView>

@@ -428,7 +428,32 @@ class PdfReportController extends Controller
 
         $ref = $r->report_no ?: 'DR-' . str_pad($r->id, 5, '0', STR_PAD_LEFT);
 
-        return $this->render('pdf.daily', ['r' => $row] + $this->meta(
+        // the approved inspections and toolbox talks of that day, with their photos
+        $inspections = Inspection::with(['project', 'topic', 'subconCompany', 'inspector', 'non_conformance', 'client_complaint'])
+            ->where('project_id', $r->project_id)->where('subcon_company_id', $r->subcon_company_id)
+            ->whereDate('inspection_date', $r->report_date)
+            ->where('status', Inspection::STATUS_APPROVED)
+            ->orderBy('id')->get()
+            ->map(fn ($i) => [
+                'i' => $i,
+                'category' => $i->topic?->inspection_category_id
+                    ? \App\Models\InspectionCategory::where('id', $i->topic->inspection_category_id)->value('name')
+                    : null,
+                'photos' => $this->photos($i->photo),
+            ])->all();
+
+        $talks = ToolboxTalks::with(['project', 'CompanyStaff', 'categories:id,name', 'topics:id,name', 'attendees:id,name,role', 'inspections.topic:id,name', 'inspections.subconCompany:id,name'])
+            ->where('project_id', $r->project_id)
+            ->whereDate('inspection_date', $r->report_date)
+            ->where('status', Inspection::STATUS_APPROVED)
+            ->orderBy('id')->get()
+            ->map(fn ($t) => [
+                't' => $t,
+                'imgGroup' => $this->image($t->img_group),
+                'imgAttendance' => $this->image($t->img_attendance),
+            ])->all();
+
+        return $this->render('pdf.daily', ['r' => $row, 'inspections' => $inspections, 'talks' => $talks] + $this->meta(
             'Daily Inspection Report', $ref,
             optional(optional($ver)->verifier)->name, $this->ts(optional($ver)->verified_at),
             $row['reviewed_by'] ?? optional(optional($apr)->approver)->name, $this->ts(optional($apr)->approved_at)
@@ -444,7 +469,21 @@ class PdfReportController extends Controller
 
         $ref = $m->report_no ?: 'MR-' . str_pad($m->id, 5, '0', STR_PAD_LEFT);
 
-        return $this->render('pdf.monthly', ['r' => $row] + $this->meta(
+        $periodStart = \Carbon\Carbon::parse($m->period . '-01')->startOfMonth();
+        $inspectionSummary = Inspection::with(['inspector:id,name', 'topic:id,name', 'subconCompany:id,name'])
+            ->where('company_id', $this->companyId())
+            ->where('project_id', $m->project_id)
+            ->where('subcon_company_id', $m->subcon_company_id)
+            ->whereBetween('inspection_date', [$periodStart, $periodStart->copy()->endOfMonth()])
+            ->orderBy('inspection_date')->orderBy('id')->get();
+
+        $toolboxSummary = ToolboxTalks::with(['CompanyStaff:id,name', 'topics:id,name', 'categories:id,name'])
+            ->whereHas('project', fn ($query) => $query->where('company_id', $this->companyId()))
+            ->where('project_id', $m->project_id)
+            ->whereBetween('inspection_date', [$periodStart, $periodStart->copy()->endOfMonth()])
+            ->orderBy('inspection_date')->orderBy('id')->get();
+
+        return $this->render('pdf.monthly', ['r' => $row, 'inspectionSummary' => $inspectionSummary, 'toolboxSummary' => $toolboxSummary, 'charts' => \App\Support\MonthlyReportCharts::forReport($m)] + $this->meta(
             'Monthly Inspection Report', $ref,
             $row['verified_by'], $row['verified_at'], $row['approved_by'], $row['approved_at']
         ), $ref);

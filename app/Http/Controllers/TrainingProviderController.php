@@ -27,21 +27,18 @@ class TrainingProviderController extends Controller
         abort_unless($companyId, 403, 'No company is linked to your account.');
 
         $validated = $request->validate([
+            'company_name' => ['required', 'string', 'max:150'],
             'registration_no' => ['required', 'string', 'max:100'],
-            'registration_document' => ['required', 'file', 'mimes:png,jpg,jpeg,svg', 'max:2048'],
-            'certificates' => ['required', 'array', 'min:1', 'max:20'],
-            'certificates.*.issuing_body' => ['required', 'string', 'max:150'],
-            'certificates.*.expiry_date' => ['required', 'date', 'after:today'],
-            'certificates.*.file' => ['required', 'file', 'mimes:pdf,png,jpg,jpeg', 'max:5120'],
-            'terms' => ['accepted'],
+            'owner_name' => ['required', 'string', 'max:150'],
+            'email' => ['required', 'email', 'max:150'],
+            'registration_document' => ['required', 'file', 'mimes:pdf,png,jpg,jpeg', 'max:5120'],
         ], [
-            'registration_no.required' => 'Please enter your registration number.',
-            'registration_document.required' => 'Please upload your registration document.',
-            'registration_document.max' => 'The registration document must not be larger than 2 MB.',
-            'certificates.required' => 'Add at least one training certificate.',
-            'certificates.min' => 'Add at least one training certificate.',
-            'certificates.*.expiry_date.after' => 'A certificate must not be expired.',
-            'terms.accepted' => 'You must agree to the terms and conditions.',
+            'company_name.required' => 'Please enter your registered company name.',
+            'registration_no.required' => 'Please enter your company registration number.',
+            'owner_name.required' => 'Please enter the owner\'s full name.',
+            'email.required' => 'Please enter your email address.',
+            'registration_document.required' => 'Please upload your company registration certificate.',
+            'registration_document.max' => 'The registration certificate must not be larger than 5 MB.',
         ]);
 
         if (TrainingProviderApplication::where('company_id', $companyId)->whereIn('status', ['pending', 'approved'])->exists()) {
@@ -54,21 +51,15 @@ class TrainingProviderController extends Controller
             $application = TrainingProviderApplication::create([
                 'company_id' => $companyId,
                 'plan_id' => $plan->id,
+                'company_name' => $validated['company_name'],
                 'registration_no' => $validated['registration_no'],
+                'owner_name' => $validated['owner_name'],
+                'email' => $validated['email'],
                 'registration_document' => $request->file('registration_document')->store("training-providers/{$companyId}"),
                 'status' => 'pending',
                 'requested_by' => $request->user()->id,
             ]);
 
-            foreach ($validated['certificates'] as $index => $certificate) {
-                $file = $request->file("certificates.$index.file");
-                $application->certificates()->create([
-                    'issuing_body' => $certificate['issuing_body'],
-                    'expiry_date' => $certificate['expiry_date'],
-                    'file_path' => $file->store("training-providers/{$companyId}"),
-                    'file_name' => $file->getClientOriginalName(),
-                ]);
-            }
         });
 
         return redirect()->route('subscription.plans')->with('success', 'Application submitted. Verification takes 3 – 4 working days and you will be notified once it is reviewed.');
@@ -309,6 +300,9 @@ class TrainingProviderController extends Controller
                 'id' => $application->id,
                 'status' => $application->status,
                 'registration_no' => $application->registration_no,
+                'company_name' => $application->company_name,
+                'owner_name' => $application->owner_name,
+                'email' => $application->email,
                 'rejection_reason' => $application->rejection_reason,
                 'created_at' => $application->created_at?->format('Y-m-d H:i'),
                 'reviewed_at' => $application->reviewed_at?->format('Y-m-d H:i'),
@@ -357,6 +351,7 @@ class TrainingProviderController extends Controller
             // verified -> payment step: the existing purchase request is confirmed once payment is received
             if (! SubscriptionPlanRequest::where('company_id', $application->company_id)->where('status', 'pending')->exists()) {
                 SubscriptionPlanRequest::create([
+                    'order_no' => \App\Support\OrderNumber::next(\App\Support\OrderNumber::planCode($plan)),
                     'company_id' => $application->company_id,
                     'plan_id' => $plan->id,
                     'price_yearly' => $plan->price_yearly,
@@ -366,7 +361,20 @@ class TrainingProviderController extends Controller
             }
         });
 
-        return back()->with('success', 'Training Provider verified. A payment request has been opened for the company.');
+        $application->refresh();
+        $user = \App\Models\User::find($application->requested_by);
+        $order = SubscriptionPlanRequest::where('company_id', $application->company_id)->where('status', 'pending')->latest('id')->first();
+        \App\Mail\OrderStatusMail::deliver($user?->email, new \App\Mail\OrderStatusMail(
+            'You are verified as a Training Provider'.($order?->order_no ? ' — order '.$order->order_no : ''),
+            $user?->name ?? 'there',
+            'Training Provider approved',
+            "Good news: your Training Provider application is approved.\nNext step: make payment. Open Safety Buddy and tap the WhatsApp number on your order card; it opens a chat with your order details filled in. Your dashboard opens once payment is confirmed.",
+            'success',
+            array_filter(['Company' => $application->company_name, 'Order number' => $order?->order_no, 'Amount' => $order ? 'RM '.number_format((float) $order->price_yearly, 2) : null]),
+            null, null, url('/plans'), 'Open my order',
+        ));
+
+        return back()->with('success', 'Training Provider verified. An order with its own order number has been placed for the company.');
     }
 
     public function reject(Request $request, TrainingProviderApplication $application)
@@ -376,6 +384,17 @@ class TrainingProviderController extends Controller
             throw ValidationException::withMessages(['application' => 'This application has already been reviewed.']);
         }
         $application->update(['status' => 'rejected', 'reviewed_at' => now(), 'rejection_reason' => $validated['reason']]);
+
+        $user = \App\Models\User::find($application->requested_by);
+        \App\Mail\OrderStatusMail::deliver($user?->email, new \App\Mail\OrderStatusMail(
+            'Your Training Provider application was not approved',
+            $user?->name ?? 'there',
+            'Application not approved',
+            'We could not approve your Training Provider application.'."\nReason: ".$validated['reason']."\nYou can correct your details and submit the application again.",
+            'danger',
+            array_filter(['Company' => $application->company_name, 'Registration number' => $application->registration_no]),
+            null, null, url('/plans'), 'Update my application',
+        ));
 
         return back()->with('success', 'Training Provider application rejected.');
     }

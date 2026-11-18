@@ -44,6 +44,43 @@ class ReviewController extends Controller
         ];
     }
 
+    /** Red-badge numbers for the Supervisor / Manager app bar: what is waiting for this person on each menu. */
+    public function badges(): array
+    {
+        $companyId = $this->companyId();
+        $isManager = $this->roleFlags()['is_manager'];
+
+        $visits = \App\Support\VisitFeed::collect($companyId);
+        $visitCount = $visits->where('status', 'pending_verification')->count() + ($isManager ? $visits->where('status', 'verified')->count() : 0);
+
+        $caseCount = $this->cases()->where('state', 'responded')->count();
+
+        $incidents = $this->incidentQuery()->get();
+        $incidentCount = $isManager
+            ? $incidents->filter(fn ($i) => strtolower((string) ($i->status ?: 'open')) === 'open')->count()
+            : $incidents->filter(fn ($i) => in_array(strtolower((string) ($i->status ?: 'open')), ['open', 'inprogress'], true))->count();
+
+        $monthly = \App\Models\MonthlyReport::where('company_id', $companyId)->get();
+        $reportCount = $monthly->whereIn('status', ['pending_verification', 'rejected'])->where('inspections_approved', '>', 0)->count();
+        if ($isManager) {
+            $reportCount += $monthly->where('status', 'verified')->count();
+            $reportCount += \App\Models\InspectionReport::where('company_id', $companyId)->where('status', 'approved')
+                ->where('penalty_status', 'pending_review')->where('penalty_total', '>', 0)->count();
+        }
+
+        $staffCount = \App\Models\SubconStaff::where('status', 'pending')->where('is_safetypassport', true)
+            ->whereNull($isManager ? 'manager_approved_at' : 'supervisor_approved_at')
+            ->whereHas('subconCompany', fn ($q) => $q->where('company_id', $companyId))->count();
+
+        return [
+            '/review/visits' => $visitCount,
+            '/review/cases' => $caseCount,
+            '/review/incidents' => $incidentCount,
+            '/review/reports' => $reportCount,
+            '/review/staff-approval' => $staffCount,
+        ];
+    }
+
     public function dashboard()
     {
         $companyId = $this->companyId();
@@ -95,6 +132,10 @@ class ReviewController extends Controller
                 'monthly_verify' => $monthly->whereIn('status', ['pending_verification', 'rejected'])->where('inspections_approved', '>', 0)->count(),
                 'monthly_approve' => $monthly->where('status', 'verified')->count(),
                 'penalties_pending' => $penaltyPending->count(),
+                // contractor (subcontractor) staff registered with a Safety Passport, waiting for this person's approval
+                'staff_pending' => \App\Models\SubconStaff::where('status', 'pending')->where('is_safetypassport', true)
+                    ->whereNull($flags['is_manager'] ? 'manager_approved_at' : 'supervisor_approved_at')
+                    ->whereHas('subconCompany', fn ($q) => $q->where('company_id', $companyId))->count(),
             ],
             'queue' => ($flags['is_manager'] ? $toApprove->concat($toVerify) : $toVerify)->sortBy('sort')->take(5)->map($visitRow)->values(),
             'cases' => $caseReview->concat($caseWaiting)->take(4)->values(),

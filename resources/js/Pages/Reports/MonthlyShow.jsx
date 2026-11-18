@@ -5,6 +5,7 @@ import ReportShell from '@/Components/reports/ReportShell';
 import MonthlyReportView from '@/Components/reports/MonthlyReportView';
 import { Panel } from '@/Components/reports/parts';
 import PdfButton from '@/Components/shared/PdfButton';
+import LockNotice from '@/Components/reports/LockNotice';
 
 function Approval({ m, can_verify, can_approve }) {
     const [busy, setBusy] = useState(false);
@@ -42,7 +43,7 @@ function Approval({ m, can_verify, can_approve }) {
                     {error && <p className="text-xs font-medium text-red-500">{error}</p>}
                     <div className="flex flex-wrap gap-2">
                         {canVerify && <button disabled={busy} onClick={() => act('verify')} className="inline-flex items-center gap-1.5 rounded-xl bg-brand-500 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> Verify report</button>}
-                        {canApprove && <button disabled={busy} onClick={() => act('approve')} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> Approve report</button>}
+                        {canApprove && <button disabled={busy} onClick={() => window.confirm('Approve this monthly report? Once approved, its data and calculations are locked: they cannot be changed or added to.') && act('approve')} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><CheckCircle2 className="h-4 w-4" /> Approve report</button>}
                         {canReturn && <button disabled={busy || !reason.trim()} onClick={() => act('reject', { comment: reason })} className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-bold text-rose-600 disabled:opacity-40">Return</button>}
                     </div>
                 </div>
@@ -63,6 +64,7 @@ export default function MonthlyShow({ portal, report, can_verify, can_approve })
                 <Link href={back} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500"><ArrowLeft className="h-4 w-4" /> Back to reports</Link>
                 <PdfButton href={`/pdf/monthly/${report.id}`} className="ml-auto mr-2" />
             </div>
+            <LockNotice status={report.status} kind="monthly report" />
             <MonthlyReportView report={report} dailyHref={dailyHref}>
                 <Approval m={report} can_verify={isReview && can_verify} can_approve={isReview && can_approve} />
             </MonthlyReportView>

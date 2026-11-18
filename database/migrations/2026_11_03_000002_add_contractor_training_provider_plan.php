@@ -7,7 +7,7 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Contractor Training Provider package: same seats and report limits as Professional, RM 700.
+        // Participant package: same seats and report limits as Professional, RM 700.
         // It has its own audience so it is sold only by Training Providers (their Packages page) and never listed publicly.
         $professional = DB::table('subscription_plans')->where('code', 'PROFESSIONAL')->first();
         if (! $professional || DB::table('subscription_plans')->where('code', 'CONTRACTOR_TRAINING_PROVIDER')->exists()) {
@@ -18,7 +18,7 @@ return new class extends Migration
         DB::table('subscription_plans')->insert([
             'code' => 'CONTRACTOR_TRAINING_PROVIDER',
             'audience' => 'contractor_provider',
-            'name' => 'Contractor Training Provider',
+            'name' => 'Participant',
             'price_yearly' => 700,
             'provider_price_yearly' => 700,
             'manager_limit' => $professional->manager_limit,

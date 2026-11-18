@@ -19,25 +19,87 @@ const date = value => value ? new Date(`${value}T00:00:00`).toLocaleDateString('
 
 const TABS = [
   { id: 'normal', label: 'Buy a plan', text: 'Pick an annual package for your company and pay Safety Buddy for it.' },
-  { id: 'under', label: 'I have an activation code', text: 'Your Training Provider gave you a code. Enter it to activate your package. No payment needed.' },
+  { id: 'under', label: 'I am under a Training Provider', text: 'Your company signs in through a Training Provider. You need the activation code from them to activate your account.' },
   { id: 'provider', label: 'Register as Training Provider', text: 'Apply to deliver safety training and buy packages for the companies you train.' },
 ];
 
 
+/** Lists the Training Providers registered with Safety Buddy without leaving the Plans page. */
+function RegisteredProvidersModal({ onClose }) {
+  const [query, setQuery] = useState('');
+  const [providers, setProviders] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  React.useEffect(() => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/plans/registered-providers?q=${encodeURIComponent(query.trim())}`, { headers: { Accept: 'application/json' }, credentials: 'same-origin', signal: controller.signal })
+        .then(response => response.ok ? response.json() : Promise.reject())
+        .then(data => { setProviders(data.providers); setFailed(false); })
+        .catch(error => { if (error?.name !== 'AbortError') setFailed(true); });
+    }, 250);
+    return () => { clearTimeout(timer); controller.abort(); };
+  }, [query]);
+  React.useEffect(() => {
+    const onKey = event => { if (event.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/70 p-4" role="presentation" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}>
+    <div role="dialog" aria-modal="true" aria-labelledby="providers-title" className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-2xl bg-white shadow-2xl">
+      <div className="flex items-start justify-between gap-4 border-b border-ink-100 p-5">
+        <div><h2 id="providers-title" className="text-lg font-black text-ink-950">Registered Training Providers</h2><p className="mt-1 text-sm text-ink-500">Only providers on this list are registered with Safety Buddy. Buy and pay only through them.</p></div>
+        <button type="button" onClick={onClose} aria-label="Close" className="rounded-lg px-2 py-1 text-xl leading-none text-ink-400 hover:bg-ink-50 hover:text-ink-900">×</button>
+      </div>
+      <div className="border-b border-ink-100 px-5 py-3"><input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search by name, city or state…" autoFocus className="w-full rounded-xl border border-ink-200 px-4 py-2.5 text-sm" /></div>
+      <ul className="flex-1 divide-y divide-ink-100 overflow-y-auto">
+        {providers === null && !failed && <li className="p-8 text-center text-sm text-ink-500">Loading…</li>}
+        {failed && <li className="p-8 text-center text-sm text-rose-600">Could not load the list. Please try again.</li>}
+        {providers?.map(provider => <li key={provider.id} className="flex items-start gap-3 px-5 py-4">
+          {provider.logo_url ? <img src={provider.logo_url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover ring-1 ring-ink-100" /> : <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-400 text-sm font-black text-ink-950">{provider.name?.[0]}</span>}
+          <div className="min-w-0 text-sm"><p className="font-bold text-ink-950">{provider.name} <span className="ml-1 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700"><CheckCircle2 className="h-3 w-3" /> Registered</span></p>
+            {provider.location && <p className="text-ink-500">{provider.location}</p>}
+            <p className="mt-0.5 text-ink-600">{[provider.contact, provider.email].filter(Boolean).join(' · ') || 'No contact listed'}</p></div>
+        </li>)}
+        {providers && !providers.length && <li className="p-8 text-center text-sm text-ink-500">{query ? 'No registered Training Provider matches your search.' : 'No registered Training Providers yet.'}</li>}
+      </ul>
+      <div className="border-t border-ink-100 px-5 py-3 text-right"><button type="button" onClick={onClose} className="rounded-xl bg-ink-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-ink-800">Close</button></div>
+    </div>
+  </div>;
+}
+
 /** A company redeems an activation code its Training Provider bought for it: the package activates, no payment. */
 function ActivationCodeForm() {
   const form = useForm({ code: '' });
+  const [showProviders, setShowProviders] = useState(false);
   const submit = event => { event.preventDefault(); form.post('/plans/activation-code', { preserveScroll: true }); };
 
-  return <form onSubmit={submit} className="mb-8 max-w-xl rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
-    <label htmlFor="activation-code" className="text-sm font-black text-ink-950">Activation code</label>
-    <p className="mt-1 text-sm text-ink-500">Your Training Provider bought a package for you? Enter the activation code to activate it. No payment needed.</p>
-    <div className="mt-4 flex gap-3">
-      <input id="activation-code" value={form.data.code} onChange={event => form.setData('code', event.target.value.toUpperCase())} placeholder="e.g. SBT-PK-4K9Q-2MXH-7WRD" autoComplete="off" className="min-w-0 flex-1 rounded-xl border border-ink-200 px-4 py-3 text-sm font-semibold uppercase" aria-invalid={!!form.errors.code} />
-      <button disabled={form.processing || !form.data.code.trim()} className="rounded-xl bg-brand-400 px-5 py-3 text-sm font-black text-ink-950 transition hover:bg-brand-300 disabled:opacity-50">{form.processing ? 'Activating…' : 'Activate'}</button>
-    </div>
-    {form.errors.code && <p className="mt-2 text-sm text-rose-600" role="alert">{form.errors.code}</p>}
-  </form>;
+  return <div className="mb-8 max-w-2xl space-y-5">
+    <section className="rounded-2xl border border-ink-100 bg-white p-6 shadow-sm">
+      <h3 className="text-lg font-black text-ink-950">Activate your account with a code</h3>
+      <p className="mt-2 text-sm leading-6 text-ink-500">Choose this if your company is registered under a Training Provider. Your account stays inactive until you enter the activation code from your Training Provider. No payment is made to Safety Buddy.</p>
+      <ol className="mt-4 space-y-2 text-sm text-ink-700">
+        <li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-400 text-xs font-black text-ink-950">1</span><span>Contact your Training Provider and ask for your activation code.</span></li>
+        <li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-400 text-xs font-black text-ink-950">2</span><span>Enter the code below exactly as given, including the dashes.</span></li>
+        <li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-400 text-xs font-black text-ink-950">3</span><span>Your package activates straight away for one year.</span></li>
+      </ol>
+      <form onSubmit={submit} className="mt-5">
+        <label htmlFor="activation-code" className="text-sm font-black text-ink-950">Activation code</label>
+        <div className="mt-2 flex gap-3">
+          <input id="activation-code" value={form.data.code} onChange={event => form.setData('code', event.target.value.toUpperCase())} placeholder="e.g. SBT-PK-4K9Q-2MXH-7WRD" autoComplete="off" className="min-w-0 flex-1 rounded-xl border border-ink-200 px-4 py-3 font-mono text-sm font-bold" />
+          <button disabled={form.processing || !form.data.code.trim()} className="rounded-xl bg-brand-400 px-5 py-3 text-sm font-black text-ink-950 transition hover:bg-brand-300 disabled:opacity-50">{form.processing ? 'Activating…' : 'Activate'}</button>
+        </div>
+        {form.errors.code && <p className="mt-2 text-sm text-rose-600" role="alert">{form.errors.code}</p>}
+      </form>
+    </section>
+    <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5" aria-label="Avoid scams">
+      <p className="flex items-center gap-2 text-sm font-black text-amber-900"><ShieldCheck className="h-5 w-5" /> Protect yourself from scams</p>
+      <p className="mt-2 text-sm leading-6 text-amber-900/90">Only contact, buy from or pay a Training Provider that is registered with Safety Buddy. Do not pay anyone who is not on our official list, and never share your login password.</p>
+      <button type="button" onClick={() => setShowProviders(true)} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-ink-900 px-4 py-2 text-sm font-bold text-white hover:bg-ink-800">Check registered Training Providers <ArrowUpRight className="h-4 w-4" /></button>
+      {showProviders && <RegisteredProvidersModal onClose={() => setShowProviders(false)} />}
+    </section>
+  </div>;
 }
 
 const TERMS = [
@@ -69,7 +131,7 @@ function TrainingStatus({ application, plan, active = false }) {
   const banner = active
     ? { tone: 'border-emerald-200 bg-emerald-50', icon: <CheckCircle2 className="h-6 w-6" />, iconTone: 'bg-emerald-500 text-white', title: 'You are an approved Training Provider', body: <>Your verification is complete and your package is active. Buy packages for new companies and see them on the <Link href="/training-provider/trainees" className="font-bold underline">Trainees</Link> page.</> }
     : approved
-      ? { tone: 'border-emerald-200 bg-emerald-50', icon: <CheckCircle2 className="h-6 w-6" />, iconTone: 'bg-emerald-500 text-white', title: 'Verified — payment is the last step', body: <>Your documents were verified{application.reviewed_at ? ` on ${dateTime(application.reviewed_at)}` : ''}. Contact Ramzi at <a href="tel:+60168865619" className="font-bold underline">016-8865619</a> to arrange payment of <strong>{price}</strong>. Your dashboard opens once payment is confirmed, and your reference code is then generated automatically for you to share with new companies.</> }
+      ? { tone: 'border-emerald-200 bg-emerald-50', icon: <CheckCircle2 className="h-6 w-6" />, iconTone: 'bg-emerald-500 text-white', title: 'Verified — payment is the last step', body: <>Your documents were verified{application.reviewed_at ? ` on ${dateTime(application.reviewed_at)}` : ''}. Contact Us at <a href="tel:+60168865619" className="font-bold underline">016-8865619</a> to arrange payment of <strong>{price}</strong>. Your dashboard opens once payment is confirmed, and your reference code is then generated automatically for you to share with new companies.</> }
       : { tone: 'border-brand-300 bg-brand-50', icon: <Clock3 className="h-6 w-6" />, iconTone: 'bg-brand-400 text-ink-950', title: 'Your data is being verified', body: <>We received your application on <strong>{dateTime(application.created_at)}</strong>. Our team is now checking your registration number and certificates. This takes <strong>3 – 4 working days</strong>. You cannot open the dashboard until verification is approved and payment is confirmed. You do not need to submit again.</> };
 
   return <div className="mt-6 space-y-6">
@@ -96,9 +158,52 @@ function TrainingStatus({ application, plan, active = false }) {
         <div><dt className="text-xs font-bold uppercase tracking-wider text-ink-400">Submitted</dt><dd className="mt-1 font-semibold">{dateTime(application.created_at)}</dd></div>
       </dl>
       <div className="mt-5 overflow-x-auto rounded-xl border border-ink-100"><table className="w-full min-w-[480px] text-left text-sm"><thead className="bg-ink-50 text-xs font-bold uppercase tracking-wider text-ink-500"><tr><th className="px-4 py-3">Issuing body</th><th className="px-4 py-3">Expiry date</th><th className="px-4 py-3">Document</th></tr></thead><tbody className="divide-y divide-ink-100">{(application.certificates ?? []).map(certificate => <tr key={certificate.id}><td className="px-4 py-3 font-semibold">{certificate.issuing_body}</td><td className="whitespace-nowrap px-4 py-3">{date(String(certificate.expiry_date).slice(0, 10))}</td><td className="px-4 py-3 text-brand-800">{certificate.file_name}</td></tr>)}</tbody></table></div>
-      {!active && <p className="mt-4 text-xs text-ink-500">Need to correct something? Call Ramzi at <a href="tel:+60168865619" className="font-semibold underline">016-8865619</a>. {approved ? '' : 'You can submit a new application only if this one is rejected.'}</p>}
+      {!active && <p className="mt-4 text-xs text-ink-500">Need to correct something? Call Us at <a href="tel:+60168865619" className="font-semibold underline">016-8865619</a>. {approved ? '' : 'You can submit a new application only if this one is rejected.'}</p>}
     </section>
   </div>;
+}
+
+/** Same look as the package order card: the Training Provider application, its status and what to do next. */
+function TrainingOrderCard({ application, plan, orderNo = null }) {
+  const approved = application.status === 'approved';
+  const price = Number(plan?.price_yearly ?? 0).toLocaleString('en-MY');
+  const waMessage = `Hello Safety Buddy, my Training Provider application has been approved and I would like to make payment.
+Order number: ${orderNo ?? '-'}
+Package: ${plan?.name ?? 'Training Provider'} (Annual)
+Amount: RM ${price}
+Company: ${application.company_name ?? ''}
+Registration number: ${application.registration_no ?? ''}`;
+  const waLink = `https://wa.me/60168865619?text=${encodeURIComponent(waMessage)}`;
+  const steps = [
+    { title: 'Application submitted', text: `Done. We received your application on ${dateTime(application.created_at)}.`, done: true },
+    { title: 'Verification by our team', text: approved ? 'Done. Your company details and registration certificate are verified.' : 'We are checking your company details and registration certificate. This takes 3 – 4 working days.', done: approved, current: !approved },
+    { title: 'Pay by WhatsApp', text: approved
+      ? <>Click <a href={waLink} target="_blank" rel="noreferrer" className="font-bold underline">016-8865619</a> to open WhatsApp. A message with your order number, package, amount and company details is filled in for you. Send it, then follow our reply to make the payment and send your receipt.</>
+      : 'Once you are approved, the WhatsApp link to make payment appears here.', done: false, current: approved },
+    { title: 'Dashboard access', text: 'After payment is confirmed your dashboard opens and your reference code is generated for you to share with new companies.', done: false },
+  ];
+  return <section className="overflow-hidden rounded-2xl border border-brand-300 bg-white shadow-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-200 bg-brand-50 px-5 py-4">
+      <div><p className="text-xs font-black uppercase tracking-[.2em] text-brand-800">Your Training Provider application</p><p className="mt-1 text-xl font-black text-ink-950">{application.company_name || 'Training Provider'}</p><p className="mt-1 text-xs text-ink-600">{approved ? 'Your application is approved. Payment is the last step.' : 'You do not need to submit again. We will notify you once it is reviewed.'}</p></div>
+      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${approved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'}`}>{approved ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Clock3 className="h-3.5 w-3.5" />} {approved ? 'Approved · awaiting payment' : 'Being verified'}</span>
+    </div>
+    <dl className="grid gap-4 px-5 py-4 text-sm sm:grid-cols-3">
+      {approved && orderNo && <div><dt className="text-ink-500">Order number</dt><dd className="font-black text-ink-950">{orderNo}</dd></div>}
+      <div><dt className="text-ink-500">Package</dt><dd className="font-bold text-ink-950">{plan?.name ?? 'Training Provider'} · Annual</dd></div>
+      <div><dt className="text-ink-500">Amount</dt><dd className="font-bold text-ink-950">RM {price}</dd></div>
+      <div><dt className="text-ink-500">Submitted</dt><dd className="font-bold text-ink-950">{dateTime(application.created_at)}</dd></div>
+      <div><dt className="text-ink-500">Registration number</dt><dd className="font-bold text-ink-950">{application.registration_no}</dd></div>
+      <div><dt className="text-ink-500">Company owner</dt><dd className="font-bold text-ink-950">{application.owner_name || '—'}</dd></div>
+      <div><dt className="text-ink-500">Email</dt><dd className="break-all font-bold text-ink-950">{application.email || '—'}</dd></div>
+    </dl>
+    <div className="border-t border-ink-100 px-5 py-4">
+      <p className="text-xs font-black uppercase tracking-[.2em] text-ink-500">What to do next</p>
+      <ol className="mt-3 space-y-3">{steps.map((step, index) => <li key={step.title} className="flex items-start gap-3">
+        <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black ${step.done ? 'bg-emerald-500 text-white' : step.current ? 'bg-brand-400 text-ink-950' : 'bg-ink-100 text-ink-500'}`}>{step.done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : index + 1}</span>
+        <div className="text-sm"><p className={`font-bold ${step.current ? 'text-ink-950' : 'text-ink-700'}`}>{step.title}{step.current && <span className="ml-2 text-xs font-semibold text-brand-800">You are here</span>}</p><p className="text-ink-500">{step.text}</p></div>
+      </li>)}</ol>
+    </div>
+  </section>;
 }
 
 /** Selling side of the Training Provider tab: what the package is, why take it, what is in it and how it works. */
@@ -117,7 +222,7 @@ function TrainingProviderPitch({ plan }) {
     'System access throughout the active subscription',
   ];
   const steps = [
-    { icon: ClipboardList, title: 'Register company', text: 'Submit your registration number and training certificates.' },
+    { icon: ClipboardList, title: 'Register company', text: 'Submit your company details and registration certificate.' },
     { icon: ShieldCheck, title: 'Verification', text: 'Our team checks your details in 3 – 4 working days.' },
     { icon: CreditCard, title: 'Subscribe', text: `Arrange payment of RM ${price} per year.` },
     { icon: Laptop, title: 'Access & train', text: 'Open your dashboard and start training.' },
@@ -162,30 +267,12 @@ function TrainingProviderPitch({ plan }) {
 }
 
 function TrainingProviderApply({ application, plan, canPurchase, hasActiveSafety }) {
-  const form = useForm({ registration_no: '', registration_document: null, terms: false });
-  const [certificates, setCertificates] = useState([]);
-  const [draft, setDraft] = useState(emptyCert);
-  const [editing, setEditing] = useState(null);
-  const [draftError, setDraftError] = useState('');
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const { auth, latestRequest } = usePage().props;
+  const form = useForm({ company_name: auth?.user?.company?.name ?? '', registration_no: '', owner_name: '', email: auth?.user?.email ?? '', registration_document: null });
 
   const status = application?.status;
-  const certErrors = Object.entries(form.errors).filter(([key]) => key.startsWith('certificates')).map(([, message]) => message);
-
-  const saveCertificate = () => {
-    if (!draft.issuing_body.trim() || !draft.expiry_date || !draft.file) { setDraftError('Enter the issuing body, expiry date and choose the certificate file.'); return; }
-    if (draft.expiry_date <= todayIso) { setDraftError('A certificate must not be expired.'); return; }
-    setDraftError('');
-    setCertificates(rows => editing === null ? [...rows, draft] : rows.map((row, index) => index === editing ? draft : row));
-    setDraft(emptyCert);
-    setEditing(null);
-  };
-  const editCertificate = index => { setDraft(certificates[index]); setEditing(index); setDraftError(''); };
-  const removeCertificate = index => { setCertificates(rows => rows.filter((_, i) => i !== index)); if (editing === index) { setDraft(emptyCert); setEditing(null); } };
-
   const submit = event => {
     event.preventDefault();
-    form.transform(data => ({ ...data, terms: data.terms ? 1 : '', certificates }));
     form.post('/plans/training-provider', { forceFormData: true, preserveScroll: true });
   };
 
@@ -193,57 +280,37 @@ function TrainingProviderApply({ application, plan, canPurchase, hasActiveSafety
 
   if (hasActiveSafety && status === 'approved') return <div>{intro}<TrainingStatus application={application} plan={plan} active /></div>;
 
-  if (status === 'pending') return <div>{intro}<TrainingStatus application={application} plan={plan} /></div>;
-
-  if (status === 'approved') return <div>{intro}<TrainingStatus application={application} plan={plan} /></div>;
+  if (status === 'pending' || status === 'approved') return <TrainingOrderCard application={application} plan={plan} orderNo={latestRequest?.order_no} />;
 
   return <div className="rounded-3xl border border-ink-100 bg-white p-6 shadow-xl shadow-gray-300/50 sm:p-8">
     <h2 className="text-2xl font-black tracking-tight text-ink-950">Register as Training Provider</h2>
-    {intro}
+    <p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">Subscribe to the Training Provider Package (RM{Number(plan?.price_yearly ?? 800).toLocaleString('en-MY')}/year) and get access to Safety Buddy for training and demonstration.</p>
     {status === 'rejected' && <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-800"><strong>Your previous application was not approved.</strong>{application.rejection_reason && <> Reason: {application.rejection_reason}</>} You can correct the details and submit again.</div>}
-    <div className="mt-6 flex items-start gap-4 rounded-2xl bg-amber-50 p-5"><span className="rounded-full bg-brand-400 p-3 text-ink-950"><Clock3 className="h-6 w-6" /></span><div><p className="font-black text-ink-950">Verification period: 3 – 4 working days</p><p className="mt-1 text-sm text-ink-700">Your registration and submitted documents will be reviewed by our team. You will be notified once your Training Provider account is approved.</p></div></div>
-    <form onSubmit={submit} className="mt-8 space-y-8">
+    <div className="mt-6 flex items-start gap-4 rounded-2xl bg-amber-50 p-4"><span className="rounded-full bg-emerald-500 p-2.5 text-white"><Check className="h-5 w-5" strokeWidth={3} /></span><div><p className="font-black text-ink-950">Simple Registration</p><p className="mt-1 text-sm text-ink-700">Only company details and company registration certificate are required.</p></div></div>
+    <form onSubmit={submit} className="mt-6 space-y-5">
+      {[
+        ['company_name', 'Company Name', 'Enter registered company name', 'text'],
+        ['registration_no', 'Company Registration Number', 'e.g. 202601234567', 'text'],
+        ['owner_name', 'Name of Company Owner', "Enter the owner's full name", 'text'],
+        ['email', 'Email Address', 'e.g. training@company.com', 'email'],
+      ].map(([key, label, placeholder, type]) => <div key={key}>
+        <label htmlFor={`tp-${key}`} className="text-sm font-bold text-ink-950">{label} <span className="text-rose-600">*</span></label>
+        <input id={`tp-${key}`} type={type} value={form.data[key]} onChange={event => form.setData(key, event.target.value)} placeholder={placeholder} className={`${fieldClass} mt-2`} />
+        {form.errors[key] && <p className="mt-2 text-sm text-rose-600">{form.errors[key]}</p>}
+      </div>)}
       <div>
-        <label htmlFor="registration-no" className="text-sm font-bold text-ink-950">Registration number <span className="text-rose-600">*</span></label>
-        <input id="registration-no" value={form.data.registration_no} onChange={event => form.setData('registration_no', event.target.value)} placeholder="e.g. 123456-A" className={`${fieldClass} mt-2`} />
-        {form.errors.registration_no && <p className="mt-2 text-sm text-rose-600">{form.errors.registration_no}</p>}
-        <label htmlFor="registration-document" className="mt-4 flex cursor-pointer flex-col items-center gap-1 rounded-2xl border-2 border-dashed border-ink-200 bg-white p-6 text-center text-sm text-ink-500 hover:border-brand-400">
+        <label htmlFor="registration-document" className="text-sm font-bold text-ink-950">Company Registration Certificate <span className="text-rose-600">*</span></label>
+        <label htmlFor="registration-document" className="mt-2 flex cursor-pointer flex-col items-center gap-1 rounded-2xl border-2 border-dashed border-ink-200 bg-white p-6 text-center text-sm text-ink-500 hover:border-brand-400">
           <Upload className="h-6 w-6 text-ink-400" />
-          <span><strong className="text-ink-900">Click to upload</strong> or drag and drop</span>
-          <span className="text-xs">PNG, JPG or SVG (Max. 2 MB)</span>
+          <span><strong className="text-ink-900">Click to upload</strong> or drag and drop file</span>
+          <span className="text-xs">PDF, JPG or PNG (Max. 5 MB)</span>
           {form.data.registration_document && <span className="mt-1 font-semibold text-brand-800">{form.data.registration_document.name}</span>}
         </label>
-        <input id="registration-document" type="file" accept=".png,.jpg,.jpeg,.svg" className="sr-only" onChange={event => form.setData('registration_document', event.target.files[0] ?? null)} />
+        <input id="registration-document" type="file" accept=".pdf,.png,.jpg,.jpeg" className="sr-only" onChange={event => form.setData('registration_document', event.target.files[0] ?? null)} />
         {form.errors.registration_document && <p className="mt-2 text-sm text-rose-600">{form.errors.registration_document}</p>}
       </div>
-
-      <div>
-        <h3 className="text-lg font-black text-ink-950">Training Certificate <span className="text-rose-600">*</span></h3>
-        <div className="mt-3 overflow-x-auto rounded-2xl border border-ink-100 bg-white">
-          <table className="w-full min-w-[520px] text-left text-sm"><thead className="bg-ink-50 text-xs font-bold uppercase tracking-wider text-ink-500"><tr><th className="px-4 py-3">Issuing body</th><th className="px-4 py-3">Expiry date</th><th className="px-4 py-3">Document</th><th className="px-4 py-3">Action</th></tr></thead>
-            <tbody className="divide-y divide-ink-100">
-              {certificates.map((row, index) => <tr key={index}><td className="px-4 py-3 font-semibold">{row.issuing_body}</td><td className="whitespace-nowrap px-4 py-3">{date(row.expiry_date)}</td><td className="px-4 py-3 text-brand-800">{row.file.name}</td><td className="px-4 py-3"><div className="flex gap-3"><button type="button" onClick={() => editCertificate(index)} aria-label="Edit certificate" className="text-ink-500 hover:text-ink-950"><Pencil className="h-4 w-4" /></button><button type="button" onClick={() => removeCertificate(index)} aria-label="Remove certificate" className="text-rose-500 hover:text-rose-700"><Trash2 className="h-4 w-4" /></button></div></td></tr>)}
-              {!certificates.length && <tr><td colSpan="4" className="px-4 py-6 text-center text-ink-400">No certificates added yet.</td></tr>}
-            </tbody></table>
-        </div>
-        <div className="mt-4 grid gap-3 rounded-2xl bg-ink-50 p-4 sm:grid-cols-2">
-          <label className="text-xs font-bold uppercase tracking-wider text-ink-500">Issuing body<input value={draft.issuing_body} onChange={event => setDraft({ ...draft, issuing_body: event.target.value })} className={`${fieldClass} mt-1 normal-case tracking-normal`} /></label>
-          <label className="text-xs font-bold uppercase tracking-wider text-ink-500">Expiry date<input type="date" min={todayIso} value={draft.expiry_date} onChange={event => setDraft({ ...draft, expiry_date: event.target.value })} className={`${fieldClass} mt-1 normal-case tracking-normal`} /></label>
-          <label className="text-xs font-bold uppercase tracking-wider text-ink-500 sm:col-span-2">Certificate file (PDF, PNG or JPG, max. 5 MB)<input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={event => setDraft({ ...draft, file: event.target.files[0] ?? null })} className={`${fieldClass} mt-1 normal-case tracking-normal`} /></label>
-          <div className="flex items-center gap-3 sm:col-span-2"><button type="button" onClick={saveCertificate} className="rounded-xl bg-ink-950 px-5 py-2.5 text-sm font-bold text-white hover:bg-ink-800">{editing === null ? 'Add certificate' : 'Update certificate'}</button>{editing !== null && <button type="button" onClick={() => { setDraft(emptyCert); setEditing(null); }} className="text-sm font-semibold text-ink-500">Cancel</button>}{draftError && <p className="text-sm text-rose-600" role="alert">{draftError}</p>}</div>
-        </div>
-        {certErrors.map(message => <p key={message} className="mt-2 text-sm text-rose-600">{message}</p>)}
-      </div>
-
-      <div className="rounded-2xl bg-sky-50 p-5"><div className="flex gap-4"><FileText className="mt-1 h-6 w-6 shrink-0 text-ink-400" /><ol className="list-decimal space-y-1 pl-5 text-xs leading-5 text-ink-600">{TERMS.map(term => <li key={term}>{term}</li>)}</ol></div></div>
-      <div>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={form.data.terms} onChange={event => form.setData('terms', event.target.checked)} className="h-5 w-5 rounded border-ink-300" /> I have read and agree to the above terms and conditions. <span className="text-rose-600">*</span></label>
-          <button disabled={!canPurchase || !form.data.terms || form.processing} className="inline-flex items-center gap-2 rounded-xl bg-brand-400 px-6 py-3 font-black text-ink-950 transition hover:bg-brand-300 disabled:cursor-not-allowed disabled:opacity-50">{form.processing ? 'Submitting…' : 'Submit for verification'} <ArrowRight className="h-4 w-4" /></button>
-        </div>
-        {form.errors.terms && <p className="mt-2 text-sm text-rose-600">{form.errors.terms}</p>}
-        {!canPurchase && <p className="mt-2 text-sm text-ink-500">Only your company admin can submit this application.</p>}
-      </div>
+      <button disabled={!canPurchase || form.processing} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-400 px-6 py-3 font-black text-ink-950 transition hover:bg-brand-300 disabled:cursor-not-allowed disabled:opacity-50">{form.processing ? 'Submitting…' : 'Submit Registration'} <ArrowRight className="h-4 w-4" /></button>
+      {!canPurchase && <p className="text-sm text-ink-500">Only your company admin can submit this application.</p>}
     </form>
   </div>;
 }
@@ -285,11 +352,11 @@ function PlanCard({ plan, pending, hasActiveSafety, canPurchase, referenceCode =
           ...(referenceCode ? [{ label: 'Reference code', value: referenceCode }] : []),
         ]}
         lines={[{ name: plan.name, note: 'Annual package', qty: 1, unit: Number(plan.price_yearly) }]}
-        notes={['Your request is sent to us for approval.', 'Contact Ramzi at 016-8865619 to arrange payment.', 'Your package starts once payment is confirmed.']}
-        confirmLabel="Confirm request" processing={form.processing} error={form.errors.plan_id || form.errors.reference_code}
+        notes={['Step 1: Click Place Order. You will get an order number (e.g. SB-EP-2611-001).', 'Step 2: WhatsApp us at 016-8865619 with your order number to make payment, then upload your payment receipt.', 'Step 3: Your package starts once payment is confirmed.']}
+        confirmLabel="Place Order" processing={form.processing} error={form.errors.plan_id || form.errors.reference_code}
         onConfirm={() => form.post('/plans/request', { onSuccess: () => setReviewing(false) })} onBack={() => setReviewing(false)} />}
       <button disabled={!canPurchase || pending || hasActiveSafety} className={`group flex w-full items-center justify-between rounded-full py-2 pl-5 pr-2 text-left text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 disabled:cursor-not-allowed disabled:opacity-50 ${popular ? 'bg-brand-500 text-ink-900 hover:bg-brand-400' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
-        <span>{!canPurchase ? 'Contact your company admin' : hasActiveSafety ? 'Current subscription active' : pending ? 'Request pending' : actionLabel || 'Review request'}</span><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
+        <span>{!canPurchase ? 'Contact your company admin' : hasActiveSafety ? 'Current subscription active' : pending ? 'Request pending' : actionLabel || 'Buy Now'}</span><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
       </button>
       {form.errors.plan_id && <p className="mt-2 text-sm text-rose-500">{form.errors.plan_id}</p>}
       {form.errors.reference_code && <p className="mt-2 text-sm text-rose-500">{form.errors.reference_code}</p>}
@@ -359,12 +426,12 @@ function InspectorAddon({ seats, canPurchase }) {
           ]}
           lines={[{ name: 'Extra Inspector slot', note: 'One-time add-on', qty, unit: seats.price }]}
           notes={['The slots are added to your company as soon as you confirm.', 'They stay with your company when the package renews.']}
-          confirmLabel={`Confirm ${qty === 1 ? 'Inspector' : 'Inspectors'}`} processing={form.processing} error={form.errors.quantity}
+          confirmLabel="Place Order" processing={form.processing} error={form.errors.quantity}
           onConfirm={() => form.post('/plans/inspector-addon', { preserveScroll: true, onSuccess: () => { form.reset(); setReviewing(false); } })} onBack={() => setReviewing(false)} />}
         <label htmlFor="addon-qty" className="text-xs font-bold uppercase tracking-wider text-white/60">Extra Inspectors</label>
         <input id="addon-qty" type="number" min="1" max="50" value={form.data.quantity} onChange={event => form.setData('quantity', event.target.value)} className="mt-2 w-full rounded-xl border border-white/20 bg-white/10 px-4 py-3 text-lg font-bold text-white" />
         <p className="mt-4 flex items-baseline justify-between"><span className="text-sm text-white/60">{qty} × RM {seats.price}</span><span className="text-2xl font-black text-brand-300">RM {total.toLocaleString('en-MY')}</span></p>
-        <button disabled={qty < 1} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-400 px-5 py-3 font-black text-ink-950 transition hover:bg-brand-300 disabled:opacity-50">Review Inspectors <ArrowRight className="h-4 w-4" /></button>
+        <button disabled={qty < 1} className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-brand-400 px-5 py-3 font-black text-ink-950 transition hover:bg-brand-300 disabled:opacity-50">Buy Now <ArrowRight className="h-4 w-4" /></button>
         {form.errors.quantity && <p className="mt-2 text-sm text-rose-300">{form.errors.quantity}</p>}
       </form> : <p className="rounded-2xl bg-ink-50 p-5 text-sm text-ink-500 lg:w-80">Only your company admin can buy extra Inspectors.</p>}
     </div>
@@ -380,14 +447,49 @@ function SubscriptionHistory({ history, hideAmount = false }) {
   </section>;
 }
 
+/** Shown once a package order is placed: the order, its status and what the customer does next. */
+function OrderStatusCard({ order }) {
+  const date = order.created_at ? new Date(order.created_at).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  const waMessage = `Hello Safety Buddy, I would like to make payment for my order.
+Package: ${order.plan?.name} (Annual)
+Amount: RM ${Number(order.price_yearly).toLocaleString('en-MY')}
+Order number: ${order.order_no || order.id}`;
+  const waLink = `https://wa.me/60168865619?text=${encodeURIComponent(waMessage)}`;
+  const steps = [
+    { title: 'Place order', text: `Done. Your order number is ${order.order_no || 'being prepared'}.`, done: true },
+    { title: 'Pay by WhatsApp', text: <>Click <a href={waLink} target="_blank" rel="noreferrer" className="font-bold underline">016-8865619</a> to open WhatsApp. A message with your package, amount and order number is filled in for you. Send it, then follow our reply to make the payment and send your receipt.</>, done: false, current: true },
+    { title: 'Payment confirmed', text: 'We check your receipt and approve the order.', done: false },
+    { title: 'Package starts', text: 'Your Safety Buddy package is activated and you can start using it.', done: false },
+  ];
+  return <section className="mt-7 overflow-hidden rounded-2xl border border-brand-300 bg-white shadow-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-200 bg-brand-50 px-5 py-4">
+      <div><p className="text-xs font-black uppercase tracking-[.2em] text-brand-800">Your order number</p><p className="mt-1 text-2xl font-black tracking-wide text-ink-950">{order.order_no || `Order #${order.id}`}</p><p className="mt-1 text-xs text-ink-600">This is the code for your order. Quote it when you WhatsApp us so we can find your payment.</p></div>
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900"><Clock3 className="h-3.5 w-3.5" /> Awaiting payment</span>
+    </div>
+    <dl className="grid gap-4 px-5 py-4 text-sm sm:grid-cols-3">
+      <div><dt className="text-ink-500">Package</dt><dd className="font-bold text-ink-950">{order.plan?.name} · Annual</dd></div>
+      <div><dt className="text-ink-500">Amount</dt><dd className="font-bold text-ink-950">RM {Number(order.price_yearly).toLocaleString('en-MY')}</dd></div>
+      <div><dt className="text-ink-500">Placed on</dt><dd className="font-bold text-ink-950">{date}</dd></div>
+    </dl>
+    <div className="border-t border-ink-100 px-5 py-4">
+      <p className="text-xs font-black uppercase tracking-[.2em] text-ink-500">What to do next</p>
+      <ol className="mt-3 space-y-3">{steps.map((step, index) => <li key={step.title} className="flex items-start gap-3">
+        <span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-black ${step.done ? 'bg-emerald-500 text-white' : step.current ? 'bg-brand-400 text-ink-950' : 'bg-ink-100 text-ink-500'}`}>{step.done ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : index + 1}</span>
+        <div className="text-sm"><p className={`font-bold ${step.current ? 'text-ink-950' : 'text-ink-700'}`}>{step.title}{step.current && <span className="ml-2 text-xs font-semibold text-brand-800">You are here</span>}</p><p className="text-ink-500">{step.text}</p></div>
+      </li>)}</ol>
+    </div>
+  </section>;
+}
+
 export default function Plans({ plans = [], hasPurchased = false, hasActiveSafety = false, canPurchase = true, currentPackage = null, subscriptionHistory = [], latestRequest = null, inspectorSeats = null, trainingApplication = null, linkedProvider = null }) {
   const { flash = {}, auth } = usePage().props;
   const pending = latestRequest?.status === 'pending';
   const expired = hasPurchased && !hasActiveSafety;
   const [showExpiryModal, setShowExpiryModal] = useState(expired);
-  // a company registered under a Training Provider uses the Contractor Training Provider package only
+  // a company registered under a Training Provider uses the Participant package only
   const underProvider = Boolean(linkedProvider);
   // one path at a time: a new company picks how it wants to start, and only that section is shown
+  const tpOrder = Boolean(trainingApplication && (trainingApplication.status === 'pending' || (trainingApplication.status === 'approved' && !hasActiveSafety)));
   const [tab, setTab] = useState(underProvider ? 'under' : trainingApplication ? 'provider' : hasPurchased ? 'normal' : null);
   const contractorPlans = plans.filter(plan => plan.audience === 'contractor_provider');
   const normalPlans = underProvider ? contractorPlans : plans.filter(plan => (plan.audience ?? 'normal') === 'normal');
@@ -413,12 +515,13 @@ export default function Plans({ plans = [], hasPurchased = false, hasActiveSafet
     </section>
     <div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-14">
       {flash.success && <div className="mt-7 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{flash.success}</div>}
-      {pending && <div className="mt-7 flex items-start gap-3 rounded-xl border border-brand-300 bg-brand-50 p-4 text-sm text-ink-800"><Clock3 className="mt-0.5 h-5 w-5 shrink-0" /><div><strong>{latestRequest.plan?.name} request pending.</strong> Contact Ramzi at <a href="tel:+60168865619" className="font-bold underline">016-8865619</a> to arrange payment. Access begins after payment is verified.</div></div>}
+      {pending && !tpOrder && <OrderStatusCard order={latestRequest} />}
+      {tpOrder && <div className="mt-7"><TrainingOrderCard application={trainingApplication} plan={providerPlans[0]} orderNo={latestRequest?.order_no} /></div>}
       {latestRequest?.status === 'rejected' && <div className="mt-7 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">Your previous request was not approved. You can choose a package again.</div>}
 
       {hasPurchased && <div className="mt-9"><CurrentPackage currentPackage={currentPackage} dashboard={dashboard} hideAmount={Boolean(linkedProvider)} />{canPurchase && <Link href={route('manage.package.payments')} className="mt-4 inline-flex text-sm font-bold text-ink-900 underline decoration-brand-500 decoration-2 underline-offset-4">View payment history</Link>}{inspectorSeats && <InspectorAddon seats={inspectorSeats} canPurchase={canPurchase} />}<SubscriptionHistory history={subscriptionHistory} hideAmount={Boolean(linkedProvider)} /></div>}
 
-      <section id="available-plans" className={hasPurchased ? 'mt-14 scroll-mt-8' : 'scroll-mt-8'}><div className="mb-7"><p className="text-xs font-black uppercase tracking-[.2em] text-brand-800">Find your fit</p><h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{tab === null ? 'How do you want to start?' : hasPurchased ? 'Available packages' : 'Choose a package'}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">{tab === null ? 'Choose one option below. You only see the steps for the option you pick.' : 'Compare what’s included, then request the package that fits your team.'}</p>{hasActiveSafety && <p className="mt-2 text-sm text-ink-500">Your current package is active. Contact Ramzi if you would like to change it before expiry.</p>}</div>
+      {!pending && !tpOrder && <section id="available-plans" className={hasPurchased ? 'mt-14 scroll-mt-8' : 'scroll-mt-8'}><div className="mb-7"><p className="text-xs font-black uppercase tracking-[.2em] text-brand-800">Find your fit</p><h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{tab === null ? 'How do you want to start?' : hasPurchased ? 'Available packages' : 'Choose a package'}</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-ink-500">{tab === null ? 'Choose one option below. You only see the steps for the option you pick.' : 'Compare what’s included, then request the package that fits your team.'}</p>{hasActiveSafety && <p className="mt-2 text-sm text-ink-500">Your current package is active. Contact Us if you would like to change it before expiry.</p>}</div>
         {tab === null
           ? <div className="grid gap-4 lg:grid-cols-3">
             {TABS.map(item => <button key={item.id} type="button" onClick={() => setTab(item.id)} className="group flex flex-col rounded-2xl border border-ink-100 bg-white p-6 text-left shadow-sm transition hover:-translate-y-1 hover:border-brand-400 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-500">
@@ -427,7 +530,7 @@ export default function Plans({ plans = [], hasPurchased = false, hasActiveSafet
               <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-ink-950">Continue <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" /></span>
             </button>)}
           </div>
-          : <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-white px-5 py-3 shadow-sm">
+          : pending ? null : <div className="mb-8 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink-100 bg-white px-5 py-3 shadow-sm">
             <p className="text-sm text-ink-500">You chose: <strong className="text-ink-950">{TABS.find(item => item.id === tab)?.label}</strong></p>
             {!(underProvider || trainingApplication) && <button type="button" onClick={() => setTab(null)} className="text-sm font-bold text-ink-950 underline decoration-brand-500 decoration-2 underline-offset-4">Change option</button>}
           </div>}
@@ -449,18 +552,18 @@ export default function Plans({ plans = [], hasPurchased = false, hasActiveSafet
               ? <div className={`mx-auto grid gap-5 ${tabPlans.length === 1 ? 'max-w-md' : 'max-w-6xl md:grid-cols-2 lg:grid-cols-3'}`}>{tabPlans.map((plan, index) => <div key={plan.id} className={tabPlans.length % 2 === 1 && index === tabPlans.length - 1 ? 'md:col-span-2 md:mx-auto md:w-[calc(50%-0.625rem)] lg:col-span-1 lg:w-full' : ''}><PlanCard plan={plan} pending={pending} hasActiveSafety={hasActiveSafety} canPurchase={canPurchase} dense={tabPlans.length > 1} /></div>)}</div>
               : <p className="rounded-2xl border border-dashed border-ink-200 bg-white p-6 text-sm text-ink-500">No packages available here yet.</p>}
         </div>}
-      </section>
-      <div className="mt-9 rounded-2xl border border-ink-100 bg-white p-6 text-sm text-ink-500"><p><strong className="text-ink-900">Additional User Options</strong> (applicable to all packages): Additional Inspector RM1,000 / year per inspector · Subcontractor (Contractor Representative) RM1,500 / year per representative.</p></div>
-      <p className="mt-7 flex items-center justify-center gap-2 text-sm text-ink-400"><Phone className="h-4 w-4" /> Questions? Ramzi <a href="tel:+60168865619" className="font-semibold text-brand-800">016-8865619</a></p>
+      </section>}
+      {!pending && !tpOrder && <div className="mt-9 rounded-2xl border border-ink-100 bg-white p-6 text-sm text-ink-500"><p><strong className="text-ink-900">Additional User Options</strong> (applicable to all packages): Additional Inspector RM1,000 / year per inspector · Subcontractor (Contractor Representative) RM1,500 / year per representative.</p></div>}
+      <p className="mt-7 flex items-center justify-center gap-2 text-sm text-ink-400"><Phone className="h-4 w-4" /> Questions? Contact Us <a href="tel:+60168865619" className="font-semibold text-brand-800">016-8865619</a></p>
     </div>
   </main>
     {showExpiryModal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/75 p-5" role="presentation">
       <div role="alertdialog" aria-modal="true" aria-labelledby="expiry-title" aria-describedby="expiry-description" className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl bg-white p-6 text-ink-950 shadow-2xl sm:p-9">
         <span className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-700"><CalendarDays className="h-6 w-6" /></span>
         <h2 id="expiry-title" className="mt-5 text-2xl font-black">Subscription expired</h2>
-        <p id="expiry-description" className="mt-3 text-sm leading-6 text-ink-500">Payment must be confirmed before you can use Safety Buddy again. {canPurchase ? 'Choose a package below and contact Ramzi to arrange payment.' : 'Contact your company admin to renew the package and arrange payment.'}</p>
-        {pending && <p className="mt-4 rounded-xl bg-brand-50 p-3 text-sm text-ink-800">Your renewal request is pending. Contact Ramzi at <a href="tel:+60168865619" className="font-bold underline">016-8865619</a> to arrange payment.</p>}
-        <div className="mt-7 flex flex-wrap gap-3">{canPurchase && !pending && <button type="button" onClick={() => { setShowExpiryModal(false); document.getElementById('available-plans')?.scrollIntoView({ behavior: 'smooth' }); }} className="rounded-full bg-brand-400 px-5 py-3 text-sm font-black text-ink-950">Choose a package</button>}<a href="tel:+60168865619" className="rounded-full border border-ink-200 px-5 py-3 text-sm font-bold">Call Ramzi</a><button type="button" onClick={() => setShowExpiryModal(false)} className="rounded-full border border-ink-200 px-5 py-3 text-sm font-bold">View package details</button></div>
+        <p id="expiry-description" className="mt-3 text-sm leading-6 text-ink-500">Payment must be confirmed before you can use Safety Buddy again. {canPurchase ? 'Choose a package below and contact us to arrange payment.' : 'Contact your company admin to renew the package and arrange payment.'}</p>
+        {pending && <p className="mt-4 rounded-xl bg-brand-50 p-3 text-sm text-ink-800">Your renewal request is pending. Contact Us at <a href="tel:+60168865619" className="font-bold underline">016-8865619</a> to arrange payment.</p>}
+        <div className="mt-7 flex flex-wrap gap-3">{canPurchase && !pending && <button type="button" onClick={() => { setShowExpiryModal(false); document.getElementById('available-plans')?.scrollIntoView({ behavior: 'smooth' }); }} className="rounded-full bg-brand-400 px-5 py-3 text-sm font-black text-ink-950">Choose a package</button>}<a href="tel:+60168865619" className="rounded-full border border-ink-200 px-5 py-3 text-sm font-bold">Call Us</a><button type="button" onClick={() => setShowExpiryModal(false)} className="rounded-full border border-ink-200 px-5 py-3 text-sm font-bold">View package details</button></div>
       </div>
     </div>}
   </>;

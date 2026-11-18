@@ -34,8 +34,8 @@ export function RankMedal({ rank, size = 'lg' }) {
     const r = RANK[rank];
     if (!r) return <span className="text-2xl font-extrabold text-slate-300">-</span>;
     return (
-        <span className={`inline-flex items-center gap-3 ${size === 'lg' ? 'text-4xl' : 'text-xl'} font-extrabold ${r.text}`}>
-            <span className={`flex ${size === 'lg' ? 'h-14 w-14' : 'h-9 w-9'} items-center justify-center rounded-full ${r.bg} text-white ring-4 ${r.ring}`}>★</span>
+        <span className={`inline-flex items-center ${size === 'xs' ? 'gap-2 text-xs' : size === 'lg' ? 'gap-3 text-4xl' : 'gap-3 text-xl'} font-extrabold ${r.text}`}>
+            <span className={`flex ${size === 'xs' ? 'h-6 w-6 text-xs ring-2' : size === 'lg' ? 'h-14 w-14 ring-4' : 'h-9 w-9 ring-4'} items-center justify-center rounded-full ${r.bg} text-white ${r.ring}`}>★</span>
             {rank}
         </span>
     );

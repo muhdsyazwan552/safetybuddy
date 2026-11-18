@@ -49,4 +49,9 @@ class PackageActivationCode extends Model
 
         return $code;
     }
+
+    public function requester()
+    {
+        return $this->belongsTo(User::class, 'requested_by');
+    }
 }

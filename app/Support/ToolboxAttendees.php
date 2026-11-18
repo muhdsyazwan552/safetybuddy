@@ -9,8 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Subcontractor staff that can be ticked as attendees of a toolbox talk.
- * For a project these are the staff of the subcontractor companies assigned to it,
- * plus any subcontractor staff assigned to the project individually.
+ * For a project these are the active staff of the active contractor companies assigned to it.
  */
 class ToolboxAttendees
 {
@@ -27,70 +26,36 @@ class ToolboxAttendees
         }
 
         // raw rows: the ProjectAssign model rewrites entity_type to class names
-        $assigns = DB::table('project_assign')->whereIn('project_id', $projectIds)->get();
+        $assigns = DB::table('project_assign')->whereIn('project_id', $projectIds)->where('entity_type', 'compsub')->get();
 
-        $companyIdsByProject = $assigns->where('entity_type', 'compsub')
-            ->groupBy('project_id')
+        $companyIdsByProject = $assigns->groupBy('project_id')
             ->map(fn ($rows) => $rows->pluck('entity_id')->map(fn ($v) => (int) $v)->all());
 
-        $staffIdsByProject = $assigns->where('entity_type', 'subcon')
-            ->groupBy('project_id')
-            ->map(fn ($rows) => $rows->pluck('entity_id')->map(fn ($v) => (int) $v)->all());
-
-        $allCompanyIds = $companyIdsByProject->flatten()->unique()->values();
-        $allStaffIds = $staffIdsByProject->flatten()->unique()->values();
+        // only contractor companies assigned to the project, and only while the company is active
+        $activeCompanies = SubconCompany::whereIn('id', $companyIdsByProject->flatten()->unique()->values())
+            ->where('status', 'active')->pluck('name', 'id');
 
         $staff = SubconStaff::query()
-            ->where(function ($q) use ($allCompanyIds, $allStaffIds) {
-                $q->whereIn('company_id', $allCompanyIds)->orWhereIn('id', $allStaffIds);
-            })
+            ->whereIn('company_id', $activeCompanies->keys())
             ->orderBy('name')
-            ->get(['id', 'name', 'role', 'company_id', 'status']);
-
-        $companyNames = SubconCompany::whereIn('id', $staff->pluck('company_id')->unique())->pluck('name', 'id');
+            ->get(['id', 'name', 'role', 'company_id', 'status'])
+            ->filter(fn ($s) => strtolower((string) ($s->status ?: 'active')) === 'active');
 
         $out = [];
         foreach ($projectIds as $pid) {
             $companies = $companyIdsByProject[$pid] ?? [];
-            $individual = $staffIdsByProject[$pid] ?? [];
 
             $out[$pid] = $staff
-                ->filter(fn ($s) => in_array((int) $s->company_id, $companies, true) || in_array((int) $s->id, $individual, true))
-                ->filter(fn ($s) => strtolower((string) ($s->status ?: 'active')) === 'active')
+                ->filter(fn ($s) => in_array((int) $s->company_id, $companies, true))
                 ->map(fn ($s) => [
                     'id' => (int) $s->id,
                     'name' => $s->name,
                     'role' => $s->role,
                     'company_id' => (int) $s->company_id,
-                    'company_name' => $companyNames[$s->company_id] ?? 'Company',
+                    'company_name' => $activeCompanies[$s->company_id] ?? 'Company',
                 ])
                 ->values()
                 ->all();
-        }
-
-        // A project with no subcontractor assigned yet: fall back to every active subcontractor
-        // staff member of the owning company, so a talk can still be recorded.
-        if ($ownerCompanyId && collect($out)->contains(fn ($list) => count($list) === 0)) {
-            $fallback = SubconStaff::query()
-                ->whereIn('company_id', SubconCompany::where('company_id', $ownerCompanyId)->pluck('id'))
-                ->orderBy('name')
-                ->get(['id', 'name', 'role', 'company_id', 'status'])
-                ->filter(fn ($s) => strtolower((string) ($s->status ?: 'active')) === 'active');
-
-            $names = SubconCompany::whereIn('id', $fallback->pluck('company_id')->unique())->pluck('name', 'id');
-            $list = $fallback->map(fn ($s) => [
-                'id' => (int) $s->id,
-                'name' => $s->name,
-                'role' => $s->role,
-                'company_id' => (int) $s->company_id,
-                'company_name' => $names[$s->company_id] ?? 'Company',
-            ])->values()->all();
-
-            foreach ($out as $pid => $current) {
-                if (count($current) === 0) {
-                    $out[$pid] = $list;
-                }
-            }
         }
 
         return $out;

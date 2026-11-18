@@ -1,9 +1,10 @@
 import { FaBars, FaUserCircle, FaChevronDown, FaSignOutAlt, FaHome, FaCog } from 'react-icons/fa';
 import { useState, useRef, useEffect } from 'react';
-import { usePage, router } from '@inertiajs/react';
+import { usePage, router, Link } from '@inertiajs/react';
 import { FiAlignLeft } from 'react-icons/fi';
 import { confirmLogout } from '@/Helpers/logout';
 import CompanyAvatar from '@/Components/CompanyAvatar';
+import { NAVIGATION, TRAINEES_SECTION } from './Sidebar';
 
 export default function Navbar({ 
   collapsed, 
@@ -15,6 +16,14 @@ export default function Navbar({
   
   const dropdownRef = useRef(null);
   const { auth, title } = usePage().props;
+  const { url } = usePage();
+  const path = (url || '').split('?')[0].replace(/\/+$/, '') || '/';
+  // a page that sits inside a menu section: Home / Section (link back to the section) / this page
+  const section = [...NAVIGATION, TRAINEES_SECTION].flatMap((group) => group.items)
+    .filter((item) => item.href !== '/dashboard' && (path === item.href || path.startsWith(`${item.href}/`)))
+    .sort((a, b) => b.href.length - a.href.length)[0];
+  const deeper = section && path !== section.href;
+  const sectionLabel = section ? (section.crumb || section.name) : null;
   const user = auth?.user;
 
   // Check if user role is 2 (company)
@@ -75,12 +84,18 @@ export default function Navbar({
 
         {/* Breadcrumb */}
         <div className="flex items-center text-sm text-ink-300 min-w-0">
-          <a href="/dashboard" className="hidden sm:flex items-center hover:text-brand-400">
+          <Link href="/dashboard" className="hidden sm:flex items-center hover:text-brand-400">
             <FaHome className="mr-1" />
             <span>Home</span>
-          </a>
+          </Link>
           <span className="mx-2 hidden sm:inline">/</span>
-          <span className="text-white font-semibold truncate">{title || 'Dashboard'}</span>
+          {deeper && sectionLabel !== title && (
+            <>
+              <Link href={section.href} className="hidden sm:inline truncate hover:text-brand-400">{sectionLabel}</Link>
+              <span className="mx-2 hidden sm:inline">/</span>
+            </>
+          )}
+          <span className="text-white font-semibold truncate">{title || sectionLabel || 'Dashboard'}</span>
         </div>
       </div>
 

@@ -85,6 +85,9 @@ Route::middleware(['auth', 'role:1'])->prefix('admin')->name('system.admin.')->g
     Route::put('/subscription-plans/{subscriptionPlan}', [SubscriptionPlanController::class, 'updatePlan'])->name('plans.update');
     Route::post('/plan-requests/{planRequest}/approve', [SubscriptionPlanController::class, 'approve'])->name('plan-requests.approve');
     Route::post('/plan-requests/{planRequest}/reject', [SubscriptionPlanController::class, 'reject'])->name('plan-requests.reject');
+    Route::get('/slot-orders', [\App\Http\Controllers\SystemAdminController::class, 'slotOrders'])->name('slot-orders');
+    Route::post('/slot-orders/{addon}/approve', [\App\Http\Controllers\ManagePackageController::class, 'approveSlot'])->name('slot-orders.approve');
+    Route::post('/slot-orders/{addon}/reject', [\App\Http\Controllers\ManagePackageController::class, 'rejectSlot'])->name('slot-orders.reject');
     Route::post('/package-orders/{batch}/approve', [\App\Http\Controllers\ProviderPackageController::class, 'approveOrder'])->name('package-orders.approve');
     Route::post('/package-orders/{batch}/reject', [\App\Http\Controllers\ProviderPackageController::class, 'rejectOrder'])->name('package-orders.reject');
     Route::get('/training-providers', [\App\Http\Controllers\TrainingProviderController::class, 'index'])->name('training-providers.index');
@@ -151,6 +154,7 @@ Route::middleware(['auth', 'role:2,3,4,7,8'])->group(function () {
 
 Route::middleware(['auth', 'role:2'])->group(function () {
     Route::get('/subscription/start', [SubscriptionPlanController::class, 'start'])->name('subscription.start');
+    Route::get('/plans/registered-providers', [\App\Http\Controllers\PublicTrainingProviderController::class, 'list'])->name('subscription.plans.registered-providers');
     Route::get('/plans/reference-code', [SubscriptionPlanController::class, 'checkReferenceCode'])->name('subscription.plans.reference-code');
     Route::post('/plans/reference-code', [SubscriptionPlanController::class, 'linkReferenceCode'])->name('subscription.plans.reference-code.link');
     Route::post('/plans/training-provider', [\App\Http\Controllers\TrainingProviderController::class, 'store'])->name('subscription.plans.training-provider');
@@ -158,9 +162,13 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::post('/plans/inspector-addon', [SubscriptionPlanController::class, 'storeInspectorAddon'])->name('subscription.plans.inspector-addon');
     Route::get('/manage-package', [\App\Http\Controllers\ManagePackageController::class, 'index'])->name('manage.package');
     Route::get('/manage-package/payments', [\App\Http\Controllers\ManagePackageController::class, 'payments'])->name('manage.package.payments');
+    Route::get('/manage-package/payments/{payment}/receipt', [\App\Http\Controllers\ManagePackageController::class, 'receipt'])->whereNumber('payment')->name('manage.package.receipt');
     Route::post('/manage-package/seats', [\App\Http\Controllers\ManagePackageController::class, 'store'])->name('manage.package.seats');
     Route::get('/module', [SubscriptionController::class, 'index'])->name('index.module');
     Route::get('/training-provider/packages', [\App\Http\Controllers\ProviderPackageController::class, 'index'])->name('training-provider.packages');
+    Route::get('/training-provider/packages/purchase', [\App\Http\Controllers\ProviderPackageController::class, 'purchasePage'])->name('training-provider.packages.purchase');
+    Route::get('/training-provider/packages/renew', [\App\Http\Controllers\ProviderPackageController::class, 'renewPage'])->name('training-provider.packages.renew');
+    Route::get('/training-provider/packages/orders/{batch}', [\App\Http\Controllers\ProviderPackageController::class, 'showOrder'])->name('training-provider.packages.order');
     Route::post('/training-provider/packages', [\App\Http\Controllers\ProviderPackageController::class, 'store'])->name('training-provider.packages.store');
     Route::get('/training-provider/activation-codes', [\App\Http\Controllers\ProviderPackageController::class, 'codes'])->name('training-provider.codes');
     Route::post('/plans/activation-code', [\App\Http\Controllers\ProviderPackageController::class, 'redeem'])->middleware('throttle:10,1')->name('subscription.plans.activation-code');

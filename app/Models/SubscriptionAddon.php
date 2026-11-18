@@ -12,5 +12,15 @@ class SubscriptionAddon extends Model
 
     protected $table = 'subscription_addons';
 
-    protected $fillable = ['company_id', 'subscription_id', 'type', 'quantity', 'unit_price', 'total_amount', 'payment_id', 'purchased_by'];
+    protected $fillable = ['company_id', 'subscription_id', 'type', 'quantity', 'unit_price', 'total_amount', 'payment_id', 'purchased_by', 'order_no'];
+
+    public function payment()
+    {
+        return $this->belongsTo(Payments::class, 'payment_id');
+    }
+
+    public function company()
+    {
+        return $this->belongsTo(Company::class, 'company_id');
+    }
 }

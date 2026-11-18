@@ -9,24 +9,87 @@ export default function ExecutorProjectDetails({
     availableStaff,
     availableSubconStaff,
     availableCompSub,
+    projectTypes = [],
     flash
 }) {
     const [showModal, setShowModal] = useState(false);
     const [editingAssignment, setEditingAssignment] = useState(null);
-    const [activeTab, setActiveTab] = useState('overview');
+    const [showInfo, setShowInfo] = useState(false);
+    const [openNote, setOpenNote] = useState(null);
+    const [showEditProject, setShowEditProject] = useState(false);
+
+    const dataCounts = project?.data_counts || {};
+    const hasData = Object.keys(dataCounts).length > 0;
+    const isInactive = project?.status === 'inactive';
+
+    // Edit project
+    const { data: projData, setData: setProjData, put: putProject, processing: projProcessing, errors: projErrors, reset: resetProj } = useForm({
+        name: '', location: '', start_date: '', end_date: '', status: 'pending', project_type_id: ''
+    });
+
+    const openEditProject = () => {
+        setProjData({
+            name: project?.name || '',
+            location: project?.location || '',
+            start_date: (project?.start_date || '').slice(0, 10),
+            end_date: (project?.end_date || '').slice(0, 10),
+            status: project?.status || 'pending',
+            project_type_id: project?.project_type_id || '',
+        });
+        setShowEditProject(true);
+    };
+
+    const submitEditProject = (e) => {
+        e.preventDefault();
+        putProject(route('admin.projects.update', project.id), {
+            preserveScroll: true,
+            onSuccess: () => {
+                setShowEditProject(false);
+                showAlert.success('Project updated successfully');
+            },
+            onError: () => showAlert.error('Please check the project details and try again.'),
+        });
+    };
+
+    // Delete when there is no data, set inactive when the project already has data
+    const handleDeleteProject = async () => {
+        const name = project?.name ? `"${project.name}"` : 'this project';
+        const ok = hasData
+            ? await showAlert.confirmDelete(
+                `${name} already has recorded data, so it cannot be deleted. It will be set to inactive: its records stay, and no new visits can be created for it.`,
+                'Set this project to inactive?',
+                {
+                    confirmText: 'Yes, set inactive',
+                    details: Object.entries(dataCounts).map(([label, n]) => `${label}: ${n}`),
+                }
+            )
+            : await showAlert.confirmDelete(
+                `${name} has no recorded data. It will be deleted permanently from the database, together with its inspector and contractor assignments.`,
+                'Delete this project permanently?',
+                { confirmText: 'Yes, delete project' }
+            );
+        if (!ok) return;
+
+        router.delete(route('admin.projects.destroy', project.id), {
+            preserveScroll: true,
+            onError: () => showAlert.error('The project could not be changed. Nothing was removed.', 'Action failed'),
+        });
+    };
 
     // Form for creating new assignment
     const { data: createData, setData: setCreateData, post, processing: createProcessing, errors: createErrors, reset: resetCreate } = useForm({
         executor_id: '',
         entity_type: 'staff',
-        role_assignment: ''
+        role_assignment: '',
+        notes: ''
     });
 
     // Form for updating assignment
     const { data: updateData, setData: setUpdateData, put, processing: updateProcessing, errors: updateErrors, reset: resetUpdate } = useForm({
         executor_id: '',
         entity_type: 'staff',
-        role_assignment: ''
+        role_assignment: '',
+        notes: ''
     });
 
     // Show Sweet Alert messages from flash
@@ -95,7 +158,8 @@ export default function ExecutorProjectDetails({
         setUpdateData({
             executor_id: assignment.entity_id,
             entity_type: assignment.entity_type,
-            role_assignment: assignment.role_assignment || ''
+            role_assignment: assignment.role_assignment || '',
+            notes: assignment.notes || ''
         });
         setShowModal(true);
     };
@@ -142,11 +206,11 @@ export default function ExecutorProjectDetails({
         }
     };
 
-    const handleRoleAssignmentChange = (value) => {
+    const handleNotesChange = (value) => {
         if (isEditMode) {
-            setUpdateData('role_assignment', value);
+            setUpdateData('notes', value);
         } else {
-            setCreateData('role_assignment', value);
+            setCreateData('notes', value);
         }
     };
 
@@ -185,19 +249,49 @@ export default function ExecutorProjectDetails({
         }
     };
 
-    // Get status color
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'completed': return 'bg-green-100 text-green-800';
-            case 'in_progress': return 'bg-blue-100 text-blue-800';
-            case 'planning': return 'bg-yellow-100 text-yellow-800';
-            case 'on_hold': return 'bg-red-100 text-red-800';
-            default: return 'bg-gray-100 text-gray-800';
-        }
+    const statusKey = project?.status?.toLowerCase().replace(/[\s-]+/g, '_');
+    const statusStyles = {
+        pending: 'bg-amber-50 text-amber-700 ring-amber-200',
+        planning: 'bg-amber-50 text-amber-700 ring-amber-200',
+        in_progress: 'bg-blue-50 text-blue-700 ring-blue-200',
+        completed: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+        on_hold: 'bg-orange-50 text-orange-700 ring-orange-200',
+        cancelled: 'bg-rose-50 text-rose-700 ring-rose-200',
+        inactive: 'bg-gray-100 text-gray-600 ring-gray-300',
     };
+    const statusLabel = statusKey
+        ? statusKey.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())
+        : 'Unknown';
 
-    // Calculate project progress
-    const progress = project?.progress || 0;
+    // Compare calendar dates in local time so date-only values do not shift by timezone.
+    const parseDate = (value) => {
+        const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || '');
+        if (!match) return null;
+        const [, year, month, day] = match.map(Number);
+        const date = new Date(year, month - 1, day);
+        return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+            ? Date.UTC(year, month - 1, day) : null;
+    };
+    const startDate = parseDate(project?.start_date);
+    const endDate = parseDate(project?.end_date);
+    const now = new Date();
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const hasTimeline = startDate !== null && endDate !== null && endDate >= startDate;
+    const timelineProgress = hasTimeline
+        ? endDate === startDate ? (today >= endDate ? 100 : 0)
+            : Math.round(Math.min(100, Math.max(0, (today - startDate) / (endDate - startDate) * 100)))
+        : 0;
+    const timelineCaption = !hasTimeline ? 'Set valid start and end dates to view the timeline'
+        : today < startDate ? `Starts in ${Math.ceil((startDate - today) / 86400000)} days`
+        : today > endDate ? 'Scheduled period ended'
+        : today === endDate ? 'Scheduled to end today'
+        : `${Math.ceil((endDate - today) / 86400000)} days remaining`;
+    const formatDate = (value) => parseDate(value) !== null
+        ? new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }).format(parseDate(value))
+        : 'Not specified';
+
+    const inspectorCount = assignments?.filter(a => a.entity_type === 'staff').length || 0;
+    const contractorCount = assignments?.filter(a => a.entity_type === 'compsub').length || 0;
 
     return (
         <AppLayout>
@@ -209,254 +303,261 @@ export default function ExecutorProjectDetails({
                     {/* Remove the old success/error message divs - they are replaced by Sweet Alert */}
 
                     {/* Project Header */}
-                    <div className="bg-white shadow-lg rounded-lg overflow-hidden mb-6">
-                        <div className="px-6 py-4 bg-gradient-to-r from-ink-900 to-ink-700 border-b-4 border-brand-500">
-                            <h1 className="text-2xl font-bold text-brand-400">{project?.name}</h1>
-                        </div>
-
-                        <div className="p-6">
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <section className="mb-4 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 sm:px-5">
+                            <div className="flex items-center gap-3">
+                                <div className="h-8 w-1 rounded-full bg-brand-500" />
                                 <div>
-                                    <label className="text-sm text-gray-500">Location</label>
-                                    <p className="font-medium text-gray-900">{project?.location || 'Not specified'}</p>
-                                </div>
-                                <div>
-                                    <label className="text-sm text-gray-500">Start Date</label>
-                                    <p className="font-medium text-gray-900">{project?.start_date || 'Not specified'}</p>
-                                </div>
-                                <div>
-                                    <label className="text-sm text-gray-500">End Date</label>
-                                    <p className="font-medium text-gray-900">{project?.end_date || 'Not specified'}</p>
-                                </div>
-                                <div>
-                                    <label className="text-sm text-gray-500">Status</label>
-                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(project?.status)}`}>
-                                        {project?.status?.replace('_', ' ') || 'Unknown'}
-                                    </span>
+                                    <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-widest text-gray-400">Project overview</p>
+                                    <h1 className="text-lg font-bold tracking-tight text-gray-900">{project?.name}</h1>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Tabs */}
-                    <div className="bg-white shadow-lg rounded-lg overflow-hidden">
-                        <div className="border-b border-gray-200">
-                            <nav className="flex -mb-px">
+                            <div className="flex items-center gap-3">
+                                <span className="text-xs font-medium text-gray-500">Status</span>
+                                <span className={`inline-flex items-center gap-2 rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${statusStyles[statusKey] || 'bg-gray-50 text-gray-600 ring-gray-200'}`}>
+                                    <span className="h-2 w-2 rounded-full bg-current" aria-hidden="true" />
+                                    {statusLabel}
+                                </span>
                                 <button
-                                    onClick={() => setActiveTab('overview')}
-                                    className={`py-4 px-6 text-sm font-medium ${activeTab === 'overview'
-                                        ? 'border-b-2 border-blue-500 text-blue-600'
-                                        : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
+                                    type="button"
+                                    onClick={openEditProject}
+                                    className="ml-1 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                                 >
-                                    Overview
+                                    Edit project
                                 </button>
-                                <button
-                                    onClick={() => setActiveTab('assignments')}
-                                    className={`py-4 px-6 text-sm font-medium ${activeTab === 'assignments'
-                                        ? 'border-b-2 border-blue-500 text-blue-600'
-                                        : 'text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                                        }`}
-                                >
-                                    Assignments ({assignments?.length || 0})
-                                </button>
-                            </nav>
+                                {!isInactive && (
+                                    <button
+                                        type="button"
+                                        onClick={handleDeleteProject}
+                                        className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                                    >
+                                        {hasData ? 'Set inactive' : 'Delete project'}
+                                    </button>
+                                )}
+                            </div>
                         </div>
-
-                        <div className="p-6">
-                            {/* Overview Tab */}
-                            {activeTab === 'overview' && (
+                        <div className={`border-b px-4 py-2 text-xs sm:px-5 ${isInactive ? 'border-gray-200 bg-gray-100 text-gray-700' : 'border-gray-100 bg-gray-50 text-gray-500'}`}>
+                            {isInactive
+                                ? <>This project is <b>inactive</b>. Its records are kept, but no new visits can be created for it. Use Edit project to make it active again.</>
+                                : hasData
+                                    ? 'This project already has recorded data, so it can only be set to inactive, not deleted.'
+                                    : 'This project has no recorded data, so it can be deleted permanently.'}
+                        </div>
+                        <div className="grid items-center gap-4 px-4 py-3 sm:px-5 md:grid-cols-2">
+                            <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <h3 className="text-lg font-medium text-gray-900 mb-4">Project Details</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        <div className="space-y-4">
-                                            <div>
-                                                <h4 className="text-sm font-medium text-gray-500">Description</h4>
-                                                <p className="mt-1 text-gray-900">
-                                                    {project?.description || 'No description provided'}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <h4 className="text-sm font-medium text-gray-500">Budget</h4>
-                                                <p className="mt-1 text-gray-900">
-                                                    {project?.budget ? `$${project.budget.toLocaleString()}` : 'Not specified'}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div className="space-y-4">
-                                            <div>
-                                                <h4 className="text-sm font-medium text-gray-500">Project Manager</h4>
-                                                <p className="mt-1 text-gray-900">
-                                                    {project?.project_manager || 'Not assigned'}
-                                                </p>
-                                            </div>
-                                            <div>
-                                                <h4 className="text-sm font-medium text-gray-500">Created At</h4>
-                                                <p className="mt-1 text-gray-900">
-                                                    {project?.created_at ? new Date(project.created_at).toLocaleDateString() : 'N/A'}
-                                                </p>
-                                            </div>
-                                        </div>
+                                    <p className="mb-0.5 text-xs font-medium text-gray-500">Location</p>
+                                    <p className="text-sm font-semibold text-gray-900">{project?.location || 'Not specified'}</p>
+                                </div>
+                                <div>
+                                    <p className="mb-0.5 text-xs font-medium text-gray-500">Project Type</p>
+                                    <p className="text-sm font-semibold text-gray-900">{project?.type_name || 'Not specified'}</p>
+                                </div>
+                            </div>
+                            <div className="min-w-0 md:border-l md:border-gray-100 md:pl-5">
+                                <div className="mb-1 flex items-start justify-between gap-4">
+                                    <div>
+                                        <p className="mb-0.5 text-xs font-medium text-gray-500">Start Date</p>
+                                        <p className="text-sm font-semibold text-gray-900">{formatDate(project?.start_date)}</p>
                                     </div>
-
-                                    {/* Statistics Cards */}
-                                    <div className="mt-8 grid grid-cols-1 sm:grid-cols-4 gap-4">
-                                        <div className="bg-blue-50 rounded-lg p-4">
-                                            <div className="text-2xl font-bold text-blue-600">
-                                                {assignments?.filter(a => a.entity_type === 'staff').length || 0}
-                                            </div>
-                                            <div className="text-sm text-gray-600">Main Staff Assigned</div>
-                                        </div>
-                                        <div className="bg-green-50 rounded-lg p-4">
-                                            <div className="text-2xl font-bold text-green-600">
-                                                {assignments?.filter(a => a.entity_type === 'subcon').length || 0}
-                                            </div>
-                                            <div className="text-sm text-gray-600">Subcontractor Staff</div>
-                                        </div>
-                                        <div className="bg-purple-50 rounded-lg p-4">
-                                            <div className="text-2xl font-bold text-purple-600">
-                                                {assignments?.filter(a => a.entity_type === 'compsub').length || 0}
-                                            </div>
-                                            <div className="text-sm text-gray-600">Company Subcontractor</div>
-                                        </div>
-                                        <div className="bg-orange-50 rounded-lg p-4">
-                                            <div className="text-2xl font-bold text-orange-600">
-                                                {assignments?.length || 0}
-                                            </div>
-                                            <div className="text-sm text-gray-600">Total Assignments</div>
-                                        </div>
+                                    <div className="text-right">
+                                        <p className="mb-0.5 text-xs font-medium text-gray-500">End Date</p>
+                                        <p className="text-sm font-semibold text-gray-900">{formatDate(project?.end_date)}</p>
                                     </div>
                                 </div>
-                            )}
+                                <div className="mb-1 flex items-center justify-between text-xs">
+                                    <span className="font-medium text-gray-600">Timeline elapsed</span>
+                                    <span className="font-semibold tabular-nums text-gray-900">{hasTimeline ? `${timelineProgress}%` : 'Unavailable'}</span>
+                                </div>
+                                <div className="h-1.5 overflow-hidden rounded-full bg-gray-200" role={hasTimeline ? 'progressbar' : undefined} aria-label="Project timeline elapsed" aria-valuemin={hasTimeline ? 0 : undefined} aria-valuemax={hasTimeline ? 100 : undefined} aria-valuenow={hasTimeline ? timelineProgress : undefined}>
+                                    <div className="h-full rounded-full bg-gradient-to-r from-brand-400 to-brand-500" style={{ width: `${timelineProgress}%` }} />
+                                </div>
+                                <p className="mt-1 text-xs text-gray-500">{timelineCaption}</p>
+                            </div>
+                        </div>
+                    </section>
 
-                            {/* Assignments Tab */}
-                            {activeTab === 'assignments' && (
+                    {/* Assignments */}
+                    <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+                        <div className="p-6">
+                            <div className="flex justify-between items-center mb-6">
                                 <div>
-                                    <div className="flex justify-between items-center mb-6">
-                                        <h3 className="text-lg font-medium text-gray-900">Project Assignments</h3>
-                                        <button
-                                            onClick={() => {
-                                                setEditingAssignment(null);
-                                                setShowModal(true);
-                                                resetCreate();
-                                            }}
-                                            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                        >
-                                            + Add Assignment
-                                        </button>
-                                    </div>
-
-                                    {assignments && assignments.length > 0 ? (
-                                        <div className="overflow-x-auto">
-                                            <table className="min-w-full divide-y divide-gray-200">
-                                                <thead className="bg-gray-50">
-                                                    <tr><th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Type
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Name
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Role
-                                                        </th>
-                                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Company
-                                                        </th>
-                                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                            Actions
-                                                        </th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="bg-white divide-y divide-gray-200">
-                                                    {assignments.map((assignment, rowNo) => (
-                                                        <tr key={assignment.id} className="hover:bg-gray-50"><td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{rowNo + 1}</td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${assignment.entity_type === 'staff'
-                                                                    ? 'bg-blue-100 text-blue-800'
-                                                                    : assignment.entity_type === 'subcon'
-                                                                        ? 'bg-green-100 text-green-800'
-                                                                        : 'bg-purple-100 text-purple-800'
-                                                                    }`}>
-                                                                    {assignment.entity_type === 'staff'
-                                                                        ? 'Main Staff'
-                                                                        : assignment.entity_type === 'subcon'
-                                                                            ? 'Subcontractor'
-                                                                            : 'Company Subcontractor'}
-                                                                </span>
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <div className="text-sm font-medium text-gray-900">
-                                                                    {assignment.entity_type === 'staff'
-                                                                        ? assignment.staff_member?.name
-                                                                        : assignment.entity_type === 'subcon'
-                                                                            ? assignment.subcon_staff?.name
-                                                                            : assignment.compsub_company?.name}
-                                                                </div>
-                                                                <div className="text-sm text-gray-500">
-                                                                    {assignment.entity_type === 'staff'
-                                                                        ? assignment.staff_member?.email
-                                                                        : assignment.entity_type === 'subcon'
-                                                                            ? assignment.subcon_staff?.email
-                                                                            : assignment.compsub_company?.email}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4">
-                                                                <div className="text-sm text-gray-900">
-                                                                    {assignment.role_assignment || 'No role specified'}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap">
-                                                                <div className="text-sm text-gray-900">
-                                                                    {assignment.entity_type === 'staff'
-                                                                        ? assignment.staff_member?.company_name
-                                                                        : assignment.entity_type === 'subcon'
-                                                                            ? assignment.subcon_staff?.company_name
-                                                                            : assignment.compsub_company?.name}
-                                                                </div>
-                                                            </td>
-                                                            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                                                <button
-                                                                    onClick={() => handleEditAssignment(assignment)}
-                                                                    className="text-blue-600 hover:text-blue-900 mr-3"
-                                                                >
-                                                                    Edit
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleRemoveAssignment(assignment.id)}
-                                                                    className="text-red-600 hover:text-red-900"
-                                                                >
-                                                                    Remove
-                                                                </button>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    ) : (
-                                        <div className="text-center py-12">
-                                            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                                            </svg>
-                                            <h3 className="mt-2 text-sm font-medium text-gray-900">No assignments</h3>
-                                            <p className="mt-1 text-sm text-gray-500">Get started by adding a new assignment.</p>
-                                            <div className="mt-6">
-                                                <button
-                                                    onClick={() => setShowModal(true)}
-                                                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                                                >
-                                                    Add Assignment
-                                                </button>
-                                            </div>
+                                    <h3 className="text-lg font-medium text-gray-900">Inspector &amp; Contractor</h3>
+                                    <p className="text-sm text-gray-500">
+                                        {inspectorCount} inspector{inspectorCount === 1 ? '' : 's'} · {contractorCount} contractor{contractorCount === 1 ? '' : 's'}
+                                    </p>
+                                </div>
+                                <div className="relative flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowInfo((v) => !v)}
+                                        onBlur={() => setShowInfo(false)}
+                                        aria-label="About assignments"
+                                        className="p-1.5 rounded-full text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                                    >
+                                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                    </button>
+                                    {showInfo && (
+                                        <div className="absolute right-0 top-full mt-2 w-72 z-20 rounded-lg bg-white p-3 text-xs text-gray-600 shadow-xl ring-1 ring-black/10">
+                                            <p className="mb-1"><span className="font-semibold text-gray-800">Inspector:</span> active inspectors who can inspect this project.</p>
+                                            <p className="mb-1"><span className="font-semibold text-gray-800">Contractor:</span> active contractors working on this project.</p>
+                                            <p><span className="font-semibold text-gray-800">Notes:</span> add instructions or scope for each assignment; edit them any time.</p>
                                         </div>
                                     )}
+                                    <button
+                                        onClick={() => {
+                                            setEditingAssignment(null);
+                                            resetCreate();
+                                            setShowModal(true);
+                                        }}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        + Assign
+                                    </button>
+                                </div>
+                            </div>
+
+                            {assignments && assignments.length > 0 ? (
+                                <div className="overflow-x-auto">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
+                                            <tr>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-12">#</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="bg-white divide-y divide-gray-200">
+                                            {assignments.map((assignment, rowNo) => {
+                                                const isStaff = assignment.entity_type === 'staff';
+                                                const person = isStaff ? assignment.staff_member : assignment.compsub_company;
+                                                return (
+                                                    <tr key={assignment.id} className="hover:bg-gray-50">
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{rowNo + 1}</td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${isStaff ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>
+                                                                {isStaff ? 'Inspector' : 'Contractor'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap">
+                                                            <div className="text-sm font-medium text-gray-900">{person?.name}</div>
+                                                            <div className="text-sm text-gray-500">{person?.email}</div>
+                                                        </td>
+                                                        <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
+                                                            {assignment.notes ? (
+                                                                <div className="flex items-start gap-2">
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => setOpenNote(openNote === assignment.id ? null : assignment.id)}
+                                                                        title="Show full note"
+                                                                        className="mt-0.5 shrink-0 text-blue-600 hover:text-blue-800"
+                                                                    >
+                                                                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                                        </svg>
+                                                                    </button>
+                                                                    <span className={openNote === assignment.id ? 'whitespace-pre-wrap break-words' : 'truncate block'}>
+                                                                        {assignment.notes}
+                                                                    </span>
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-gray-400">No notes</span>
+                                                            )}
+                                                        </td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                            <button
+                                                                onClick={() => handleEditAssignment(assignment)}
+                                                                className="text-blue-600 hover:text-blue-900 mr-3"
+                                                            >
+                                                                Edit
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRemoveAssignment(assignment.id)}
+                                                                className="text-red-600 hover:text-red-900"
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="text-center py-10">
+                                    <h3 className="text-sm font-medium text-gray-900">Nobody assigned yet</h3>
+                                    <p className="mt-1 text-sm text-gray-500">Assign an inspector or an active contractor to this project.</p>
                                 </div>
                             )}
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Edit project modal */}
+            {showEditProject && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white rounded-lg shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                        <form onSubmit={submitEditProject} className="p-6 space-y-4">
+                            <h2 className="text-xl font-semibold">Edit Project</h2>
+                            {[
+                                ['name', 'Project Name*'],
+                                ['location', 'Location*'],
+                            ].map(([key, label]) => (
+                                <div key={key}>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                                    <input type="text" value={projData[key]} onChange={(e) => setProjData(key, e.target.value)} required
+                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                    {projErrors[key] && <p className="text-red-500 text-xs mt-1">{projErrors[key]}</p>}
+                                </div>
+                            ))}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {[['start_date', 'Start Date*'], ['end_date', 'End Date*']].map(([key, label]) => (
+                                    <div key={key}>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                                        <input type="date" value={projData[key]} onChange={(e) => setProjData(key, e.target.value)} required
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                                        {projErrors[key] && <p className="text-red-500 text-xs mt-1">{projErrors[key]}</p>}
+                                    </div>
+                                ))}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Status*</label>
+                                <select value={projData.status} onChange={(e) => setProjData('status', e.target.value)} required
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="pending">Pending</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                                {projErrors.status && <p className="text-red-500 text-xs mt-1">{projErrors.status}</p>}
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
+                                <select value={projData.project_type_id} onChange={(e) => setProjData('project_type_id', e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Select type</option>
+                                    {projectTypes.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                            </div>
+                            <div className="pt-2 flex justify-end gap-3">
+                                <button type="button" onClick={() => { setShowEditProject(false); resetProj(); }}
+                                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">Cancel</button>
+                                <button type="submit" disabled={projProcessing}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50">
+                                    {projProcessing ? 'Saving...' : 'Update Project'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Add/Edit Modal - same as before */}
             {showModal && (
@@ -492,7 +593,7 @@ export default function ExecutorProjectDetails({
                                             className="h-4 w-4 text-blue-600"
                                             disabled={isEditMode}
                                         />
-                                        <span className="ml-2 text-sm text-gray-700">Main Staff</span>
+                                        <span className="ml-2 text-sm text-gray-700">Inspector</span>
                                     </label>
                                     <label className="inline-flex items-center">
                                         <input
@@ -503,7 +604,7 @@ export default function ExecutorProjectDetails({
                                             className="h-4 w-4 text-blue-600"
                                             disabled={isEditMode}
                                         />
-                                        <span className="ml-2 text-sm text-gray-700">Company Subcontractor</span>
+                                        <span className="ml-2 text-sm text-gray-700">Contractor</span>
                                     </label>
                                 </div>
                             </div>
@@ -512,10 +613,8 @@ export default function ExecutorProjectDetails({
                             <div className="mb-4">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     {currentData.entity_type === 'staff'
-                                        ? 'Select Staff'
-                                        : currentData.entity_type === 'subcon'
-                                            ? 'Select Subcontractor Staff'
-                                            : 'Select Company Subcontractor'}
+                                        ? 'Select Inspector'
+                                        : 'Select Contractor (active)'}
                                 </label>
                                 <select
                                     value={currentData.executor_id}
@@ -536,21 +635,21 @@ export default function ExecutorProjectDetails({
                                 )}
                             </div>
 
-                            {/* Role Assignment */}
+                            {/* Notes */}
                             <div className="mb-4">
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                    Responsibility
+                                    Notes <span className="text-gray-400 font-normal">(optional)</span>
                                 </label>
-                                <input
-                                    type="text"
-                                    value={currentData.role_assignment}
-                                    onChange={(e) => handleRoleAssignmentChange(e.target.value)}
+                                <textarea
+                                    rows={3}
+                                    maxLength={1000}
+                                    value={currentData.notes}
+                                    onChange={(e) => handleNotesChange(e.target.value)}
                                     className="w-full border-gray-300 rounded-md shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                                    placeholder="e.g., Project Manager, Site Supervisor, Electrician"
-                                    required
+                                    placeholder={currentData.entity_type === 'staff' ? 'e.g., Weekly site inspection every Monday' : 'e.g., Scope of work for this contractor'}
                                 />
-                                {currentErrors.role_assignment && (
-                                    <p className="mt-1 text-sm text-red-600">{currentErrors.role_assignment}</p>
+                                {currentErrors.notes && (
+                                    <p className="mt-1 text-sm text-red-600">{currentErrors.notes}</p>
                                 )}
                             </div>
 

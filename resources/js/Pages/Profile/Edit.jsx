@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { confirmLogout } from '@/Helpers/logout';
 import CompanyAvatar from '@/Components/CompanyAvatar';
+import ReviewLayout from '@/Layouts/ReviewLayout';
+import InspectorLayout from '@/Layouts/InspectorLayout';
 
 const inputClass =
     'w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-base text-gray-900 placeholder-gray-400 ' +
@@ -302,10 +304,53 @@ function PasswordForm() {
     );
 }
 
+/** Supervisor / Manager / Inspector: a simple one-column profile inside their own portal, same as the inspector app. */
+function PortalProfile({ user, account, mustVerifyEmail, status }) {
+    const roleId = Number(user.role_id);
+    const Layout = [3, 4].includes(roleId) ? ReviewLayout : InspectorLayout;
+    const layoutProps = [3, 4].includes(roleId) ? { title: 'My profile' } : { user };
+    const initial = (user.name || '?').charAt(0).toUpperCase();
+
+    return (
+        <Layout {...layoutProps}>
+            <Head title="My profile" />
+            <div className="mx-auto w-full max-w-2xl space-y-4 px-3 pb-12 pt-4 sm:px-4 sm:pt-6">
+                <div className="flex items-center gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-brand-500 text-2xl font-extrabold text-ink-950">{initial}</span>
+                    <div className="min-w-0">
+                        <p className="truncate text-lg font-extrabold text-ink-950">{user.name}</p>
+                        <p className="truncate text-sm text-gray-500">{user.email}</p>
+                        <p className="mt-1 inline-flex rounded-full bg-brand-100 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-ink-900">{account.role || 'Staff'}</p>
+                    </div>
+                </div>
+                <dl className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"><dt className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Company</dt><dd className="mt-1 font-bold text-ink-950">{account.company || '—'}</dd></div>
+                    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"><dt className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Member since</dt><dd className="mt-1 font-bold text-ink-950">{account.member_since || '—'}</dd></div>
+                </dl>
+                {mustVerifyEmail && !account.email_verified && (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">
+                        <span>Your email address is not verified.</span>
+                        <Link href="/verify-email" className="rounded-xl bg-amber-500 px-4 py-2 text-center text-xs font-extrabold text-white">Verify email</Link>
+                    </div>
+                )}
+                {status === 'verification-link-sent' && <p className="text-sm font-semibold text-emerald-600">A new verification link has been sent to your email.</p>}
+                <ProfileForm user={user} />
+                <PasswordForm />
+                <button onClick={() => confirmLogout()} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-extrabold text-red-600 active:scale-[0.99]">
+                    <LogOut className="h-4 w-4" /> Log out
+                </button>
+            </div>
+        </Layout>
+    );
+}
+
 export default function Edit({ account = {}, company = null, accountType = null, subscription = null, mustVerifyEmail, status }) {
     const { auth } = usePage().props;
     const user = auth.user;
     const roleId = Number(user.role_id);
+    if ([3, 4, 7, 8].includes(roleId)) {
+        return <PortalProfile user={user} account={account} mustVerifyEmail={mustVerifyEmail} status={status} />;
+    }
     const dashboard = [3, 4].includes(roleId) ? '/review/dashboard' : [7, 8].includes(roleId) ? '/inspector/dashboard' : '/dashboard';
     const tabs = [
         ...(company ? [

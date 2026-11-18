@@ -8,6 +8,15 @@
         <meta name="theme-color" content="#12171E">
         <link rel="icon" type="image/png" href="/images/sbc-logo.png">
 
+        <!-- Add to home screen: name, icon and standalone mode -->
+        <link rel="manifest" href="/manifest.webmanifest">
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+        <meta name="application-name" content="Safety Buddy">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-title" content="Safety Buddy">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
         <title inertia>{{ 'Safety Buddy' }}</title>
 
         <!-- Fonts -->

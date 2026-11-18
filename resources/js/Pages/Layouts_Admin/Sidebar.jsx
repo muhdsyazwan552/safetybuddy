@@ -19,7 +19,7 @@ import {
 } from 'react-icons/fa';
 
 // Make sure navigation is properly defined as an array
-const NAVIGATION = [  // Changed to uppercase constant
+export const NAVIGATION = [  // Changed to uppercase constant
        {
     category: '',
     items: [
@@ -44,7 +44,7 @@ const NAVIGATION = [  // Changed to uppercase constant
   {
     category: 'Inspection',
     items: [
-      { name: 'Toolbox & Inspection', href: '/inspection', icon: FaSearch },
+      { name: 'Toolbox & Inspection', crumb: 'Inspections Management', href: '/inspection', icon: FaSearch },
       // { name: 'Dashboard', href: '/dashboard-inspection', icon: FaChartLine },
     ],
   },
@@ -87,12 +87,11 @@ const NAVIGATION = [  // Changed to uppercase constant
   // },
 ];
 
-const TRAINEES_SECTION = {
-  category: 'Training Provider',
+export const TRAINEES_SECTION = {
+  category: 'Manage Participant',
   items: [
-    { name: 'Plan', href: '/training-provider/packages', icon: FaLayerGroup },
-    { name: 'Log', href: '/training-provider/activation-codes', icon: FaKey },
-    { name: 'Trainees', href: '/training-provider/trainees', icon: FaUsers },
+    { name: 'Purchase', href: '/training-provider/packages', icon: FaLayerGroup },
+    { name: 'List Participant', href: '/training-provider/trainees', icon: FaUsers },
   ],
 };
 

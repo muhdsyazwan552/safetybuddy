@@ -35,6 +35,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => fn () => $this->authUser($request->user()),
             ],
+            // red notification numbers on the Supervisor / Manager menu (cached briefly: they are computed from several feeds)
+            'reviewBadges' => fn () => $this->reviewBadges($request->user()),
+            'adminBadges' => fn () => $this->adminBadges($request->user()),
             'flash' => [
                 'success' => fn() => $request->session()->get('success'),
                 'error' => fn() => $request->session()->get('error'),
@@ -42,6 +45,38 @@ class HandleInertiaRequests extends Middleware
                 'info' => fn() => $request->session()->get('info'),
             ],
         ];
+    }
+
+    /** System admin sidebar: how many items wait for approval on each menu. */
+    private function adminBadges($user): ?array
+    {
+        if (! $user || (int) $user->role_id !== 1) {
+            return null;
+        }
+
+        return [
+            '/admin/approvals' => \Illuminate\Support\Facades\DB::table('subscription_plan_requests')->where('status', 'pending')->count(),
+            '/admin/slot-orders' => \Illuminate\Support\Facades\DB::table('payments')->whereIn('payment_type', ['addon_inspector', 'addon_executor'])->where('payment_status', 'pending')->count(),
+            '/admin/training-providers/approvals' => \Illuminate\Support\Facades\DB::table('training_provider_applications')->where('status', 'pending')->count(),
+            '/admin/training-providers/orders' => \Illuminate\Support\Facades\DB::table('package_activation_codes')->where('status', 'pending')->distinct()->count('batch_ref'),
+        ];
+    }
+
+    private function reviewBadges($user): ?array
+    {
+        if (! $user || ! in_array((int) $user->role_id, [3, 4], true) || ! $user->company_id) {
+            return null;
+        }
+
+        return \Illuminate\Support\Facades\Cache::remember("review-badges:{$user->id}", 20, function () {
+            try {
+                return app(\App\Http\Controllers\ReviewController::class)->badges();
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return [];
+            }
+        });
     }
 
     private function authUser($user): ?array

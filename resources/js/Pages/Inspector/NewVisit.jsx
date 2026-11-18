@@ -203,9 +203,20 @@ export default function NewVisit({
                         <div className="space-y-5 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
                             <Field label="Project *" error={startErrors.project}>
                                 <select className={inputClass} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-                                    <option value="">Select a project</option>
+                                    <option value="">{projects.length === 0 ? 'No project found' : 'Select a project'}</option>
                                     {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
+                                {projects.length === 0 ? (
+                                    <p className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                                        {isAdmin
+                                            ? 'No project found. Create a project first.'
+                                            : 'No project found. Please contact your admin to assign you to a project.'}
+                                    </p>
+                                ) : !isAdmin && (
+                                    <p className="mt-2 text-xs text-gray-500">
+                                        Can't find your project? Contact your admin to assign you to it.
+                                    </p>
+                                )}
                             </Field>
                             <Field label="Date *" error={startErrors.date}>
                                 <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
@@ -254,7 +265,7 @@ export default function NewVisit({
             {step === 'toolbox' && (
                 <ToolboxTalkForm
                     embedded
-                    projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+                    projects={projects.map((p) => ({ id: p.id, name: p.name, contractors: (p.subcon_companies || []).filter((c) => c.status === 'active') }))}
                     topics={toolboxCategories}
                     initial={{ project_id: projectId, inspection_date: date, is_conducted: talk === 'yes' ? 1 : 0 }}
                     staffByProject={staffByProject}

@@ -40,12 +40,15 @@ function PhotoPicker({ label, preview, existing, error, onPick, onClear }) {
 
 
 /** Tick the subcontractor staff who attended – their count is the total attendance. */
-function AttendeeSelect({ staff, value, onChange, error, projectSelected }) {
+function AttendeeSelect({ staff, contractors = [], value, onChange, error, projectSelected }) {
     const [q, setQ] = useState('');
     const sel = new Set(value.map(Number));
     const needle = q.trim().toLowerCase();
 
-    const groups = [];
+    // every active contractor assigned to the project is listed, even without verified staff
+    const groups = contractors
+        .filter((c) => !needle || c.name.toLowerCase().includes(needle))
+        .map((c) => ({ id: c.id, name: c.name, people: [] }));
     staff.forEach((s) => {
         if (needle && !`${s.name} ${s.role || ''} ${s.company_name}`.toLowerCase().includes(needle)) return;
         let g = groups.find((x) => x.id === s.company_id);
@@ -77,8 +80,8 @@ function AttendeeSelect({ staff, value, onChange, error, projectSelected }) {
 
             {!projectSelected ? (
                 <p className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5 text-center text-sm text-gray-500">Choose the project first.</p>
-            ) : staff.length === 0 ? (
-                <p className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5 text-center text-sm text-amber-800">No subcontractor staff registered for this project yet.</p>
+            ) : staff.length === 0 && contractors.length === 0 ? (
+                <p className="rounded-2xl border border-dashed border-amber-300 bg-amber-50 p-5 text-center text-sm text-amber-800">No active contractor is assigned to this project yet. Please contact your admin to assign one.</p>
             ) : (
                 <div className="overflow-hidden rounded-2xl border border-gray-200">
                     <div className="relative border-b border-gray-100 bg-gray-50 p-2">
@@ -92,8 +95,13 @@ function AttendeeSelect({ staff, value, onChange, error, projectSelected }) {
                                 <div key={g.id}>
                                     <div className="flex items-center justify-between bg-gray-100 px-4 py-2">
                                         <p className="truncate text-[11px] font-extrabold uppercase tracking-wider text-gray-600">{g.name}</p>
-                                        <button type="button" onClick={() => toggleGroup(g)} className="shrink-0 text-xs font-bold text-brand-800">{all ? 'Clear' : 'Select all'}</button>
+                                        {g.people.length > 0 && (
+                                            <button type="button" onClick={() => toggleGroup(g)} className="shrink-0 text-xs font-bold text-brand-800">{all ? 'Clear' : 'Select all'}</button>
+                                        )}
                                     </div>
+                                    {g.people.length === 0 && (
+                                        <p className="border-t border-gray-100 bg-white px-4 py-3.5 text-sm text-gray-500">No verified staff yet.</p>
+                                    )}
                                     {g.people.map((p) => {
                                         const on = sel.has(p.id);
                                         return (
@@ -118,6 +126,9 @@ function AttendeeSelect({ staff, value, onChange, error, projectSelected }) {
                         })}
                         {groups.length === 0 && <p className="p-5 text-center text-sm text-gray-400">No staff match your search.</p>}
                     </div>
+                    <p className="border-t border-gray-100 bg-gray-50 px-4 py-2.5 text-xs text-gray-500">
+                        Only verified (active) contractor staff are listed. If someone is missing, ask the contractor to complete their verification.
+                    </p>
                 </div>
             )}
             {error && <p className="mt-1.5 ml-1 text-xs font-medium text-red-500">{error}</p>}
@@ -258,6 +269,7 @@ export default function ToolboxTalkForm({ projects, topics, initial, conductor, 
                         <div className={`rounded-3xl border border-gray-100 bg-white p-5 shadow-sm ${wide ? 'lg:row-span-3' : ''}`}>
                             <AttendeeSelect
                                 staff={staffByProject[data.project_id] || []}
+                                contractors={projects.find((p) => String(p.id) === String(data.project_id))?.contractors || []}
                                 value={data.attendees}
                                 onChange={(ids) => set('attendees', ids)}
                                 projectSelected={!!data.project_id}

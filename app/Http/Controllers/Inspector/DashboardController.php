@@ -340,7 +340,8 @@ class DashboardController extends Controller
             ? Project::where('company_id', $companyId)
             : Project::whereIn('id', ProjectAssign::where('entity_type', 'staff')->where('entity_id', $staff->id)->pluck('project_id'));
 
-        return $query->orderBy('name')->get()->map(function ($project) {
+        // an inactive project accepts no new visits
+        return $query->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'inactive'))->orderBy('name')->get()->map(function ($project) {
             $subconIds = DB::table('project_assign')
                 ->where('entity_type', 'compsub')->where('project_id', $project->id)->pluck('entity_id')->unique();
 

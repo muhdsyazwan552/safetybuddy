@@ -33,15 +33,15 @@ export default function TraineeDetails({ trainee, subscriptions = [], codes = []
           <div className="flex flex-wrap items-center gap-3"><h1 className="text-2xl font-black tracking-tight text-gray-900">{trainee.company_name}</h1><span className={`rounded-full px-3 py-1 text-xs font-bold ${status.tone}`}>{status.label}</span></div>
           <p className="mt-1 text-sm text-gray-500">{trainee.company_code}</p>
         </div>
-        {canRenew && <Link href="/training-provider/packages" data={{ tab: 'renew' }} className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-ink-900 transition hover:bg-amber-400">Renew this company’s plan</Link>}
+        {canRenew && <Link href="/training-provider/packages/renew" className="rounded-xl bg-amber-500 px-5 py-2.5 text-sm font-bold text-ink-900 transition hover:bg-amber-400">Renew this Participant</Link>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl bg-white ring-1 ring-gray-200">
-          <h2 className="border-b border-gray-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-500">Company</h2>
+          <h2 className="border-b border-gray-100 px-6 py-4 text-xs font-bold uppercase tracking-widest text-gray-500">Participant</h2>
           <dl className="divide-y divide-gray-100">
-            <Field label="Company name">{trainee.company_name}</Field>
-            <Field label="Company code">{trainee.company_code}</Field>
+            <Field label="Participant name">{trainee.company_name}</Field>
+            <Field label="Participant code">{trainee.company_code}</Field>
             <Field label="Email">{trainee.email}</Field>
             <Field label="Contact">{trainee.contact}</Field>
             <Field label="Registered under you">{date(trainee.registered_at)}</Field>
@@ -72,7 +72,7 @@ export default function TraineeDetails({ trainee, subscriptions = [], codes = []
               <td className="whitespace-nowrap px-6 py-3.5 text-gray-600">{date(item.end_date)}</td>
               <td className="px-6 py-3.5"><span className={`rounded-full px-3 py-1 text-xs font-bold ${SUBSCRIPTION[item.status] ?? 'bg-gray-100 text-gray-600'}`}>{item.status === 'active' ? 'Active' : item.status === 'expired' ? 'Expired' : item.status}</span></td>
             </tr>)}
-            {!subscriptions.length && <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-500">This company has no package yet.</td></tr>}
+            {!subscriptions.length && <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-500">This participant has no package yet.</td></tr>}
           </tbody>
         </table></div>
       </section>
@@ -89,7 +89,7 @@ export default function TraineeDetails({ trainee, subscriptions = [], codes = []
               <td className="px-6 py-3.5 text-gray-600">{item.batch_ref}</td>
               <td className="whitespace-nowrap px-6 py-3.5 text-gray-600">{date(item.used_at)}</td>
             </tr>)}
-            {!codes.length && <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-500">No activation code from you has been used by this company.</td></tr>}
+            {!codes.length && <tr><td colSpan="5" className="px-6 py-10 text-center text-gray-500">No activation code from you has been used by this participant.</td></tr>}
           </tbody>
         </table></div>
       </section>

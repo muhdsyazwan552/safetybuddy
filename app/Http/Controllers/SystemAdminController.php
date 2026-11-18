@@ -271,7 +271,7 @@ class SystemAdminController extends Controller
             }
         }
 
-        $addons = DB::table('subscription_addons')->where('created_at', '>=', $lastMonth)->get(['type', 'quantity', 'total_amount', 'created_at'])->map(function ($row) { $row->created_at = Carbon::parse($row->created_at); return $row; });
+        $addons = DB::table('subscription_addons')->whereNotIn('payment_id', fn ($q) => $q->select('id')->from('payments')->where('payment_status', 'failed'))->where('created_at', '>=', $lastMonth)->get(['type', 'quantity', 'total_amount', 'created_at'])->map(function ($row) { $row->created_at = Carbon::parse($row->created_at); return $row; });
         $current = $addons->filter(fn ($row) => $row->created_at >= $thisMonth);
         $slotAmount = [(float) $current->sum('total_amount'), (float) $addons->filter(fn ($row) => $row->created_at < $thisMonth)->sum('total_amount')];
 
@@ -299,9 +299,14 @@ class SystemAdminController extends Controller
         $orders = DB::table('package_activation_codes')->where('status', 'pending')->distinct()->count('batch_ref');
         $ordersOldest = DB::table('package_activation_codes')->where('status', 'pending')->min('created_at');
 
+        $slots = DB::table('payments')->whereIn('payment_type', ['addon_inspector', 'addon_executor'])->where('payment_status', 'pending');
+        $slotsCount = (clone $slots)->count();
+        $slotsOldest = (clone $slots)->min('created_at');
+
         return [
             ['label' => 'Purchase requests', 'hint' => 'Confirm payment to activate a package', 'count' => $requests, 'oldest' => $requestsOldest, 'href' => route('system.admin.approvals')],
             ['label' => 'Training Provider applications', 'hint' => 'Verify registration and certificates', 'count' => $applications, 'oldest' => $applicationsOldest, 'href' => route('system.admin.training-providers.approvals')],
+            ['label' => 'Extra slot orders', 'hint' => 'Confirm payment for extra Inspector / Contractor slots', 'count' => $slotsCount, 'oldest' => $slotsOldest, 'href' => route('system.admin.slot-orders')],
             ['label' => 'Package orders', 'hint' => 'Confirm payment to release activation codes', 'count' => $orders, 'oldest' => $ordersOldest, 'href' => route('system.admin.training-providers.orders')],
         ];
     }
@@ -322,7 +327,7 @@ class SystemAdminController extends Controller
 
         $since = $months->first()['from']->lt($weeks->first()['from']) ? $months->first()['from'] : $weeks->first()['from'];
         $payments = $this->confirmedPayments($since);
-        $addons = DB::table('subscription_addons')->where('created_at', '>=', $since)->get(['total_amount', 'created_at'])->map(function ($row) { $row->created_at = Carbon::parse($row->created_at); return $row; });
+        $addons = DB::table('subscription_addons')->whereNotIn('payment_id', fn ($q) => $q->select('id')->from('payments')->where('payment_status', 'failed'))->where('created_at', '>=', $since)->get(['total_amount', 'created_at'])->map(function ($row) { $row->created_at = Carbon::parse($row->created_at); return $row; });
         $signups = DB::table('users')->where('role_id', 2)->where('created_at', '>=', $since)->pluck('created_at')->map(fn ($date) => Carbon::parse($date));
 
         $build = fn ($buckets) => $buckets->map(function ($bucket) use ($payments, $addons, $signups) {
@@ -557,6 +562,26 @@ class SystemAdminController extends Controller
             'title' => 'Subscription Approvals',
             'planRequests' => SubscriptionPlanRequest::with(['company:id,name,code', 'plan:id,name,code'])
                 ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")->latest()->get(),
+        ]);
+    }
+
+    public function slotOrders()
+    {
+        return Inertia::render('Admin/SlotOrders', [
+            'title' => 'Slot Orders',
+            'slotOrders' => \App\Models\SubscriptionAddon::with(['payment:id,payment_status', 'company:id,name,code'])
+                ->latest('id')->limit(200)->get()
+                ->map(fn ($addon) => [
+                    'id' => $addon->id,
+                    'order_no' => $addon->order_no,
+                    'company' => $addon->company?->name,
+                    'company_code' => $addon->company?->code,
+                    'type' => $addon->type === 'executor' ? 'Contractor' : 'Inspector',
+                    'quantity' => $addon->quantity,
+                    'amount' => (float) $addon->total_amount,
+                    'status' => match ($addon->payment?->payment_status) { 'completed' => 'approved', 'failed' => 'rejected', default => 'pending' },
+                    'created_at' => $addon->created_at?->toDateTimeString(),
+                ])->sortBy(fn ($row) => $row['status'] === 'pending' ? 0 : 1)->values(),
         ]);
     }
 

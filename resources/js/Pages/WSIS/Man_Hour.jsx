@@ -244,17 +244,17 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
         </div>
 
         <section className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-slate-200 p-4 md:flex-row md:items-center md:justify-between">
+          <div className="border-b border-slate-200 p-4 sm:p-5">
             <div>
               <h2 className="font-bold text-slate-800">Daily manhour records</h2>
-              <p className="text-sm text-slate-500">Newest created records appear first. Saving again updates that day’s record.</p>
+              <p className="mt-0.5 text-sm text-slate-500">Newest created records appear first. Saving again updates that day’s record.</p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Records per page"><option value={10}>10 per page</option><option value={25}>25 per page</option><option value={50}>50 per page</option></select>
-              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Filter by year"><option value="">All years</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}</select>
-              <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Filter by month"><option value="">All months</option>{MONTHS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-              <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Filter by company"><option value="">All subcontractor companies</option>{companies.map((company) => <option key={company} value={company}>{company}</option>)}</select>
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search project or subcontractor" className="rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />
+            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(220px,2fr)_repeat(4,minmax(0,1fr))]">
+              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search project or subcontractor" className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" type="search" />
+              <select value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Filter by year"><option value="">All years</option>{years.map((year) => <option key={year} value={year}>{year}</option>)}</select>
+              <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Filter by month"><option value="">All months</option>{MONTHS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+              <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Filter by company"><option value="">All subcontractor companies</option>{companies.map((company) => <option key={company} value={company}>{company}</option>)}</select>
+              <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" aria-label="Records per page"><option value={10}>10 per page</option><option value={25}>25 per page</option><option value={50}>50 per page</option></select>
             </div>
           </div>
           <div className="overflow-x-auto">

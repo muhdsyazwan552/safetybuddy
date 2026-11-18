@@ -65,7 +65,7 @@ export default function OrderReview({ title = 'Review your order', subtitle = 'C
 
         <div className="mt-8 flex flex-wrap items-center justify-end gap-3">
           <button type="button" onClick={onBack} disabled={processing} className="rounded-xl border border-gray-300 bg-white px-6 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50">Back to edit</button>
-          <button type="button" onClick={onConfirm} disabled={processing} className="rounded-xl bg-ink-900 px-8 py-3 text-sm font-bold text-white transition hover:bg-ink-800 disabled:opacity-50">{processing ? 'Sending…' : confirmLabel}</button>
+          <button type="button" onClick={onConfirm} disabled={processing} className="rounded-xl bg-red-600 px-8 py-3 text-sm font-bold text-white transition hover:bg-red-700 disabled:opacity-50">{processing ? 'Sending…' : confirmLabel}</button>
         </div>
       </div>
     </div>,

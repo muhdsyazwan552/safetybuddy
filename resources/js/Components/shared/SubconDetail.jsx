@@ -337,7 +337,7 @@ export const StaffTab = ({ staff = [] }) => {
               <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-2 gap-y-2 text-xs">
                 {row('Role', s.role || '-')}
                 {row('Status', <span className={`font-extrabold uppercase tracking-wide ${st.text}`}>{st.label}</span>)}
-                {row('Safety passport', <span className={`font-extrabold uppercase tracking-wide ${s.is_safetypassport ? 'text-emerald-700' : 'text-rose-700'}`}>{s.is_safetypassport ? 'Yes' : 'No'}</span>)}
+                {row('Safety passport', <span className={`font-extrabold uppercase tracking-wide ${s.is_safetypassport ? 'text-emerald-700' : 'text-rose-700'}`}>{s.is_safetypassport ? 'Complete' : 'Incomplete'}</span>)}
                 {s.contact && row('Contact', <a href={`tel:${s.contact}`} className="text-blue-700">{s.contact}</a>)}
                 {s.email && row('Email', s.email)}
                 {waiting && row('Approval',

@@ -23,76 +23,61 @@ use Inertia\Inertia;
 class ProjectController extends Controller
 {
 
+    /** Records that hang off a project. Any of them means the project must be kept (set inactive), not deleted. */
+    public static function dataCounts(int $projectId): array
+    {
+        $tables = [
+            'inspections' => 'Inspections',
+            'toolbox_talks' => 'Toolbox talks',
+            'incident' => 'Incidents',
+            'manhours' => 'Man-hour records',
+            'manhour_attendances' => 'Attendance records',
+            'inspection_reports' => 'Daily reports',
+            'monthly_reports' => 'Monthly reports',
+        ];
+        $out = [];
+        foreach ($tables as $table => $label) {
+            if (!Schema::hasTable($table) || !Schema::hasColumn($table, 'project_id')) {
+                continue;
+            }
+            $n = DB::table($table)->where('project_id', $projectId)->count();
+            if ($n > 0) {
+                $out[$label] = $n;
+            }
+        }
+
+        return $out;
+    }
+
     /**
-     * Delete a project together with everything recorded under it:
-     * inspections (+ non-conformances, client complaints, photos), toolbox talks
-     * (+ topic links, photos), incidents (incident statistic), man-hours and
-     * every staff / subcontractor assignment.
-     *
-     * Staff, subcontractor companies and users themselves are NOT deleted - only
-     * their assignment to this project is removed.
+     * A project that already has recorded data is only set to inactive (nothing is lost).
+     * A project without any data is deleted permanently, together with its assignments.
      */
     public function destroyProject($id)
     {
         $user = Auth::user();
-
         $project = Project::findOrFail($id);
 
-        // a company account may only delete its own projects
+        // a company account may only manage its own projects
         if ($user->company_id && $project->company_id != $user->company_id) {
             abort(403, 'You are not allowed to delete this project.');
         }
 
-        $files = [];
-        $counts = [];
+        $counts = self::dataCounts($project->id);
+
+        if (!empty($counts)) {
+            $project->update(['status' => 'inactive']);
+
+            return redirect()->back()->with('success', sprintf(
+                'Project "%s" already has recorded data, so it was set to inactive instead of being deleted.',
+                $project->name
+            ));
+        }
 
         try {
-            DB::transaction(function () use ($project, &$files, &$counts) {
-                $pid = $project->id;
-
-                // --- inspections and what hangs off them
-                $inspections = DB::table('inspections')->where('project_id', $pid)->get(['id', 'photo']);
-                $inspectionIds = $inspections->pluck('id');
-
-                foreach ($inspections as $row) {
-                    $decoded = json_decode((string) $row->photo, true);
-                    $paths = is_array($decoded) ? $decoded : array_filter([$row->photo]);
-                    foreach ($paths as $path) {
-                        $files[] = $path;
-                    }
-                }
-
-                $counts['non_conformances'] = DB::table('non_conformances')->whereIn('inspection_id', $inspectionIds)->delete();
-                $counts['client_complaints'] = DB::table('client_complaints')->whereIn('inspection_id', $inspectionIds)->delete();
-                $counts['inspections'] = DB::table('inspections')->where('project_id', $pid)->delete();
-
-                // --- toolbox talks
-                $talks = DB::table('toolbox_talks')->where('project_id', $pid)->get(['id', 'img_group', 'img_attendance']);
-                foreach ($talks as $talk) {
-                    $files[] = $talk->img_group;
-                    $files[] = $talk->img_attendance;
-                }
-                DB::table('toolbox_talks_topics')->whereIn('toolbox_talks_id', $talks->pluck('id'))->delete();
-                $counts['toolbox_talks'] = DB::table('toolbox_talks')->where('project_id', $pid)->delete();
-
-                // --- incident statistic
-                $incidents = DB::table('incident')->where('project_id', $pid)->get(['id', 'attachment_upload']);
-                foreach ($incidents as $incident) {
-                    $decoded = json_decode((string) $incident->attachment_upload, true);
-                    $paths = is_array($decoded) ? $decoded : array_filter([$incident->attachment_upload]);
-                    foreach ($paths as $path) {
-                        $files[] = $path;
-                    }
-                }
-                $counts['incidents'] = DB::table('incident')->where('project_id', $pid)->delete();
-
-                // --- man-hours
-                $counts['manhours'] = DB::table('manhours')->where('project_id', $pid)->delete();
-
-                // --- assignments only (staff / subcon staff / companies stay untouched)
-                $counts['assignments'] = DB::table('project_assign')->where('project_id', $pid)->delete();
-                DB::table('project_user_roles')->where('project_id', $pid)->delete();
-
+            DB::transaction(function () use ($project) {
+                DB::table('project_assign')->where('project_id', $project->id)->delete();
+                DB::table('project_user_roles')->where('project_id', $project->id)->delete();
                 $project->delete();
             });
         } catch (\Throwable $e) {
@@ -101,27 +86,7 @@ class ProjectController extends Controller
             return redirect()->back()->with('error', 'Could not delete the project. Nothing was removed.');
         }
 
-        // Remove uploaded files only after the database part succeeded
-        foreach (array_unique(array_filter($files)) as $path) {
-            try {
-                Storage::disk('public')->delete($path);
-            } catch (\Throwable $e) {
-                // a missing file must not break the deletion
-            }
-        }
-
-        $message = sprintf(
-            'Project "%s" deleted with %d inspection(s), %d toolbox talk(s), %d incident(s), %d non-conformance(s), %d client complaint(s) and %d assignment(s).',
-            $project->name,
-            $counts['inspections'] ?? 0,
-            $counts['toolbox_talks'] ?? 0,
-            $counts['incidents'] ?? 0,
-            $counts['non_conformances'] ?? 0,
-            $counts['client_complaints'] ?? 0,
-            $counts['assignments'] ?? 0
-        );
-
-        return redirect()->route('manage.project')->with('success', $message);
+        return redirect()->route('manage.project')->with('success', sprintf('Project "%s" was deleted permanently.', $project->name));
     }
 
     public function storeProject(Request $request)
@@ -131,21 +96,46 @@ class ProjectController extends Controller
         // ✅ Only 'name' and 'status' are required, others can be null
         $validated = $request->validate([
             'name'        => 'required|string|max:255',
-            'status'      => 'required|in:pending,in_progress,completed,cancelled',
+            'status'      => 'required|in:pending,in_progress,completed,cancelled,inactive',
             'location'    => 'nullable|string|max:255',
             'start_date'  => 'nullable|date',
             'end_date'    => 'nullable|date|after_or_equal:start_date',
             'company_id'  => 'nullable|exists:companies,id',
+            'project_type_id' => 'nullable|exists:project_types,id',
+            'inspector_id' => ['nullable', \Illuminate\Validation\Rule::exists('company_staff', 'id')
+                ->where('company_id', $user->company_id)->where('role_id', 7)
+                ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'inactive'))],
+            'contractor_id' => ['nullable', \Illuminate\Validation\Rule::exists('subcon_company', 'id')
+                ->where('company_id', $user->company_id)->where('status', 'active')],
+            'contractor_notes' => 'nullable|string|max:255',
         ]);
 
-        Project::create([
+        DB::transaction(function () use ($validated, $user) {
+        $project = Project::create([
             'name'       => $validated['name'],
             'location'   => $validated['location'] ?? null,
             'start_date' => $validated['start_date'] ?? null,
             'end_date'   => $validated['end_date'] ?? null,
             'company_id' => $user->company_id, // Auto set from logged-in user
             'status'     => $validated['status'],
+            'project_type_id' => $validated['project_type_id'] ?? null,
         ]);
+
+        if (!empty($validated['inspector_id'])) {
+            ProjectAssign::create([
+                'project_id' => $project->id, 'entity_type' => 'staff',
+                'entity_id' => $validated['inspector_id'], 'role_assignment' => 'Inspector',
+            ]);
+        }
+        if (!empty($validated['contractor_id'])) {
+            ProjectAssign::create([
+                'project_id' => $project->id, 'entity_type' => 'compsub',
+                'entity_id' => $validated['contractor_id'],
+                'role_assignment' => 'Contractor',
+                'notes' => trim($validated['contractor_notes'] ?? '') ?: null,
+            ]);
+        }
+        });
 
         return redirect()->back()->with('success', 'Project created successfully.');
     }
@@ -157,7 +147,8 @@ class ProjectController extends Controller
             'location' => 'nullable|string|max:255',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
-            'status' => 'required|in:pending,in_progress,completed,cancelled',
+            'status' => 'required|in:pending,in_progress,completed,cancelled,inactive',
+            'project_type_id' => 'nullable|exists:project_types,id',
         ]);
 
         if ($validator->fails()) {
@@ -174,6 +165,7 @@ class ProjectController extends Controller
                 'start_date' => $request->start_date,
                 'end_date' => $request->end_date,
                 'status' => $request->status,
+                'project_type_id' => $request->project_type_id ?: null,
             ]);
 
             DB::commit();
@@ -318,7 +310,8 @@ class ProjectController extends Controller
                     }
                 }
             ],
-            'role_assignment' => 'required|string|max:255'
+            'role_assignment' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:1000',
         ]);
 
         try {
@@ -338,7 +331,9 @@ class ProjectController extends Controller
                 'project_id' => $project->id,
                 'entity_type' => $validated['entity_type'],
                 'entity_id' => $validated['executor_id'],
-                'role_assignment' => $validated['role_assignment']
+                'role_assignment' => trim($validated['role_assignment'] ?? '')
+                    ?: ($validated['entity_type'] === 'staff' ? 'Inspector' : 'Contractor'),
+                'notes' => trim($validated['notes'] ?? '') ?: null,
             ]);
 
             $typeName = match ($validated['entity_type']) {
@@ -382,11 +377,13 @@ class ProjectController extends Controller
     public function updateAssignment(Request $request, $id)
     {
         $validated = $request->validate([
-            'role_assignment' => 'required|string|max:255',
+            'role_assignment' => 'nullable|string|max:255',
+            'notes' => 'nullable|string|max:1000',
         ]);
 
         $this->ownAssignment($id)->update([
-            'role_assignment' => $validated['role_assignment'],
+            'role_assignment' => trim($validated['role_assignment'] ?? '') ?: 'Assigned',
+            'notes' => trim($validated['notes'] ?? '') ?: null,
             'updated_at' => now(),
         ]);
 

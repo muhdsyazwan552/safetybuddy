@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { SearchX, BookOpen } from 'lucide-react';
 import ReportShell from '@/Components/reports/ReportShell';
 import ListControls, { Pager } from '@/Components/shared/ListControls';
@@ -61,7 +61,44 @@ export default function Index({ portal, tab, rows = [], meta, counts = {}, filte
                         <p className="mt-1 text-sm text-gray-400">Reports are created from the inspections of each day and month.</p>
                     </div>
                 ) : (
-                    <div className="grid gap-3 lg:grid-cols-2">
+                    <>
+                    {!isReview && <div className="hidden overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm md:block">
+                        <div className="overflow-x-auto">
+                            <table className="w-full min-w-[960px] text-left text-sm">
+                                <thead className="bg-ink-950 text-xs font-bold uppercase tracking-wider text-brand-400">
+                                    <tr>
+                                        <th className="w-14 px-5 py-3">#</th>
+                                        <th className="px-5 py-3">Report no.</th>
+                                        <th className="px-5 py-3">{tab === 'daily' ? 'Date' : 'Month'}</th>
+                                        <th className="px-5 py-3">Project</th>
+                                        <th className="px-5 py-3">Subcontractor</th>
+                                        <th className="px-5 py-3 text-center">SPGPNC</th>
+                                        <th className="px-5 py-3 text-center">BSPR</th>
+                                        <th className="px-5 py-3 text-right">Penalty</th>
+                                        <th className="px-5 py-3">Status</th>
+                                        <th className="px-5 py-3 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {rows.map((r, index) => (
+                                        <tr key={`${tab}-${r.id}`} onClick={() => router.visit(detail(r))} className="cursor-pointer align-middle transition hover:bg-brand-50/60">
+                                            <td className="px-5 py-3.5 text-gray-400">{(meta?.from ?? 1) + index}</td>
+                                            <td className="whitespace-nowrap px-5 py-3.5 font-semibold text-gray-800">{r.report_no}</td>
+                                            <td className="whitespace-nowrap px-5 py-3.5 font-bold text-gray-900">{tab === 'daily' ? r.date : monthName(r.period)}</td>
+                                            <td className="px-5 py-3.5 font-semibold text-gray-800">{r.project}</td>
+                                            <td className="px-5 py-3.5 text-gray-600">{r.subcon}</td>
+                                            <td className="whitespace-nowrap px-5 py-3.5 text-center font-extrabold text-ink-900">{r.spgpnc !== null ? pct(r.spgpnc) : <span className="text-gray-300">-</span>}</td>
+                                            <td className="px-5 py-3.5"><div className="flex justify-center">{r.rank ? <RankMedal rank={r.rank} size="xs" /> : <span className="font-extrabold text-gray-300">-</span>}</div></td>
+                                            <td className="whitespace-nowrap px-5 py-3.5 text-right font-extrabold text-gray-900">{rm(r.penalty.total)}</td>
+                                            <td className="whitespace-nowrap px-5 py-3.5"><Status value={r.status} /></td>
+                                            <td className="px-5 py-3.5 text-right"><Link href={detail(r)} onClick={(event) => event.stopPropagation()} className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-bold text-ink-900 hover:border-brand-400">View</Link></td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>}
+                    <div className={`grid gap-3 ${isReview ? 'lg:grid-cols-2' : 'md:hidden'}`}>
                         {rows.map((r) => {
                             const tone = cardTone(r.status);
                             return (
@@ -93,6 +130,7 @@ export default function Index({ portal, tab, rows = [], meta, counts = {}, filte
                             );
                         })}
                     </div>
+                    </>
                 )}
 
                 <Pager meta={meta} path={path} filters={{ ...filters, tab }} />

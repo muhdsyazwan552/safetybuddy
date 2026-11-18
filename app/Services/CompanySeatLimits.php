@@ -99,7 +99,7 @@ class CompanySeatLimits
     /** Inspector seats the company bought beyond what its package includes (one-time, kept across renewals). */
     public static function extraInspectors(int $companyId): int
     {
-        return (int) SubscriptionAddon::where('company_id', $companyId)->where('type', 'inspector')->sum('quantity');
+        return (int) SubscriptionAddon::where('company_id', $companyId)->where('type', 'inspector')->whereDoesntHave('payment', fn ($query) => $query->where('payment_status', 'failed'))->sum('quantity');
     }
 
     /** Blocks a new executor company once the package's executor seats plus extra seats bought are all used. */
@@ -123,7 +123,7 @@ class CompanySeatLimits
     /** Executor (contractor) seats the company bought beyond what its package includes. */
     public static function extraExecutors(int $companyId): int
     {
-        return (int) SubscriptionAddon::where('company_id', $companyId)->where('type', 'executor')->sum('quantity');
+        return (int) SubscriptionAddon::where('company_id', $companyId)->where('type', 'executor')->whereDoesntHave('payment', fn ($query) => $query->where('payment_status', 'failed'))->sum('quantity');
     }
 
     private static function used(int $companyId, int $roleId, ?int $exceptStaffId = null, ?int $exceptUserId = null): int

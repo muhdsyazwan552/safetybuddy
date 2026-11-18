@@ -73,10 +73,15 @@ class ContentController extends Controller
 
             ->get();
 
-
         return Inertia::render('WSIS/Project', [
             'title'    => 'Project Executor',
             'projects' => $projects,
+            'projectTypes' => \App\Models\ProjectType::active()->get(['id', 'name']),
+            // active people only: inspectors are company staff with role 7
+            'inspectors' => CompanyStaff::where('company_id', $user->company_id)->where('role_id', 7)
+                ->active()->orderBy('name')->get(['id', 'name']),
+            'contractors' => SubconCompany::where('company_id', $user->company_id)->where('status', 'active')
+                ->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -159,6 +164,7 @@ class ContentController extends Controller
                     'entity_type' => 'staff',
                     'entity_id' => $staff->id,
                     'role_assignment' => $assign->role_assignment,
+                    'notes' => $assign->notes,
                     'staff_member' => [
                         'id' => $staff->id,
                         'name' => $staff->name,
@@ -203,6 +209,7 @@ class ContentController extends Controller
                     'entity_type' => 'compsub',
                     'entity_id' => $compsub->id,
                     'role_assignment' => $assign->role_assignment,
+                    'notes' => $assign->notes,
                     'compsub_company' => [ // Changed from compsub_staff to compsub_company
                         'id' => $compsub->id,
                         'name' => $compsub->name,
@@ -223,7 +230,7 @@ class ContentController extends Controller
 
         $availableStaff = CompanyStaff::with('company', 'role')
             ->active()
-            ->whereIn('role_id', [4, 8, 7])
+            ->where('role_id', 7)
             ->whereNotIn('id', $assignedStaffIds)
             ->get();
 
@@ -243,7 +250,7 @@ class ContentController extends Controller
             ->pluck('entity_id')
             ->toArray();
 
-        $availableCompSub = SubconCompany::whereNotIn('id', $assignedCompSubIds)->get();
+        $availableCompSub = SubconCompany::where('status', 'active')->whereNotIn('id', $assignedCompSubIds)->get();
 
         return Inertia::render('WSIS/Executor_Project_Details', [
             'project' => [
@@ -254,8 +261,16 @@ class ContentController extends Controller
                 'end_date' => $project->end_date,
                 'status' => $project->status,
                 'progress' => $project->progress,
+                'type_name' => $project->project_type_id
+                    ? \App\Models\ProjectType::whereKey($project->project_type_id)->value('name')
+                    : null,
+                'created_at' => $project->created_at,
+                'project_type_id' => $project->project_type_id,
+                'data_counts' => \App\Http\Controllers\ProjectController::dataCounts($project->id),
             ],
-            'assignments' => $formattedAssignments,
+            'projectTypes' => \App\Models\ProjectType::active()->get(['id', 'name']),
+            // only inspectors and contractors are managed here
+            'assignments' => array_values(array_filter($formattedAssignments, fn ($a) => in_array($a['entity_type'], ['staff', 'compsub'], true))),
             'availableStaff' => $availableStaff,
             'availableSubconStaff' => $availableSubconStaff,
             'availableCompSub' => $availableCompSub,

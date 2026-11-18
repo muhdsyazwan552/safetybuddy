@@ -4,7 +4,7 @@ import AppLayout from '@/Pages/WSIS/Layout';
 import { showAlert } from '@/Helpers/alert';
 
 const ProjectManagement = () => {
-  const { projects: initialProjects = [], title, flash } = usePage().props || {};
+  const { projects: initialProjects = [], projectTypes = [], inspectors = [], contractors = [], title, flash } = usePage().props || {};
 
   // Ensure executors is always an array
   const projectsWithExecutors = (initialProjects || []).map((project) => ({
@@ -31,6 +31,10 @@ const ProjectManagement = () => {
     start_date: '',
     end_date: '',
     status: 'pending',
+    project_type_id: '',
+    inspector_id: '',
+    contractor_id: '',
+    contractor_notes: '',
   });
 
   // Form handling for update
@@ -41,6 +45,7 @@ const ProjectManagement = () => {
     start_date: '',
     end_date: '',
     status: 'pending',
+    project_type_id: '',
   });
 
   // Determine which form to use based on mode
@@ -107,47 +112,6 @@ const handleUpdateProject = (e) => {
     },
   });
 };
-
-  const handleEdit = (project) => {
-    setUpdateData({
-      id: project.id,
-      name: project.name || '',
-      location: project.location || '',
-      start_date: project.start_date || '',
-      end_date: project.end_date || '',
-      status: project.status || 'pending',
-    });
-    setShowProjectModal(true);
-  };
-
-  const handleDelete = async (id) => {
-    const target = projects.find((p) => p.id === id);
-    const name = target?.name ? `"${target.name}"` : 'this project';
-
-    const ok = await showAlert.confirmDelete(
-      `You are about to delete ${name}. Everything recorded in it will be permanently removed:`,
-      'Delete this project?',
-      {
-        confirmText: 'Yes, delete project',
-        details: [
-          'Inspections, non-conformances and client complaints',
-          'Toolbox talks',
-          'Incident statistics',
-          'Man-hour records',
-          'Staff and subcontractor assignments (the staff themselves are kept)',
-        ],
-      }
-    );
-    if (!ok) return;
-
-    router.delete(route('admin.projects.destroy', id), {
-      preserveScroll: true,
-      onError: (errors) => {
-        console.error('Delete error:', errors);
-        showAlert.error('The project could not be deleted. Nothing was removed.', 'Delete failed');
-      },
-    });
-  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -364,68 +328,26 @@ const handleUpdateProject = (e) => {
                               ? 'bg-blue-100 text-blue-800'
                               : project.status === 'cancelled'
                                 ? 'bg-red-100 text-red-800'
-                                : 'bg-yellow-100 text-yellow-800'
+                                : project.status === 'inactive'
+                                  ? 'bg-gray-200 text-gray-700'
+                                  : 'bg-yellow-100 text-yellow-800'
                           }`}
                       >
                         {(project.status || '').replace('_', ' ')}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="flex justify-end space-x-4">
+                      <div className="flex justify-end">
                         <Link
                           href={project.id ? route('executor.project.detail', { id: project.id }) : '#'}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700"
                           onClick={(e) => !project.id && e.preventDefault()}
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
-                            <path
-                              fillRule="evenodd"
-                              d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
-                              clipRule="evenodd"
-                            />
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
                           </svg>
+                          Manage
                         </Link>
-
-
-                        <button
-                          onClick={() => handleEdit(project)}
-                          className="text-blue-600 hover:text-blue-900 mr-3 p-1 rounded hover:bg-blue-50 transition-colors"
-                          title="Edit"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                          </svg>
-                        </button>
-
-                        <button
-                          onClick={() => handleDelete(project.id)}
-                          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
-                          title="Delete"
-                        >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-5 w-5"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -563,6 +485,85 @@ const handleUpdateProject = (e) => {
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Project Type
+                    </label>
+                    <select
+                      name="project_type_id"
+                      value={formData.project_type_id}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select type</option>
+                      {projectTypes.map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                    {formErrors.project_type_id && <p className="text-red-500 text-xs mt-1">{formErrors.project_type_id}</p>}
+                  </div>
+
+                  {!isEditMode && (
+                    <>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Assign Inspector <span className="text-gray-400 font-normal">(optional)</span>
+                        </label>
+                        <select
+                          name="inspector_id"
+                          value={formData.inspector_id}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">No inspector</option>
+                          {inspectors.map((i) => (
+                            <option key={i.id} value={i.id}>{i.name}</option>
+                          ))}
+                        </select>
+                        {formErrors.inspector_id && <p className="text-red-500 text-xs mt-1">{formErrors.inspector_id}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Assign Contractor <span className="text-gray-400 font-normal">(optional)</span>
+                        </label>
+                        <select
+                          name="contractor_id"
+                          value={formData.contractor_id}
+                          onChange={(e) => {
+                            handleInputChange(e);
+                            if (!e.target.value) setCreateData('contractor_notes', '');
+                          }}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">No contractor</option>
+                          {contractors.map((c) => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </select>
+                        {formErrors.contractor_id && <p className="text-red-500 text-xs mt-1">{formErrors.contractor_id}</p>}
+                      </div>
+
+                      {formData.contractor_id && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Contractor Notes <span className="text-gray-400 font-normal">(optional)</span>
+                          </label>
+                          <textarea
+                            name="contractor_notes"
+                            rows={2}
+                            maxLength={255}
+                            value={formData.contractor_notes}
+                            onChange={handleInputChange}
+                            placeholder="e.g. Scope of work for this contractor"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                          {formErrors.contractor_notes && <p className="text-red-500 text-xs mt-1">{formErrors.contractor_notes}</p>}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 <div className="mt-6 flex justify-end space-x-3">

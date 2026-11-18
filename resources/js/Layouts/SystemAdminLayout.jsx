@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, usePage } from '@inertiajs/react';
-import { Building2, ChevronDown, ClipboardCheck, CreditCard, LayoutDashboard, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, ShieldCheck, Users, UsersRound, X } from 'lucide-react';
+import { Building2, ChevronDown, ClipboardCheck, CreditCard, LayoutDashboard, LogOut, Menu, Package, PanelLeftClose, PanelLeftOpen, ShieldCheck, UserPlus, Users, UsersRound, X } from 'lucide-react';
 import { confirmLogout } from '@/Helpers/logout';
 
 const links = [
@@ -10,12 +10,19 @@ const links = [
   { label: 'Subscriptions', href: '/admin/subscriptions', icon: CreditCard, children: [
     { label: 'Subscription approvals', href: '/admin/approvals', icon: ClipboardCheck },
   ] },
+  { label: 'Slot orders', href: '/admin/slot-orders', icon: UserPlus },
   { label: 'Packages', href: '/admin/packages', icon: Package },
   { label: 'Training Providers', href: '/admin/training-providers', icon: UsersRound, children: [
     { label: 'Application approvals', href: '/admin/training-providers/approvals', icon: ClipboardCheck },
     { label: 'Activation code orders', href: '/admin/training-providers/orders', icon: Package },
   ] },
 ];
+
+/** Red round number on a menu icon: how many items wait for the system admin there. */
+function IconBadge({ count }) {
+  if (!count) return null;
+  return <span className="absolute -right-2 -top-2 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-ink-900" aria-label={`${count} waiting`}>{count > 99 ? '99+' : count}</span>;
+}
 
 export function AdminStatCard({ label, value }) {
   return <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
@@ -32,6 +39,8 @@ export default function SystemAdminLayout({ title, description, children, width 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState({});
   const pathname = url.split('?')[0];
+  const badges = props?.adminBadges || {};
+  const countFor = (item) => item.children ? item.children.reduce((sum, child) => sum + Number(badges[child.href] || 0), 0) : Number(badges[item.href] || 0);
 
   useEffect(() => {
     window.localStorage.setItem('system-admin-sidebar-collapsed', String(collapsed));
@@ -61,21 +70,22 @@ export default function SystemAdminLayout({ title, description, children, width 
       <div className="px-3 pt-7">
         {!compact && <p className="px-3 pb-3 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Workspace</p>}
         <nav aria-label="System admin navigation" className="space-y-1.5">
-          {links.map(({ label, href, icon: Icon, children }) => {
+          {links.map((item) => {
+            const { label, href, icon: Icon, children } = item;
             const childActive = children?.some(child => pathname === child.href || pathname.startsWith(`${child.href}/`));
             const active = pathname === href || (pathname.startsWith(`${href}/`) && !childActive);
             const open = expandedGroups[href] ?? childActive;
             return <div key={href}>
               <div className="flex items-center gap-1">
                 <Link href={href} title={compact ? label : undefined} aria-current={active ? 'page' : undefined} className={`flex min-h-11 min-w-0 flex-1 items-center rounded-xl text-sm font-semibold transition-colors ${compact ? 'justify-center px-2' : 'gap-3 px-3'} ${active ? 'bg-brand-500 text-ink-950 shadow-sm' : childActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}>
-                  <Icon size={19} strokeWidth={active ? 2.4 : 1.9} className="shrink-0" />
+                  <span className="relative shrink-0"><Icon size={19} strokeWidth={active ? 2.4 : 1.9} /><IconBadge count={countFor(item)} /></span>
                   {!compact && <span className="truncate">{label}</span>}
                 </Link>
                 {children && !compact && <button type="button" onClick={() => setExpandedGroups(current => ({ ...current, [href]: !open }))} aria-label={`${open ? 'Close' : 'Open'} ${label} submenu`} aria-expanded={Boolean(open)} className="rounded-lg p-2 text-slate-300 hover:bg-white/10 hover:text-white"><ChevronDown size={17} className={`transition-transform ${open ? 'rotate-180' : ''}`} /></button>}
               </div>
               {children && open && !compact && <div className="ml-6 mt-1 space-y-1 border-l border-white/10 pl-3">{children.map(({ label: childLabel, href: childHref, icon: ChildIcon }) => {
                 const selected = pathname === childHref || pathname.startsWith(`${childHref}/`);
-                return <Link key={childHref} href={childHref} aria-current={selected ? 'page' : undefined} className={`flex min-h-10 items-center gap-2.5 rounded-lg px-3 text-xs font-semibold transition-colors ${selected ? 'bg-brand-500 text-ink-950' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}><ChildIcon size={15} />{childLabel}</Link>;
+                return <Link key={childHref} href={childHref} aria-current={selected ? 'page' : undefined} className={`flex min-h-10 items-center gap-2.5 rounded-lg px-3 text-xs font-semibold transition-colors ${selected ? 'bg-brand-500 text-ink-950' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}><span className="relative shrink-0"><ChildIcon size={15} /><IconBadge count={Number(badges[childHref] || 0)} /></span>{childLabel}</Link>;
               })}</div>}
             </div>;
           })}

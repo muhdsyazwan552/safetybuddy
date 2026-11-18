@@ -29,20 +29,20 @@ export default function Trainees({ trainees = [] }) {
   const filtered = search || state || pkg;
   const clear = () => { setSearch(''); setState(''); setPkg(''); };
 
-  return <AppLayout title="Trainees">
-    <Head title="Trainees"/>
+  return <AppLayout title="List Participant">
+    <Head title="List Participant"/>
     <div className="w-full space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Companies under you</h2>
-          <p className="text-sm text-gray-500">Companies that activated a package you bought. Open a company to see its full details.</p>
+          <h2 className="text-xl font-bold text-gray-900">Participants</h2>
+          <p className="text-sm text-gray-500">Participants that activated a package you bought. Open a participant to see the full details.</p>
         </div>
-        <p className="text-sm text-gray-500"><b className="text-gray-900">{trainees.length}</b> registered · <b className="text-emerald-700">{active}</b> active</p>
+        
       </div>
 
       <div className="flex flex-wrap items-end gap-4 rounded-2xl bg-white p-4 ring-1 ring-gray-200">
         <label className="min-w-[220px] flex-1 text-xs font-bold uppercase tracking-wider text-gray-500">Search
-          <input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Company name, code or email" className={`${fieldClass} w-full`}/>
+          <input type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Participant name, code or email" className={`${fieldClass} w-full`}/>
         </label>
         <label className="text-xs font-bold uppercase tracking-wider text-gray-500">Status
           <select value={state} onChange={event => setState(event.target.value)} className={`${fieldClass} w-48`}>
@@ -62,7 +62,7 @@ export default function Trainees({ trainees = [] }) {
 
       <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
         <div className="overflow-x-auto"><table className="w-full min-w-[820px] text-left text-sm">
-          <thead className="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500"><tr><th className="w-14 px-5 py-3">#</th><th className="px-5 py-3">Company</th><th className="px-5 py-3">Package</th><th className="px-5 py-3">Registered</th><th className="px-5 py-3">Expires</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Details</th></tr></thead>
+          <thead className="bg-gray-50 text-xs font-bold uppercase tracking-wider text-gray-500"><tr><th className="w-14 px-5 py-3">#</th><th className="px-5 py-3">Participant</th><th className="px-5 py-3">Package</th><th className="px-5 py-3">Registered</th><th className="px-5 py-3">Expires</th><th className="px-5 py-3">Status</th><th className="px-5 py-3 text-right">Details</th></tr></thead>
           <tbody className="divide-y divide-gray-100">
             {shown.map((trainee, index) => { const status = STATES[trainee.state] ?? STATES.no_package; return <tr key={trainee.id} className="hover:bg-gray-50">
               <td className="px-5 py-4 text-gray-400">{index + 1}</td>
@@ -73,7 +73,7 @@ export default function Trainees({ trainees = [] }) {
               <td className="px-5 py-4"><span className={`rounded-full px-3 py-1 text-xs font-bold ${status.tone}`}>{status.label}</span></td>
               <td className="px-5 py-4 text-right"><Link href={`/training-provider/trainees/${trainee.id}`} className="rounded-lg bg-ink-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-ink-800">View</Link></td>
             </tr>; })}
-            {!shown.length && <tr><td colSpan="7" className="px-5 py-12 text-center text-gray-500">{filtered ? 'No company matches these filters.' : 'No company has used one of your activation codes yet.'}</td></tr>}
+            {!shown.length && <tr><td colSpan="7" className="px-5 py-12 text-center text-gray-500">{filtered ? 'No participant matches these filters.' : 'No participant has used one of your activation codes yet.'}</td></tr>}
           </tbody>
         </table></div>
       </section>

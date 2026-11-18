@@ -27,8 +27,16 @@ const MORE = [
 // pages that show the bottom tab bar instead of a back button
 const TOP_LEVEL = ['/review/dashboard', '/review/visits', '/review/cases', '/review/incidents', '/review/reports', '/review/subcons', '/review/projects', '/review/performance', '/review/inspections', '/review/toolbox', '/review/staff-approval', '/profile'];
 
+/** Red round number for something that waits for this person. */
+function Badge({ count, className = '' }) {
+    if (!count) return null;
+    return <span className={`absolute flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-600 px-1 text-[10px] font-bold leading-none text-white ring-2 ring-ink-900 ${className}`} aria-label={`${count} waiting`}>{count > 99 ? '99+' : count}</span>;
+}
+
 export default function ReviewLayout({ title = 'Review', children }) {
     const { url, props } = usePage();
+    const badges = props?.reviewBadges || {};
+    const moreBadge = MORE.reduce((sum, item) => sum + Number(badges[item.href] || 0), 0);
     const user = props?.auth?.user;
     const path = url.split('?')[0];
     const roleName = Number(user?.role_id) === 3 ? 'Manager' : 'Supervisor';
@@ -87,7 +95,10 @@ export default function ReviewLayout({ title = 'Review', children }) {
                                     aria-label={item.name}
                                     className={`flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition ${active ? 'text-brand-400' : 'text-gray-400 hover:text-gray-200'}`}
                                 >
-                                    <item.icon className="h-6 w-6" strokeWidth={active ? 2.5 : 2} />
+                                    <span className="relative">
+                                        <item.icon className="h-6 w-6" strokeWidth={active ? 2.5 : 2} />
+                                        <Badge count={Number(badges[item.href] || 0)} className="-right-3 -top-2" />
+                                    </span>
                                     {item.short || item.name}
                                 </Link>
                             );
@@ -97,7 +108,10 @@ export default function ReviewLayout({ title = 'Review', children }) {
                             onClick={() => setMoreOpen(true)}
                             className={`flex flex-col items-center justify-center gap-1 text-[11px] font-semibold transition ${moreActive ? 'text-brand-400' : 'text-gray-400 hover:text-gray-200'}`}
                         >
-                            <MoreHorizontal className="h-6 w-6" />
+                            <span className="relative">
+                                <MoreHorizontal className="h-6 w-6" />
+                                <Badge count={moreBadge} className="-right-3 -top-2" />
+                            </span>
                             More
                         </button>
                     </div>
@@ -133,7 +147,10 @@ export default function ReviewLayout({ title = 'Review', children }) {
                                         active ? 'bg-brand-500 text-ink-900' : 'text-gray-300 hover:bg-white/5 active:bg-white/5'
                                     }`}
                                 >
-                                    <item.icon className={`h-6 w-6 ${active ? 'text-ink-900' : 'text-brand-400'}`} />
+                                    <span className="relative">
+                                        <item.icon className={`h-6 w-6 ${active ? 'text-ink-900' : 'text-brand-400'}`} />
+                                        <Badge count={Number(badges[item.href] || 0)} className="-right-3 -top-2" />
+                                    </span>
                                     {item.name}
                                 </Link>
                             );

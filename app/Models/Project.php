@@ -30,6 +30,7 @@ class Project extends Model
         'start_date',
         'end_date',
         'status',
+        'project_type_id',
         'progress'
     ];
 

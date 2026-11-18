@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class SubscriptionPlanRequest extends Model
 {
-    protected $fillable = ['company_id', 'training_provider_company_id', 'plan_id', 'price_yearly', 'status', 'subscription_id', 'requested_by', 'reviewed_at'];
+    protected $fillable = ['company_id', 'training_provider_company_id', 'plan_id', 'price_yearly', 'status', 'subscription_id', 'requested_by', 'reviewed_at', 'order_no'];
 
     protected $casts = ['reviewed_at' => 'datetime'];
 

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
-    ClipboardCheck, AlertTriangle, Siren, BarChart3, BadgeCheck, Wallet, ChevronRight, CheckCircle2, Sun, CalendarDays, ArrowUpRight,
+    ClipboardCheck, AlertTriangle, Siren, Users, BarChart3, BadgeCheck, Wallet, ChevronRight, CheckCircle2, Sun, CalendarDays, ArrowUpRight,
 } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import { StatusBadge } from '@/Components/inspector/kit';
@@ -67,7 +67,7 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
     const first = (user?.name || '').split(' ')[0];
     const need =
         counts.visits_verify + (is_manager ? counts.visits_approve : 0) + counts.cases_review + counts.incidents_new
-        + counts.monthly_verify + (is_manager ? counts.monthly_approve + counts.penalties_pending : 0);
+        + counts.monthly_verify + counts.staff_pending + (is_manager ? counts.monthly_approve + counts.penalties_pending : 0);
 
     const rankTone = { GOLD: 'bg-amber-500', SILVER: 'bg-slate-400', BRONZE: 'bg-orange-600' };
     const month = new Date(`${performance.period}-01T00:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
@@ -102,10 +102,11 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
                 </div>
 
                 {/* what needs a decision */}
-                <Section title="Needs your action">
+                <Section title={is_manager ? 'Needs your approval' : 'Needs your verification'}>
                     <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
                         <ActionTile icon={ClipboardCheck} tone="amber" value={counts.visits_verify} label="Toolbox talk & Inspection to verify" hint="Toolbox talk + inspections" href="/review/visits?status=pending_verification" />
                         {is_manager && <ActionTile icon={BadgeCheck} tone="sky" value={counts.visits_approve} label="Toolbox talk & Inspection to approve" hint="Verified by a supervisor" href="/review/visits?status=verified" />}
+                        <ActionTile icon={Users} tone="emerald" value={counts.staff_pending} label={is_manager ? 'Contractor staff to approve' : 'Contractor staff to verify'} hint="Pending Safety Passport registrations" href="/review/staff-approval" />
                         <ActionTile icon={AlertTriangle} tone="violet" value={counts.cases_review} label="NC / CC replies to review" hint={`${counts.cases_waiting} waiting for the subcontractor`} href="/review/cases?state=responded" />
                         {!is_manager && <ActionTile icon={Siren} tone="rose" value={counts.incidents_open} label="Incidents awaiting approval" hint={counts.incidents_new ? `${counts.incidents_new} awaiting review` : 'All reviewed; awaiting approval'} href="/review/incidents" />}
                         <ActionTile icon={BarChart3} tone="sky" value={is_manager ? counts.monthly_approve : counts.monthly_verify} label={is_manager ? 'Monthly reports to approve' : 'Monthly reports to verify'} hint={is_manager ? `${counts.monthly_verify} more waiting for verification` : 'Pooled from approved inspections'} href="/review/reports?tab=monthly" />

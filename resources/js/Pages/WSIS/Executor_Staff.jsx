@@ -296,7 +296,7 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${member.is_safetypassport ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-700'}`}>
-                            {member.is_safetypassport ? 'Yes' : 'No'}
+                            {member.is_safetypassport ? 'Complete' : 'Incomplete'}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-xs">

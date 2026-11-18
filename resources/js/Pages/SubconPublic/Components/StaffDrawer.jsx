@@ -95,7 +95,7 @@ export default function StaffDrawer({ staff, onClose, onEdit, onDelete, canEdit,
                         <p className="mb-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">Safety Passport</p>
                         <ul className="divide-y divide-gray-100 overflow-hidden rounded-2xl border border-gray-100 text-sm">
                             {[
-                                ['Safety Passport (all items ticked)', staff.is_safetypassport ? 'Yes' : null],
+                                ['Safety Passport (all items ticked)', staff.is_safetypassport ? 'Complete' : null],
                                 ['Supervisor approval', staff.supervisor_approved_at ? formatDate(staff.supervisor_approved_at) : null],
                                 ['Manager approval', staff.manager_approved_at ? formatDate(staff.manager_approved_at) : null],
                             ].map(([label, value]) => (
@@ -105,7 +105,7 @@ export default function StaffDrawer({ staff, onClose, onEdit, onDelete, canEdit,
                                     </span>
                                     <div className="min-w-0 flex-1">
                                         <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{label}</p>
-                                        <p className={`text-sm font-semibold ${value ? 'text-gray-900' : 'text-amber-700'}`}>{value ? (value === 'Yes' ? value : `Approved ${value}`) : label === 'Safety Passport (all items ticked)' ? 'No' : 'Waiting'}</p>
+                                        <p className={`text-sm font-semibold ${value ? 'text-gray-900' : 'text-amber-700'}`}>{value ? (value === 'Complete' ? value : `Approved ${value}`) : label === 'Safety Passport (all items ticked)' ? 'Incomplete' : 'Waiting'}</p>
                                     </div>
                                 </li>
                             ))}

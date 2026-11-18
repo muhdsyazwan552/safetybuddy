@@ -19,7 +19,8 @@ class ProjectAssign extends Pivot
         'entity_type',
         'entity_id',
         'role_assignment',
-        'comment_scope'
+        'comment_scope',
+        'notes'
     ];
 
     public function project()

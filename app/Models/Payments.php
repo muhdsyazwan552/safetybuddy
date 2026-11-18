@@ -20,6 +20,7 @@ class Payments extends Model
         'payment_status', // pending, completed, failed
         'cash_flow', // cash_in or cash_out
         'company_id', // FK to companies table for company payments
+        'order_no',
     ];
 
     

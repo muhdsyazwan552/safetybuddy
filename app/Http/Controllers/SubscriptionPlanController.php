@@ -211,26 +211,28 @@ class SubscriptionPlanController extends Controller
         abort_unless($companyId, 403, 'No company is linked to your account.');
 
         if (self::hasActiveSafety((int) $companyId)) {
-            throw ValidationException::withMessages(['plan_id' => 'Your Safety Buddy subscription is active. Contact Ramzi to change your package.']);
+            throw ValidationException::withMessages(['plan_id' => 'Your Safety Buddy subscription is active. Contact Us to change your package.']);
         }
 
         $plan = SubscriptionPlan::whereKey($validated['plan_id'])->where('is_active', true)->firstOrFail();
         if ($plan->audience === 'training_provider') {
             throw ValidationException::withMessages(['plan_id' => 'The Training Provider package is requested through the Training Provider application.']);
         }
-        // companies registered under a Training Provider use the Contractor Training Provider package; everyone else uses the standard plans
+        // companies registered under a Training Provider use the Participant package; everyone else uses the standard plans
         $underProvider = (bool) $request->user()->company?->training_provider_company_id;
         if ($plan->audience === 'contractor_provider' && ! $underProvider) {
             throw ValidationException::withMessages(['plan_id' => 'This package is only for companies registered under a Training Provider.']);
         }
         if ($underProvider && $plan->audience !== 'contractor_provider') {
-            throw ValidationException::withMessages(['plan_id' => 'Companies registered under a Training Provider use the Contractor Training Provider package.']);
+            throw ValidationException::withMessages(['plan_id' => 'Companies registered under a Training Provider use the Participant package.']);
         }
         if (SubscriptionPlanRequest::where('company_id', $companyId)->where('status', 'pending')->exists()) {
             throw ValidationException::withMessages(['plan_id' => 'A purchase request is already awaiting review.']);
         }
 
+        $orderNo = \App\Support\OrderNumber::next(\App\Support\OrderNumber::planCode($plan));
         SubscriptionPlanRequest::create([
+            'order_no' => $orderNo,
             'company_id' => $companyId,
             'plan_id' => $plan->id,
             'price_yearly' => $plan->price_yearly,
@@ -238,7 +240,7 @@ class SubscriptionPlanController extends Controller
             'requested_by' => $request->user()->id,
         ]);
 
-        return redirect()->route('subscription.plans')->with('success', 'Purchase request sent. Contact Ramzi at 016-8865619 to arrange payment. Access starts after payment is confirmed.');
+        return redirect()->route('subscription.plans')->with('success', "Order {$orderNo} placed. WhatsApp us at 016-8865619 with this order number to pay and upload your receipt. Access starts after payment is confirmed.");
     }
 
     /** Extra Inspector seats: RM 800 each, one-time, available on any package and active straight away. */
@@ -262,7 +264,8 @@ class SubscriptionPlanController extends Controller
         $quantity = (int) $validated['quantity'];
         $total = $quantity * SubscriptionAddon::INSPECTOR_PRICE;
 
-        DB::transaction(function () use ($request, $companyId, $subscription, $quantity, $total) {
+        $orderNo = \App\Support\OrderNumber::next(\App\Support\OrderNumber::INSPECTOR_SLOT);
+        DB::transaction(function () use ($request, $companyId, $subscription, $quantity, $total, $orderNo) {
             // billed as pending: the system admin confirms it when the money is received
             $payment = Payments::create([
                 'subscriber_type' => 'company',
@@ -284,15 +287,17 @@ class SubscriptionPlanController extends Controller
                 'total_amount' => $total,
                 'payment_id' => $payment->id,
                 'purchased_by' => $request->user()->id,
+                'order_no' => $orderNo,
             ]);
         });
 
-        return back()->with('success', "{$quantity} extra Inspector seat(s) added (RM " . number_format($total) . '). You can create the accounts now; payment is arranged with Ramzi at 016-8865619.');
+        return back()->with('success', "Order {$orderNo}: {$quantity} extra Inspector seat(s) added (RM " . number_format($total) . '). You can create the accounts now; WhatsApp us at 016-8865619 with this order number to pay and upload your receipt.');
     }
 
     public function approve(SubscriptionPlanRequest $planRequest)
     {
-        DB::transaction(function () use ($planRequest) {
+        $payment = null;
+        DB::transaction(function () use ($planRequest, &$payment) {
             $planRequest = SubscriptionPlanRequest::whereKey($planRequest->id)->lockForUpdate()->firstOrFail();
             if ($planRequest->status !== 'pending') {
                 throw ValidationException::withMessages(['request' => 'This request has already been reviewed.']);
@@ -314,7 +319,7 @@ class SubscriptionPlanController extends Controller
                 'type' => $hasPreviousSafety ? 'renew' : 'new',
             ]);
 
-            Payments::create([
+            $payment = Payments::create([
                 'subscriber_type' => 'company',
                 'subscriber_id' => $planRequest->company_id,
                 'company_id' => $planRequest->company_id,
@@ -341,7 +346,26 @@ class SubscriptionPlanController extends Controller
             $planRequest->update(['status' => 'approved', 'subscription_id' => $subscription->id, 'reviewed_at' => now()]);
         });
 
-        return back()->with('success', 'Payment confirmed and subscription activated.');
+        $planRequest->refresh()->load('plan:id,name');
+        $user = \App\Models\User::find($planRequest->requested_by);
+        $isProvider = $planRequest->plan?->audience === 'training_provider' || \App\Models\SubscriptionPlan::whereKey($planRequest->plan_id)->value('audience') === 'training_provider';
+        $pdf = \App\Support\ReceiptBuilder::pdf($payment->fresh(), $planRequest->order_no)->output();
+        \App\Mail\OrderStatusMail::deliver($user?->email, new \App\Mail\OrderStatusMail(
+            'Payment received — receipt '.\App\Support\ReceiptBuilder::receiptNo($payment).' ('.($planRequest->order_no ?? 'your order').')',
+            $user?->name ?? 'there',
+            'Payment approved',
+            $isProvider
+                ? 'We have received and approved your payment. Your Training Provider account is now active and your dashboard is open.'
+                : 'We have received and approved your payment. Your Safety Buddy package is now active and you can start using it.',
+            'success',
+            array_filter(['Order number' => $planRequest->order_no, 'Package' => $planRequest->plan?->name, 'Amount' => 'RM '.number_format((float) $planRequest->price_yearly, 2), 'Receipt' => \App\Support\ReceiptBuilder::receiptNo($payment)]),
+            \App\Support\ReceiptBuilder::receiptNo($payment),
+            $pdf,
+            url('/dashboard'),
+            'Open Safety Buddy',
+        ));
+
+        return back()->with('success', 'Payment confirmed and subscription activated. A receipt was emailed to the customer.');
     }
 
     public function reject(SubscriptionPlanRequest $planRequest)
@@ -350,6 +374,17 @@ class SubscriptionPlanController extends Controller
             throw ValidationException::withMessages(['request' => 'This request has already been reviewed.']);
         }
         $planRequest->update(['status' => 'rejected', 'reviewed_at' => now()]);
+
+        $user = \App\Models\User::find($planRequest->requested_by);
+        \App\Mail\OrderStatusMail::deliver($user?->email, new \App\Mail\OrderStatusMail(
+            'Your order '.($planRequest->order_no ?? '').' was not approved',
+            $user?->name ?? 'there',
+            'Order not approved',
+            'We could not approve your order. If you already paid, please WhatsApp us at 016-8865619 with your order number and receipt so we can check. You can also place a new order.',
+            'danger',
+            array_filter(['Order number' => $planRequest->order_no, 'Amount' => 'RM '.number_format((float) $planRequest->price_yearly, 2)]),
+            null, null, url('/plans'), 'View packages',
+        ));
 
         return back()->with('success', 'Purchase request rejected.');
     }
