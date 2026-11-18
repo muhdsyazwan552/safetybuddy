@@ -2,7 +2,7 @@
   "name": "Safety Buddy",
   "short_name": "Safety Buddy",
   "description": "Digital Safety Inspection & Performance System",
-  "start_url": "/",
+  "start_url": "/login",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

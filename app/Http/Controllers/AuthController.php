@@ -20,6 +20,11 @@ class AuthController extends Controller
 
     public function login()
     {
+        // someone who is already signed in (e.g. opening the home-screen shortcut) goes straight to their own dashboard
+        if (Auth::check()) {
+            return redirect()->to($this->getRedirectPathByRole(Auth::user()->role_id));
+        }
+
         return Inertia::render('Auth/Login');
     }
 
