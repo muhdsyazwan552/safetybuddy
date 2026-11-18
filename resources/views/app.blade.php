@@ -6,11 +6,12 @@
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
         <meta name="theme-color" content="#12171E">
-        <link rel="icon" type="image/png" href="/images/sbc-logo.png">
+        <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+        <link rel="shortcut icon" href="/favicon.ico">
 
         <!-- Add to home screen: name, icon and standalone mode -->
         <link rel="manifest" href="/manifest.webmanifest">
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png">
         <meta name="application-name" content="Safety Buddy">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
