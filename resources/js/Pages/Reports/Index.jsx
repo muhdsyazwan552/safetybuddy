@@ -16,10 +16,8 @@ export default function Index({ portal, tab, rows = [], meta, counts = {}, filte
 
     const tabs = [
         ['all', 'All', counts.all],
-        ['pending_verification', 'Pending verification', counts.pending_verification],
-        ['verified', 'Verified', counts.verified],
-        ['approved', 'Approved', counts.approved],
-        ['rejected', 'Returned', counts.rejected],
+        ['approved', 'Complete', counts.approved],
+        ['pending_verification', 'Not complete', counts.pending_verification],
     ];
 
     return (

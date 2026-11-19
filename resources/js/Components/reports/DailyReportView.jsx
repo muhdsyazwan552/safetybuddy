@@ -1,12 +1,36 @@
 // Daily Inspection Report - SPGPNC & BSPR performance of one contractor on one day.
 import React from 'react';
+import { Link } from '@inertiajs/react';
+import { ChevronRight, ClipboardCheck, HardHat } from 'lucide-react';
 import HeroMeta from '@/Components/shared/HeroMeta';
-import ReviewProgress from '@/Components/shared/ReviewProgress';
-import { Panel, RankMedal, RankStrip, SwitchText, HeroStatusText, ResultText, pct, rm, benchLabel } from './parts';
+import { Panel, CompletionCard, RankMedal, RankStrip, SwitchText, HeroStatusText, ResultText, pct, rm, benchLabel } from './parts';
 
-export default function DailyReportView({ report: r, children }) {
+const EVAL_TEXT = { good: 'Good', poor: 'Poor', nonconformance: 'NC', clientcomplaint: 'CC' };
+
+/** One row: opens the toolbox talk / inspection; the badge shows whether it is approved yet. */
+function ItemLink({ href, icon: Icon, title, sub, status }) {
+    const done = status === 'approved';
+    const body = (
+        <>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-gray-600"><Icon className="h-4 w-4" /></span>
+            <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-bold text-gray-900">{title}</span>
+                <span className="block truncate text-xs text-gray-500">{sub}</span>
+            </span>
+            <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-extrabold ${done ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                {done ? 'Approved' : 'Not approved'}
+            </span>
+            {href && <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />}
+        </>
+    );
+    const cls = 'flex items-center gap-3 rounded-xl border border-gray-100 bg-white px-3 py-2.5';
+
+    return href ? <Link href={href} className={`${cls} transition hover:border-gray-300 hover:bg-gray-50`}>{body}</Link> : <div className={cls}>{body}</div>;
+}
+
+export default function DailyReportView({ report: r, talkHref, inspectionHref, children }) {
     const s = r.settings;
-    const penaltyNote = { pending_review: 'Pending Manager review', confirmed: 'Confirmed by Manager', waived: 'Waived by Manager' }[r.penalty_status];
+    const penaltyNote = { pending_review: 'Confirmed automatically once the report is complete', confirmed: 'Confirmed automatically', waived: 'Waived' }[r.penalty_status];
 
     const rows = [
         { k: 'SP', actual: r.sp, bench: benchLabel(s.sp_benchmark), res: r.result.sp, pen: r.penalty.sp, note: null },
@@ -33,7 +57,7 @@ export default function DailyReportView({ report: r, children }) {
                 </div>
             </div>
 
-            <ReviewProgress kind="visit" status={r.status} />
+            <CompletionCard status={r.status} blockers={r.blockers} kind="daily report" />
             <div className="grid gap-4 md:grid-cols-2">
                 <Panel title="Safety Passport sampling">
                     {r.sampled === null ? (
@@ -44,13 +68,26 @@ export default function DailyReportView({ report: r, children }) {
                                 {r.sampled} sampled • {r.compliant} registered • {r.not_registered} unregistered
                             </p>
                             <p className="mt-1 text-slate-600">SP compliance: <b className="text-3xl text-ink-900">{pct(r.sp)}</b></p>
+                            {r.sp_sources?.length > 0 && (
+                                <ul className="mt-2 space-y-1 text-xs text-slate-600">
+                                    {r.sp_sources.map((x) => (
+                                        <li key={x.talk_id}>
+                                            From <a href={talkHref?.({ id: x.talk_id })} className="font-bold underline">{x.code}</a>: {x.sampled} sampled, {x.not_registered} unregistered
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
                         </>
                     )}
                 </Panel>
                 <Panel title="Inspection findings">
-                    <p className="text-lg font-bold text-slate-800">{r.total} total</p>
+                    <p className="text-lg font-bold text-slate-800">{r.total} inspection{r.total === 1 ? '' : 's'}</p>
                     <p className="mt-1 text-base font-semibold text-slate-700">
                         {r.good} GOOD • {r.poor} POOR • {r.nc} NC • {r.cc} CC
+                    </p>
+                    <p className="mt-1.5 text-xs text-slate-500">
+                        Counted from the {r.items?.inspections?.length ?? r.total} inspection{(r.items?.inspections?.length ?? r.total) === 1 ? '' : 's'} listed below
+                        {r.items?.not_scored > 0 && ` (${r.items.not_scored} older record${r.items.not_scored === 1 ? '' : 's'} with an evaluation the score does not count)`}.
                     </p>
                 </Panel>
             </div>
@@ -90,7 +127,6 @@ export default function DailyReportView({ report: r, children }) {
                 <Panel title="Calculated penalty" tone="gold">
                     <p className="text-5xl font-extrabold text-ink-900">{rm(r.penalty.total)}</p>
                     <p className="mt-1 text-sm font-semibold text-slate-600">{s.penalties_on ? penaltyNote : 'Penalties are switched off'}</p>
-                    {r.reviewed_by && <p className="text-xs text-slate-500">By {r.reviewed_by}</p>}
                 </Panel>
             </div>
 
@@ -105,10 +141,28 @@ export default function DailyReportView({ report: r, children }) {
                 </Panel>
             </div>
 
+            {/* what this report is made of: open each toolbox talk / inspection */}
+            <Panel title={`Toolbox talks (${r.items?.talks?.length ?? 0}) & inspections (${r.items?.inspections?.length ?? 0}) in this report`}>
+                {(!r.items || (r.items.talks.length === 0 && r.items.inspections.length === 0)) ? (
+                    <p className="text-sm text-slate-500">No toolbox talk or inspection is linked to this day.</p>
+                ) : (
+                    <div className="space-y-2">
+                        {r.items.talks.map((t) => (
+                            <ItemLink key={`t${t.id}`} href={talkHref?.(t)} icon={HardHat} title={t.code}
+                                sub={`Toolbox talk · ${t.conducted ? 'conducted' : 'not conducted'} · ${t.attended} present`} status={t.status} />
+                        ))}
+                        {r.items.inspections.map((i) => (
+                            <ItemLink key={`i${i.id}`} href={inspectionHref?.(i)} icon={ClipboardCheck} title={i.code}
+                                sub={`Inspection · ${i.topic || '-'} · ${EVAL_TEXT[i.evaluation] || i.evaluation || '-'}`} status={i.status} />
+                        ))}
+                    </div>
+                )}
+            </Panel>
+
             {children}
 
             <p className="rounded-2xl bg-amber-50 px-4 py-3 text-xs text-slate-600">
-                Scores are calculated using unrounded values. Report approval and NC closure are separate processes. Calculated penalties are subject to Manager review before enforcement.
+                <b>How this report is worked out.</b> Every figure is recalculated automatically from the toolbox talks and inspections of the day listed above, so it always matches them. Scores use the exact (unrounded) values. The report is <b>Complete</b> once every toolbox talk and inspection listed is approved; the calculated penalty is shown from the start and is confirmed automatically at that point. Closing an NC / CC case is a separate process and does not affect this report.
             </p>
         </div>
     );

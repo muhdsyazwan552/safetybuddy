@@ -66,75 +66,44 @@ function ProviderCard({ provider, index, reduce }) {
     return (
         <motion.article
             layout={reduce ? false : "position"}
-            initial={{ opacity: 0, y: reduce ? 0 : 28 }}
+            initial={reduce ? false : { opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: reduce ? 0 : -12 }}
+            exit={{ opacity: 0, y: reduce ? 0 : -8 }}
             transition={{
-                duration: 0.55,
+                duration: reduce ? 0 : 0.4,
                 ease,
-                delay: Math.min(index, 8) * 0.07,
+                delay: reduce ? 0 : Math.min(index, 6) * 0.05,
             }}
-            whileHover={reduce ? undefined : { y: -4 }}
-            className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-brand-400 hover:shadow-xl sm:px-5"
+            whileHover={reduce ? undefined : { y: -3, transition: { duration: 0.2 } }}
+            className="group relative overflow-hidden rounded-2xl border border-gray-200 bg-gradient-to-br from-white via-white to-brand-50 p-4 shadow-sm transition-[box-shadow,border-color] duration-200 hover:border-brand-300 hover:shadow-lg focus-within:border-brand-300 sm:p-5"
         >
             <span
-                className="absolute inset-y-0 left-0 w-1.5 origin-left bg-brand-400 transition-all duration-300 group-hover:w-2.5"
-                aria-hidden="true"
-            />
-            <span
-                className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-brand-400/0 blur-2xl transition-colors duration-500 group-hover:bg-brand-400/20"
+                className="pointer-events-none absolute inset-x-0 top-0 h-0.5 origin-left bg-gradient-to-r from-brand-400 to-transparent motion-safe:scale-x-0 motion-safe:transition-transform motion-safe:duration-500 group-hover:scale-x-100 group-focus-within:scale-x-100"
                 aria-hidden="true"
             />
             <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
-                <motion.div
-                    whileHover={reduce ? undefined : { rotate: -4, scale: 1.08 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 15 }}
-                    className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-gray-50 p-1.5"
-                >
+                <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-gray-100 bg-white p-1.5 shadow-sm motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:-rotate-3 motion-safe:group-hover:scale-105 sm:h-[72px] sm:w-[72px]">
                     <Logo provider={provider} />
-                </motion.div>
+                </div>
                 <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <h2 className="text-lg font-extrabold text-ink-900">
-                            {provider.name}
-                        </h2>
-                        {provider.distance_km !== null &&
-                            provider.distance_km !== undefined && (
-                                <motion.span
-                                    initial={reduce ? false : { scale: 0.6, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    transition={{
-                                        type: "spring",
-                                        stiffness: 380,
-                                        damping: 16,
-                                        delay: 0.25,
-                                    }}
-                                    className="inline-flex items-center gap-1 rounded-full bg-ink-900 px-3 py-1 text-xs font-bold text-brand-400"
-                                >
-                                    <LocateFixed className="h-3.5 w-3.5" />{" "}
-                                    {provider.distance_km} km away
-                                </motion.span>
-                            )}
-                    </div>
+                    <h3 className="break-words text-lg font-extrabold tracking-tight text-ink-900 sm:text-xl">
+                        {provider.name}
+                    </h3>
                     {provider.address && (
                         <p className="mt-1 flex items-start gap-2 text-sm text-gray-600">
-                            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />{" "}
-                            {provider.address}
+                            <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-700" />
+                            <span className="min-w-0 break-words">{provider.address}</span>
                         </p>
                     )}
-                    <div className="mt-2.5 flex flex-wrap gap-2">
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
-                            <ShieldCheck className="h-3.5 w-3.5" /> Verified
-                            provider
+                    <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                            <ShieldCheck className="h-3.5 w-3.5" /> Verified provider
                         </span>
-                        {provider.certified_by.map((body) => (
-                            <span
-                                key={body}
-                                className="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-700 ring-1 ring-gray-200 transition group-hover:bg-brand-50 group-hover:ring-brand-200"
-                            >
-                                {body}
+                        {provider.distance_km != null && (
+                            <span className="inline-flex items-center gap-1.5 text-xs text-gray-600">
+                                <LocateFixed className="h-3.5 w-3.5" /> {provider.distance_km} km away
                             </span>
-                        ))}
+                        )}
                     </div>
                 </div>
                 <motion.button
@@ -142,12 +111,12 @@ function ProviderCard({ provider, index, reduce }) {
                     onClick={() => setOpen(!open)}
                     aria-expanded={open}
                     whileTap={reduce ? undefined : { scale: 0.95 }}
-                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-400 px-5 py-2.5 text-sm font-bold text-ink-900 shadow-sm transition-colors hover:bg-brand-300 sm:self-center"
+                    className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-400 px-5 py-3 text-sm font-bold text-ink-900 shadow-sm transition-colors hover:bg-brand-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink-900 sm:self-center"
                 >
                     View Profile{" "}
                     <motion.span
                         animate={{ rotate: open ? 180 : 0 }}
-                        transition={{ duration: 0.25, ease }}
+                        transition={{ duration: reduce ? 0 : 0.25, ease }}
                         className="inline-flex"
                     >
                         <ChevronDown className="h-4 w-4" />
@@ -161,7 +130,7 @@ function ProviderCard({ provider, index, reduce }) {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.35, ease }}
+                        transition={{ duration: reduce ? 0 : 0.35, ease }}
                         className="relative overflow-hidden"
                     >
                         <dl className="mt-5 grid gap-4 border-t border-gray-100 pt-5 text-sm sm:grid-cols-2">
@@ -538,7 +507,7 @@ export default function TrainingProviders({ providers, filters, states = [] }) {
                     <div
                         className={`mt-5 grid gap-4 transition-opacity duration-200 ${loading ? "opacity-60" : "opacity-100"}`}
                     >
-                        <AnimatePresence mode="popLayout" initial>
+                        <AnimatePresence>
                             {providers.data.map((provider, index) => (
                                 <ProviderCard
                                     key={provider.id}

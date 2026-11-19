@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UploadedAssets;
 use App\Models\CompanyStaff;
 use App\Models\SubconStaff;
 use Illuminate\Http\Request;
@@ -84,7 +85,7 @@ class StaffApprovalController extends Controller
                     'id' => $c->id,
                     'title' => $c->title,
                     'expiry_date' => optional($c->expiry_date)->format('Y-m-d'),
-                    'file_url' => \Illuminate\Support\Facades\Storage::url($c->file),
+                    'file_url' => UploadedAssets::url($c->file),
                 ])->values(),
             ],
             'topics' => $topics,
@@ -119,7 +120,7 @@ class StaffApprovalController extends Controller
 
         return back()->with('success', $staff->status === 'active'
             ? "{$staff->name} is now Active."
-            : 'Approved. Waiting for the other approver.');
+            : ((int) Auth::user()->role_id === 3 ? 'Approved. Waiting for the Supervisor to verify.' : 'Verified. Waiting for the Manager to approve.'));
     }
 
     /** Approve the selected workers in one go. */
@@ -132,6 +133,8 @@ class StaffApprovalController extends Controller
             $done += $this->approveOne($staff) ? 1 : 0;
         }
 
-        return back()->with('success', $done ? "{$done} staff approved." : 'Nothing to approve in the selection.');
+        $verb = (int) Auth::user()->role_id === 3 ? 'approved' : 'verified';
+
+        return back()->with('success', $done ? "{$done} staff {$verb}." : 'Nothing to ' . ($verb === 'approved' ? 'approve' : 'verify') . ' in the selection.');
     }
 }

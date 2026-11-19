@@ -3,11 +3,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UploadedAssets;
 use App\Models\SubconCompany;
 use App\Models\SubconStaff;
 use App\Models\SubconMachinery;
 use App\Support\SubconCompliance;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Hash;
@@ -56,7 +56,7 @@ class SubconPublicController extends Controller
                     'id' => $c->id,
                     'title' => $c->title,
                     'expiry_date' => optional($c->expiry_date)->format('Y-m-d'),
-                    'file_url' => Storage::url($c->file),
+                    'file_url' => UploadedAssets::url($c->file),
                     'original_name' => $c->original_name,
                     'uploaded_at' => optional($c->created_at)->format('Y-m-d'),
                 ])->values();
@@ -74,7 +74,7 @@ class SubconPublicController extends Controller
                 'name' => $m->name,
                 'identifier' => $m->identifier,
                 'cf_attached' => (bool) $m->cf_file,
-                'cf_url' => $m->cf_file ? Storage::url($m->cf_file) : null,
+                'cf_url' => $m->cf_file ? UploadedAssets::url($m->cf_file) : null,
                 'cf_expiry' => optional($m->cf_expiry)->format('Y-m-d'),
                 'operator_id' => $m->operator_id,
                 'operator_name' => $operators[$m->operator_id] ?? null,
@@ -170,8 +170,8 @@ class SubconPublicController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:subcon_staff,email',
-            'contact' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:50|unique:subcon_staff,email',
+            'contact' => ['required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]{7,20}$/'],
             'role' => 'nullable|string|max:100',
             'passport_topics' => 'required|array',
             'passport_topics.*' => 'integer',
@@ -181,6 +181,8 @@ class SubconPublicController extends Controller
         ], [
             'passport_topics.required' => 'Tick every Safety Passport item before registering.',
             'cert_title.required_with' => 'Give the certification a name.',
+            'contact.required' => 'Phone number is required.',
+            'contact.regex' => 'Enter a valid phone number, e.g. 012-345 6789.',
         ]);
 
         // every active Safety Passport item must be ticked
@@ -197,8 +199,8 @@ class SubconPublicController extends Controller
         $staff = \App\Support\SeriesCodes::createSubconStaff((int) $company->id, [
             'company_id' => $company->id,
             'name' => $validated['name'],
-            'email' => $validated['email'],
-            'contact' => $validated['contact'] ?? null,
+            'email' => ($validated['email'] ?? null) ?: null,
+            'contact' => $validated['contact'],
             'role' => $validated['role'] ?? 'Staff',
             'is_safetypassport' => true,
             'temp_password' => Hash::make($tempPassword),
@@ -210,7 +212,7 @@ class SubconPublicController extends Controller
                 'subcon_staff_id' => $staff->id,
                 'title' => trim($validated['cert_title']),
                 'expiry_date' => $validated['cert_expiry'] ?? null,
-                'file' => $file->store("subcon/{$company->id}/certifications", 'public'),
+                'file' => UploadedAssets::store($file, "subcon/{$company->id}/certifications"),
                 'original_name' => $file->getClientOriginalName(),
             ]);
         }
@@ -233,14 +235,22 @@ class SubconPublicController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:subcon_staff,email,' . $staff->id,
-            'contact' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:50|unique:subcon_staff,email,' . $staff->id,
+            // a status switch alone must keep working for older staff records that have no phone yet
+            'contact' => $request->boolean('status_only')
+                ? ['nullable', 'string', 'max:20']
+                : ['required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]{7,20}$/'],
             'role' => 'nullable|string|max:100',
             'status' => 'sometimes|in:active,inactive',
             'leader_key' => 'required|string',
+            'status_only' => 'sometimes|boolean',
+        ], [
+            'contact.required' => 'Phone number is required.',
+            'contact.regex' => 'Enter a valid phone number, e.g. 012-345 6789.',
         ]);
 
-        unset($validated['leader_key']);
+        unset($validated['leader_key'], $validated['status_only']);
+        $validated['email'] = ($validated['email'] ?? null) ?: null;
         // a worker stays Pending until the Supervisor and the Manager approve - it cannot be switched by hand
         if ($staff->status === 'pending') {
             unset($validated['status']);

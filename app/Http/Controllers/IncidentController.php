@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UploadedAssets;
 use App\Models\Incident;
 use App\Models\Project;
 use App\Models\Company;
@@ -12,7 +13,6 @@ use App\Models\CompanyStaff;
 use App\Models\ProjectAssign;
 use Inertia\Inertia;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -234,7 +234,7 @@ class IncidentController extends Controller
                 'reported_by' => optional($i->reportedBy)->name,
                 'responsible' => optional($i->responsibleBy)->name,
                 'reviewed_by' => optional($i->reviewedBy)->name,
-                'attachment' => $i->attachment_upload ? \Illuminate\Support\Facades\Storage::url($i->attachment_upload) : null,
+                'attachment' => $i->attachment_upload ? UploadedAssets::url($i->attachment_upload) : null,
                 'involved' => $i->involvedStaff->map(fn ($x) => ['id' => $x->id, 'name' => $x->name, 'role' => $x->role])->values(),
                 'responses' => $i->responses->map(fn ($r) => [
                     'id' => $r->id, 'type' => $r->type, 'message' => $r->message, 'by' => $r->staff_name,
@@ -314,8 +314,22 @@ class IncidentController extends Controller
         $validated['status']    = 'open';
         $validated['review_by'] = null;
 
-        $incident = Incident::create($validated);
-        $incident->involvedStaff()->sync($staffIds);
+        $attachment = $request->hasFile('attachment_upload')
+            ? UploadedAssets::store($request->file('attachment_upload'), 'incidents/attachments')
+            : null;
+        $validated['attachment_upload'] = $attachment;
+
+        try {
+            \Illuminate\Support\Facades\DB::transaction(function () use ($validated, $staffIds) {
+                $incident = Incident::create($validated);
+                $incident->involvedStaff()->sync($staffIds);
+            });
+        } catch (\Throwable $e) {
+            if ($attachment) {
+                UploadedAssets::delete($attachment);
+            }
+            throw $e;
+        }
 
         if ($request->routeIs('inspector.*')) {
             return redirect('/inspector/incidents')->with('success', 'Incident report submitted successfully.');

@@ -4,6 +4,8 @@ import { ActionBar, Field, inputClass, labelClass, ghostBtn, primaryBtn } from '
 import SpPerSubcon, { spGroups } from '@/Components/shared/SpPerSubcon';
 
 const MAX = 2 * 1024 * 1024;
+// local calendar date (toISOString would give the UTC date, i.e. yesterday in Malaysia before 8am)
+const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
 
 function PhotoPicker({ label, preview, existing, error, onPick, onClear }) {
@@ -145,7 +147,7 @@ function AttendeeSelect({ staff, contractors = [], value, onChange, error, proje
 export default function ToolboxTalkForm({ projects, topics, initial, conductor, staffByProject = {}, existingImages = {}, serverErrors = {}, submitLabel = 'Save record', onSubmit, embedded = false, onCancel = null, cancelLabel = 'Cancel', actionBarLeft = '', wide = false }) {
     const [data, setData] = useState({
         project_id: initial.project_id ?? '',
-        inspection_date: initial.inspection_date ?? new Date().toISOString().split('T')[0],
+        inspection_date: initial.inspection_date ?? localToday(),
         is_conducted: initial.is_conducted ?? (embedded ? 1 : null),
         attendees: initial.attendees ?? [],
         sp: initial.sp ?? {},
@@ -275,7 +277,7 @@ export default function ToolboxTalkForm({ projects, topics, initial, conductor, 
                                 projectSelected={!!data.project_id}
                                 error={err.attendees}
                             />
-                            {!yes && <p className="mt-3 text-xs text-gray-400">Optional when the talk was not conducted.</p>}
+                            {!yes && <p className="mt-3 text-xs text-gray-400">Select the workers sampled for Safety Passport checking.</p>}
                         </div>
 
                         <SpPerSubcon

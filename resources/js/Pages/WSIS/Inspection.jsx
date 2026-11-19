@@ -827,14 +827,16 @@ const Inspection = ({
                               >
                                 <TableViewIcon />
                               </Link>
-                              <Link
-                                href={route('inspections.edit', inspection.id)}
-                                className={tableEditActionClass}
-                                title="Edit inspection"
-                                aria-label="Edit inspection"
-                              >
-                                <TableEditIcon />
-                              </Link>
+                              {inspection.status !== 'approved' && (
+                                <Link
+                                  href={`/site-visits/inspections/${inspection.id}/edit`}
+                                  className={tableEditActionClass}
+                                  title="Edit inspection"
+                                  aria-label="Edit inspection"
+                                >
+                                  <TableEditIcon />
+                                </Link>
+                              )}
                               <button
                                 type="button"
                                 className={tableDeleteActionClass}

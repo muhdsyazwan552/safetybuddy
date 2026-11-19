@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\UploadedAssets;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -46,7 +47,7 @@ class Company extends Model
 
     public function getLogoUrlAttribute(): ?string
     {
-        return $this->logo_path ? '/storage/'.$this->logo_path : null;
+        return UploadedAssets::url($this->logo_path);
     }
 
     /** Issue the Training Provider reference code once (called when payment is confirmed). */

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UploadedAssets;
 use App\Models\SubscriptionPlan;
 use App\Models\SubscriptionPlanRequest;
 use App\Models\TrainingProviderApplication;
@@ -55,7 +56,7 @@ class TrainingProviderController extends Controller
                 'registration_no' => $validated['registration_no'],
                 'owner_name' => $validated['owner_name'],
                 'email' => $validated['email'],
-                'registration_document' => $request->file('registration_document')->store("training-providers/{$companyId}"),
+                'registration_document' => UploadedAssets::store($request->file('registration_document'), "training-providers/{$companyId}"),
                 'status' => 'pending',
                 'requested_by' => $request->user()->id,
             ]);
@@ -401,15 +402,24 @@ class TrainingProviderController extends Controller
 
     public function registrationDocument(TrainingProviderApplication $application)
     {
-        abort_unless(Storage::exists($application->registration_document), 404);
-
-        return Storage::download($application->registration_document);
+        return $this->downloadAsset($application->registration_document);
     }
 
     public function certificateFile(TrainingProviderCertificate $certificate)
     {
-        abort_unless(Storage::exists($certificate->file_path), 404);
+        return $this->downloadAsset($certificate->file_path, $certificate->file_name);
+    }
 
-        return Storage::download($certificate->file_path, $certificate->file_name);
+    private function downloadAsset(string $path, ?string $name = null)
+    {
+        $disk = UploadedAssets::disk($path, 'local');
+        if ($disk->exists($path)) {
+            return $disk->download($path, $name);
+        }
+
+        $s3 = Storage::disk('s3');
+        abort_if($disk === $s3 || !$s3->exists($path), 404);
+
+        return $s3->download($path, $name);
     }
 }

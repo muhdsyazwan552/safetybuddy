@@ -11,7 +11,8 @@ import InspectionFields from '@/Components/inspector/InspectionFields';
 import ToolboxTalkForm from '@/Components/inspector/ToolboxTalkForm';
 import { ActionBar, Field, EVAL, inputClass, ghostBtn, darkBtn, primaryBtn } from '@/Components/inspector/kit';
 
-const today = () => new Date().toISOString().split('T')[0];
+// local calendar date (toISOString would give the UTC date, i.e. yesterday in Malaysia before 8am)
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const blankItem = (id, project_id, date) => ({
     id, project_id, subcon_company_id: '', category_id: '', topic_id: '', evaluation: '',
     inspection_date: date, location: '', description: '', photos: [], previews: [],
@@ -117,7 +118,10 @@ export default function NewVisit({
         setIdx(Math.min(idx, next.length - 1));
     };
     const pickPhotos = (fileList) => {
-        const files = Array.from(fileList || []).filter((f) => f.size <= 2 * 1024 * 1024);
+        const all = Array.from(fileList || []);
+        const files = all.filter((f) => f.size <= 2 * 1024 * 1024);
+        const skipped = all.length - files.length;
+        setErrors((e) => ({ ...e, photos: skipped ? `${skipped} photo(s) were not added: each photo must be smaller than 2 MB.` : undefined }));
         const previews = files.map((f) => URL.createObjectURL(f));
         setItems((all) => all.map((it, i) => (i === idx ? { ...it, photos: [...it.photos, ...files], previews: [...it.previews, ...previews] } : it)));
     };
@@ -202,7 +206,7 @@ export default function NewVisit({
                     <div className={`mx-auto ${maxW} space-y-4 px-4 ${padB} pt-5 sm:px-6 ${isAdmin ? 'lg:grid lg:grid-cols-2 lg:items-start lg:gap-4 lg:space-y-0' : ''}`}>
                         <div className="space-y-5 rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
                             <Field label="Project *" error={startErrors.project}>
-                                <select className={inputClass} value={projectId} onChange={(e) => setProjectId(e.target.value)}>
+                                <select className={inputClass} value={projectId} onChange={(e) => { setProjectId(e.target.value); setItems([]); setToolbox(null); }}>
                                     <option value="">{projects.length === 0 ? 'No project found' : 'Select a project'}</option>
                                     {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>

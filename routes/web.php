@@ -44,6 +44,9 @@ Route::get('/', function () {
     ]);
 });
 
+Route::get('/terms', fn () => Inertia::render('PublicWeb/Terms'))->name('terms');
+Route::get('/privacy', fn () => Inertia::render('PublicWeb/Privacy'))->name('privacy');
+
 Route::get('/training-providers', [\App\Http\Controllers\PublicTrainingProviderController::class, 'index'])->name('public.training-providers');
 
 Route::get('/login', [AuthController::class, 'login'])->name('admin.login');
@@ -213,6 +216,14 @@ Route::middleware(['auth', 'role:2'])->group(function () {
         ->name('inspection');
     Route::get('/site-visits/create', [\App\Http\Controllers\Inspector\DashboardController::class, 'createVisit'])->name('site-visits.create');
     Route::post('/site-visits', [\App\Http\Controllers\Inspector\DashboardController::class, 'storeVisit'])->name('site-visits.store');
+    // the company admin can correct or remove any toolbox talk / inspection of the company (same logic as the inspector)
+    $visitCtl = \App\Http\Controllers\Inspector\DashboardController::class;
+    Route::get('/site-visits/toolbox-talks/{id}/edit', [$visitCtl, 'editToolboxTalk'])->where('id', '[0-9]+')->name('site-visits.toolbox.edit');
+    Route::put('/site-visits/toolbox-talks/{id}', [$visitCtl, 'updateToolboxTalk'])->where('id', '[0-9]+')->name('site-visits.toolbox.update');
+    Route::delete('/site-visits/toolbox-talks/{id}', [$visitCtl, 'destroyToolboxTalk'])->where('id', '[0-9]+')->name('site-visits.toolbox.destroy');
+    Route::get('/site-visits/inspections/{id}/edit', [$visitCtl, 'editInspection'])->where('id', '[0-9]+')->name('site-visits.inspection.edit');
+    Route::put('/site-visits/inspections/{id}', [$visitCtl, 'updateInspection'])->where('id', '[0-9]+')->name('site-visits.inspection.update');
+    Route::delete('/site-visits/inspections/{id}', [$visitCtl, 'destroyInspection'])->where('id', '[0-9]+')->name('site-visits.inspection.destroy');
     Route::get('/site-visits/{key}', [ContentController::class, 'visitShow'])->name('site-visits.show');
     Route::get('/non-conformance', [ContentController::class, 'nonConformance'])
         ->name('non.conformance');
@@ -346,14 +357,10 @@ Route::middleware(['auth', 'role:3,4'])->prefix('review')->name('review.')->grou
     Route::get('/subcons', [$c, 'subconsIndex'])->name('subcons');
     Route::get('/subcons/{id}', [$c, 'subconShow'])->where('id', '[0-9]+')->name('subcons.show');
 
-    // performance reports (Supervisor verifies, Manager approves and reviews penalties)
+    // performance reports (complete / not complete and penalties are decided automatically)
     Route::get('/reports', [\App\Http\Controllers\PerformanceController::class, 'index'])->name('reports');
     Route::get('/reports/daily/{id}', [\App\Http\Controllers\PerformanceController::class, 'dailyShow'])->where('id', '[0-9]+')->name('reports.daily');
     Route::get('/reports/monthly/{id}', [\App\Http\Controllers\PerformanceController::class, 'monthlyShow'])->where('id', '[0-9]+')->name('reports.monthly');
-    Route::post('/reports/daily/{id}/penalty', [\App\Http\Controllers\PerformanceController::class, 'penaltyReview'])->name('reports.penalty');
-    Route::post('/reports/monthly/{id}/verify', [\App\Http\Controllers\PerformanceController::class, 'monthlyVerify'])->name('reports.monthly.verify');
-    Route::post('/reports/monthly/{id}/approve', [\App\Http\Controllers\PerformanceController::class, 'monthlyApprove'])->name('reports.monthly.approve');
-    Route::post('/reports/monthly/{id}/reject', [\App\Http\Controllers\PerformanceController::class, 'monthlyReject'])->name('reports.monthly.reject');
     Route::get('/performance', [\App\Http\Controllers\PerformanceController::class, 'learnMore'])->name('performance');
     Route::get('/staff-approval', [\App\Http\Controllers\StaffApprovalController::class, 'index'])->name('staff-approval');
     Route::get('/staff-approval/{id}', [\App\Http\Controllers\StaffApprovalController::class, 'show'])->where('id', '[0-9]+')->name('staff-approval.show');
@@ -398,6 +405,7 @@ Route::middleware(['auth', 'role:7,8'])->prefix('inspector')->name('inspector.')
     Route::get('/visits', [DashboardController::class, 'visits'])->name('visits');
     Route::get('/visits/create', [DashboardController::class, 'createVisit'])->name('visits.create');
     Route::post('/visits', [DashboardController::class, 'storeVisit'])->name('visits.store');
+    Route::post('/visits/{key}/resubmit', [DashboardController::class, 'resubmitVisit'])->where('key', '(talk|insp)-[0-9]+')->name('visits.resubmit');
     Route::get('/visits/{key}', [DashboardController::class, 'showVisit'])->where('key', '(talk|insp)-[0-9]+')->name('visits.show');
     Route::get('/inspections/create', fn () => redirect()->route('inspector.visits.create'))->name('inspections.create');
 

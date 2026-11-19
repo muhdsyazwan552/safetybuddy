@@ -26,7 +26,7 @@ function Approval({ label, at, name }) {
             <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">{label}</p>
                 <p className={`text-sm font-semibold ${at ? 'text-gray-900' : 'text-amber-700'}`}>
-                    {at ? `Approved ${at}${name ? ` · ${name}` : ''}` : 'Waiting'}
+                    {at ? `${label === 'Supervisor' ? 'Verified' : 'Approved'} ${at}${name ? ` · ${name}` : ''}` : 'Waiting'}
                 </p>
             </div>
         </li>
@@ -90,7 +90,7 @@ export default function StaffApprovalShow({ staff: s, topics = [], myRole = 'sup
                     </ul>
                     {s.can_approve && (
                         <button disabled={busy} onClick={approve} className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Approve as {myRole}
+                            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} {myRole === 'manager' ? 'Approve' : 'Verify'} as {myRole}
                         </button>
                     )}
                 </Section>

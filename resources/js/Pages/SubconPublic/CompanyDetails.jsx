@@ -153,10 +153,11 @@ export default function CompanyDetails({
             `/subcon/${public_token}/staff/${staff.id}`,
             {
                 name: staff.name,
-                email: staff.email,
+                email: staff.email || '',
                 contact: staff.contact || '',
                 role: staff.role || '',
                 status: next,
+                status_only: true,
                 leader_key,
             },
             {

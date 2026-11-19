@@ -84,12 +84,21 @@ class ReportBuilder
     }
 
     /** Create / refresh the daily reports of a company. */
-    public static function refreshDaily($companyId, $subconId = null): void
+    public static function refreshDaily($companyId, $subconId = null, $onlyProjectId = null, $onlyDate = null): void
     {
+        // the penalty of a complete report is confirmed by itself (no manual review); a waived one stays waived
+        InspectionReport::where('company_id', $companyId)->where('status', 'approved')->where('penalty_status', 'pending_review')
+            ->update(['penalty_status' => 'confirmed']);
+
+        // optionally only one contractor / project / day (used when a single report is opened)
         $inspections = Inspection::where('company_id', $companyId)->whereNotNull('subcon_company_id')
             ->when($subconId, fn ($q) => $q->where('subcon_company_id', $subconId))
+            ->when($onlyProjectId, fn ($q) => $q->where('project_id', $onlyProjectId))
+            ->when($onlyDate, fn ($q) => $q->whereDate('inspection_date', $onlyDate))
             ->get();
         if ($inspections->isEmpty()) {
+            self::dropOrphans($companyId, collect(), $subconId, $onlyProjectId, $onlyDate);
+
             return;
         }
 
@@ -99,16 +108,19 @@ class ReportBuilder
 
         $groups = $inspections->groupBy(fn ($i) => $i->project_id . '|' . $i->subcon_company_id . '|' . optional($i->inspection_date)->format('Y-m-d'));
 
+        // read the existing reports once (not one query per day) and leave the complete ones alone
+        $existing = InspectionReport::where('company_id', $companyId)->get()
+            ->keyBy(fn ($r) => $r->project_id . '|' . $r->subcon_company_id . '|' . $r->report_date->format('Y-m-d'));
+
         foreach ($groups as $key => $items) {
             [$projectId, $subconId, $date] = explode('|', $key);
             if (!$date) {
                 continue;
             }
 
-            $report = InspectionReport::where(['project_id' => $projectId, 'subcon_company_id' => $subconId, 'report_date' => $date])->first();
-            if ($report && $report->status === 'approved') {
-                continue; // frozen
-            }
+            // a report is always recalculated from the records of its day: when an inspection is added, changed or
+            // removed later, the figures, the status (complete / not complete) and the penalty follow it
+            $report = $existing->get($key);
 
             $settings = ($report && self::usable($report->settings_snapshot)) ? $report->settings_snapshot : $current;
             $talks = $talksByDay->get($projectId . '|' . $date, collect());
@@ -122,10 +134,11 @@ class ReportBuilder
             ];
             $r = Spgpnc::score($sampled, $notReg, $counts, $settings);
 
+            // automatic: the report is complete (approved) once every toolbox talk and inspection of the day is approved
             $status = self::overall(array_merge(
                 $items->pluck('status')->map(fn ($s) => $s ?: 'pending_verification')->all(),
                 $talks->pluck('status')->map(fn ($s) => $s ?: 'pending_verification')->all(),
-            ));
+            )) === 'approved' ? 'approved' : 'pending_verification';
 
             $data = [
                 'company_id' => $companyId,
@@ -138,14 +151,57 @@ class ReportBuilder
                 'penalty_sp' => $r['penalty']['sp'], 'penalty_g' => $r['penalty']['g'], 'penalty_p' => $r['penalty']['p'],
                 'penalty_nc' => $r['penalty']['nc'], 'penalty_cc' => $r['penalty']['cc'], 'penalty_total' => $r['penalty']['total'],
                 'settings_snapshot' => $settings,
+                // automatic: confirmed once the report is complete, waiting until then
+                'penalty_status' => ($report && $report->penalty_status === 'waived') ? 'waived' : ($status === 'approved' ? 'confirmed' : 'pending_review'),
             ];
 
             if ($report) {
-                $report->update($data);
+                // write only when something really changed (the refresh runs often)
+                self::changed($report, $data) && $report->update($data);
             } else {
                 InspectionReport::create($data + ['project_id' => $projectId, 'subcon_company_id' => $subconId, 'report_date' => $date]);
             }
         }
+
+        self::dropOrphans($companyId, $groups->keys(), $subconId, $onlyProjectId, $onlyDate);
+    }
+
+    /** A daily report whose inspections were all removed no longer exists. */
+    private static function dropOrphans($companyId, $liveKeys, $subconId, $onlyProjectId, $onlyDate): void
+    {
+        $live = collect($liveKeys)->flip();
+        InspectionReport::where('company_id', $companyId)
+            ->when($subconId, fn ($q) => $q->where('subcon_company_id', $subconId))
+            ->when($onlyProjectId, fn ($q) => $q->where('project_id', $onlyProjectId))
+            ->when($onlyDate, fn ($q) => $q->whereDate('report_date', $onlyDate))
+            ->get(['id', 'project_id', 'subcon_company_id', 'report_date'])
+            ->filter(fn ($r) => !$live->has($r->project_id . '|' . $r->subcon_company_id . '|' . $r->report_date->format('Y-m-d')))
+            ->each(fn ($r) => $r->delete());
+    }
+
+    /** Whether any of the new values differs from what is stored (numbers are compared as numbers). */
+    private static function changed($model, array $data): bool
+    {
+        foreach ($data as $key => $new) {
+            $old = $model->getRawOriginal($key);
+            if (is_array($new)) {
+                if (json_decode((string) $old, true) != $new) {
+                    return true;
+                }
+            } elseif ($new === null || $old === null) {
+                if ($new !== $old) {
+                    return true;
+                }
+            } elseif (is_numeric($new) && is_numeric($old)) {
+                if (abs((float) $new - (float) $old) > 0.00005) {
+                    return true;
+                }
+            } elseif ((string) $new !== (string) $old) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Create / refresh the monthly reports of a company from the approved daily reports. */
@@ -156,14 +212,13 @@ class ReportBuilder
         $daily = InspectionReport::where('company_id', $companyId)->get();
         $groups = $daily->groupBy(fn ($d) => $d->project_id . '|' . $d->subcon_company_id . '|' . $d->report_date->format('Y-m'));
         $current = PerformanceSetting::forCompany($companyId)->snapshot();
+        $existing = MonthlyReport::where('company_id', $companyId)->get()
+            ->keyBy(fn ($m) => $m->project_id . '|' . $m->subcon_company_id . '|' . $m->period);
 
         foreach ($groups as $key => $rows) {
             [$projectId, $subconId, $period] = explode('|', $key);
 
-            $report = MonthlyReport::where(['project_id' => $projectId, 'subcon_company_id' => $subconId, 'period' => $period])->first();
-            if ($report && $report->status === 'approved') {
-                continue;
-            }
+            $report = $existing->get($key);
 
             $settings = ($report && self::usable($report->settings_snapshot)) ? $report->settings_snapshot : $current;
             $approved = $rows->where('status', 'approved');
@@ -180,6 +235,9 @@ class ReportBuilder
             $spAssessed = $approved->filter(fn ($d) => $d->sp_sampled !== null && (int) $d->sp_sampled > 0)->count();
             $coverageOk = $approved->count() > 0 && $spAssessed === $approved->count();
             $score = $coverageOk ? $r : array_merge($r, ['spgpnc' => null, 'rank' => null, 'complete' => false]);
+
+            // automatic: complete once every daily report of the month is complete and every one has its Safety Passport sample
+            $complete = $rows->count() > 0 && $approved->count() === $rows->count() && $coverageOk;
 
             $data = [
                 'company_id' => $companyId,
@@ -199,14 +257,23 @@ class ReportBuilder
                 'penalty_p' => (float) $approved->sum('penalty_p'), 'penalty_nc' => (float) $approved->sum('penalty_nc'),
                 'penalty_cc' => (float) $approved->sum('penalty_cc'), 'penalty_total' => (float) $approved->sum('penalty_total'),
                 'settings_snapshot' => $settings,
+                'status' => $complete ? 'approved' : 'pending_verification',
+                'approved_at' => $complete ? ($report && $report->approved_at ? $report->approved_at : now()) : null,
+                'verified_by' => null, 'verified_at' => null, 'approved_by' => null, 'review_comment' => null,
             ];
 
             if ($report) {
-                $report->update($data);
+                self::changed($report, $data) && $report->update($data);
             } else {
-                MonthlyReport::create($data + [
-                    'project_id' => $projectId, 'subcon_company_id' => $subconId, 'period' => $period, 'status' => 'pending_verification',
-                ]);
+                MonthlyReport::create($data + ['project_id' => $projectId, 'subcon_company_id' => $subconId, 'period' => $period]);
+            }
+        }
+
+        // a monthly report with no daily report left does not exist any more
+        $live = $groups->keys()->flip();
+        foreach ($existing as $key => $m) {
+            if (!$live->has($key)) {
+                $m->delete();
             }
         }
     }

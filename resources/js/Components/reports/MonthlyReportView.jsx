@@ -2,8 +2,7 @@
 import React from 'react';
 import { Link } from '@inertiajs/react';
 import HeroMeta from '@/Components/shared/HeroMeta';
-import ReviewProgress from '@/Components/shared/ReviewProgress';
-import { Panel, RankMedal, RankStrip, SwitchText, HeroStatusText, ResultText, Status, pct, rm, num, benchLabel } from './parts';
+import { Panel, CompletionCard, RankMedal, RankStrip, SwitchText, HeroStatusText, ResultText, Status, pct, rm, num, benchLabel } from './parts';
 
 const monthName = (period) => new Date(`${period}-01T00:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
@@ -48,7 +47,7 @@ export default function MonthlyReportView({ report: m, dailyHref, children }) {
                 </div>
             </div>
 
-            <ReviewProgress kind="visit" status={m.status} />
+            <CompletionCard status={m.status} blockers={m.blockers} kind="monthly report" />
             <div className="grid gap-4 md:grid-cols-3">
                 <Panel title="Monthly coverage">
                     <p className="text-lg font-bold text-slate-800">{m.inspections_approved} approved inspection{m.inspections_approved === 1 ? '' : 's'}</p>
@@ -98,7 +97,7 @@ export default function MonthlyReportView({ report: m, dailyHref, children }) {
                 </Panel>
                 <Panel title="Monthly calculated penalties" tone="gold">
                     <p className="text-5xl font-extrabold text-ink-900">{rm(m.penalty.total)}</p>
-                    <p className="mt-1 text-sm font-semibold text-slate-600">Sum of inspection-level amounts • Manager review</p>
+                    <p className="mt-1 text-sm font-semibold text-slate-600">Sum of the inspection-level amounts</p>
                 </Panel>
             </div>
 

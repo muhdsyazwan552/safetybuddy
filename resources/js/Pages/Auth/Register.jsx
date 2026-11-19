@@ -94,7 +94,7 @@ export default function Register() {
 
           <div className="mt-6 flex items-start gap-2.5">
             <input id="terms" type="checkbox" required checked={form.terms} onChange={(event) => update('terms', event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-ink-300 text-brand-500 focus:ring-brand-500" />
-            <div><label htmlFor="terms" className="text-xs leading-5 text-ink-500">I agree to the <Link href="/terms" className="font-semibold text-ink-950 underline decoration-brand-400 underline-offset-2">Terms of Service</Link> and <Link href="/privacy" className="font-semibold text-ink-950 underline decoration-brand-400 underline-offset-2">Privacy Policy</Link>.</label>
+            <div><label htmlFor="terms" className="text-xs leading-5 text-ink-500">I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-ink-950 underline decoration-brand-400 underline-offset-2">Terms of Service</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-ink-950 underline decoration-brand-400 underline-offset-2">Privacy Policy</a>.</label>
               {errors.terms && <p role="alert" className="mt-1 text-xs text-rose-600">{errorText(errors.terms)}</p>}
             </div>
           </div>

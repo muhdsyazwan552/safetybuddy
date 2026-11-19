@@ -46,6 +46,7 @@ class CompanyLogoUploadTest extends TestCase
         DB::table('company')->insert([['id' => 2, 'name' => 'Own company'], ['id' => 3, 'name' => 'Other company']]);
         DB::table('users')->insert(['id' => 1, 'name' => 'Owner', 'email' => 'owner@example.com', 'password' => 'unused', 'company_id' => 2, 'role_id' => 2]);
         Storage::fake('public');
+        Storage::fake('s3');
         $this->withoutMiddleware(EnsureCompanyPurchased::class);
     }
 
@@ -56,14 +57,29 @@ class CompanyLogoUploadTest extends TestCase
         $this->actingAs($user)->post(route('company.details.logo'), ['logo' => UploadedFile::fake()->image('first.png')])
             ->assertRedirect('/profile#company');
         $first = DB::table('company')->where('id', 2)->value('logo_path');
-        Storage::disk('public')->assertExists($first);
+        $this->assertMatchesRegularExpression('#^uploads/companies/2/logos/images/\d{4}/\d{2}/SB-[0-9A-Z]{26}\.png$#', $first);
+        Storage::disk('s3')->assertExists($first);
+        Storage::disk('public')->assertMissing($first);
 
         $this->actingAs($user)->post(route('company.details.logo'), ['logo' => UploadedFile::fake()->image('second.jpg')])
             ->assertRedirect('/profile#company');
         $second = DB::table('company')->where('id', 2)->value('logo_path');
-        Storage::disk('public')->assertExists($second);
-        Storage::disk('public')->assertMissing($first);
+        Storage::disk('s3')->assertExists($second);
+        Storage::disk('s3')->assertMissing($first);
         $this->assertNull(DB::table('company')->where('id', 3)->value('logo_path'));
+    }
+
+    public function test_replacing_a_legacy_logo_cleans_up_its_local_file(): void
+    {
+        $legacy = 'company-logos/legacy.png';
+        Storage::disk('public')->put($legacy, 'legacy logo');
+        DB::table('company')->where('id', 2)->update(['logo_path' => $legacy]);
+
+        $this->actingAs(User::findOrFail(1))->post(route('company.details.logo'), ['logo' => UploadedFile::fake()->image('new.png')])
+            ->assertRedirect('/profile#company');
+
+        Storage::disk('s3')->assertExists(DB::table('company')->where('id', 2)->value('logo_path'));
+        Storage::disk('public')->assertMissing($legacy);
     }
 
     public function test_company_logo_must_be_an_allowed_image_under_two_megabytes(): void

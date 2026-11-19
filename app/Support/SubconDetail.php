@@ -7,7 +7,6 @@ use App\Models\Project;
 use App\Models\SubconCompany;
 use App\Models\SubconMachinery;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Everything about one subcontractor company - staff, daily attendance, NC / CC,
@@ -49,7 +48,7 @@ class SubconDetail
                 'id' => $c->id,
                 'title' => $c->title,
                 'expiry_date' => optional($c->expiry_date)->format('Y-m-d'),
-                'file_url' => Storage::url($c->file),
+                'file_url' => UploadedAssets::url($c->file),
                 'original_name' => $c->original_name,
             ])->values();
 
@@ -63,7 +62,7 @@ class SubconDetail
                 'id' => $m->id,
                 'name' => $m->name,
                 'identifier' => $m->identifier,
-                'cf_url' => $m->cf_file ? Storage::url($m->cf_file) : null,
+                'cf_url' => $m->cf_file ? UploadedAssets::url($m->cf_file) : null,
                 'cf_expiry' => optional($m->cf_expiry)->format('Y-m-d'),
                 'operator_name' => $staffNames[$m->operator_id] ?? null,
             ])->values();

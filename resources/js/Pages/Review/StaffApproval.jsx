@@ -5,10 +5,12 @@ import ReviewLayout from '@/Layouts/ReviewLayout';
 
 const PAGE_SIZE = 15;
 
+// the Supervisor verifies, the Manager approves
 function Step({ label, at }) {
+    const done = label === 'Supervisor' ? 'Verified' : 'Approved';
     return (
         <div className={at ? 'text-emerald-700' : 'text-amber-700'}>
-            <b>{label}:</b> {at ? `Approved ${at.slice(0, 10)}` : 'Waiting'}
+            <b>{label}:</b> {at ? `${done} ${at.slice(0, 10)}` : 'Waiting'}
         </div>
     );
 }
@@ -23,6 +25,8 @@ export default function StaffApproval({ staff = [], myRole = 'supervisor' }) {
 
     const companies = useMemo(() => [...new Set(staff.map((s) => s.company).filter(Boolean))].sort(), [staff]);
     const myKey = myRole === 'manager' ? 'manager_approved_at' : 'supervisor_approved_at';
+    const verb = myRole === 'manager' ? 'Approve' : 'Verify'; // the Supervisor verifies, the Manager approves
+    const done = myRole === 'manager' ? 'approved' : 'verified';
 
     const rows = useMemo(() => {
         const needle = q.trim().toLowerCase();
@@ -57,14 +61,24 @@ export default function StaffApproval({ staff = [], myRole = 'supervisor' }) {
         });
     };
 
+    const approveSelected = () => {
+        if (selected.length > 1 && !window.confirm(`${verb} ${selected.length} staff as ${myRole}?`)) return;
+        approve(selected);
+    };
+
     const count = (k) => staff.filter((s) => (k === 'mine' ? s.can_approve : k === 'other' ? s[myKey] : true)).length;
-    const TABS = [['mine', 'To approve'], ['other', 'Approved by me'], ['all', 'All pending']];
+    const TABS = [['mine', `To ${verb.toLowerCase()}`], ['other', `${verb === 'Verify' ? 'Verified' : 'Approved'} by me`], ['all', 'All pending']];
 
     return (
         <ReviewLayout title="Staff approval">
             <Head title="Staff approval" />
-            <div className="mx-auto max-w-6xl space-y-4 px-4 pb-24 pt-5">
-                <p className="text-sm text-gray-500">Newly registered subcontractor staff stay Pending until both the Supervisor and the Manager approve. You are approving as <b>{myRole}</b>.</p>
+            <div className="mx-auto max-w-6xl space-y-4 px-4 pb-10 pt-5">
+                <p className="text-sm text-gray-500">Newly registered subcontractor staff stay Pending until both the Supervisor and the Manager approve. You are the <b>{myRole}</b>: you <b>{verb.toLowerCase()}</b> each worker{myRole === 'manager' ? '' : ', then the Manager approves'}.</p>
+
+                <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                    <p><b>This list shows pending staff only.</b> Once both the Supervisor and the Manager have approved, the worker becomes Active and leaves this list.</p>
+                    <p className="mt-1">To approve many at once, tick several rows (or use <b>Select all</b>) and press <b>{verb} selected</b>.</p>
+                </div>
 
                 <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
                     {TABS.map(([k, label]) => (
@@ -83,6 +97,21 @@ export default function StaffApproval({ staff = [], myRole = 'supervisor' }) {
                         <option value="">All subcontractors</option>
                         {companies.map((c) => <option key={c} value={c}>{c}</option>)}
                     </select>
+                </div>
+
+                {/* bulk approve: works for the table and the mobile cards */}
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <button type="button" disabled={selectable.length === 0} onClick={() => setSelected(allSelected ? [] : selectable.map((r) => r.id))}
+                            className="rounded-xl border border-gray-200 bg-white px-3.5 py-2 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40">
+                            {allSelected ? 'Clear selection' : `Select all (${selectable.length})`}
+                        </button>
+                        <span className="text-sm font-semibold text-gray-600">{selected.length} selected</span>
+                    </div>
+                    <button type="button" disabled={busy || selected.length === 0} onClick={() => approveSelected()}
+                        className="inline-flex items-center gap-2 rounded-lg bg-ink-900 px-4 py-2 text-sm font-bold text-white shadow-sm ring-1 ring-ink-900 transition hover:bg-ink-700 active:scale-[0.98] disabled:opacity-40">
+                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 text-brand-400" />} {verb} selected{selected.length > 0 ? ` (${selected.length})` : ''}
+                    </button>
                 </div>
 
                 {/* mobile: one card per worker */}
@@ -113,7 +142,7 @@ export default function StaffApproval({ staff = [], myRole = 'supervisor' }) {
                                 </div>
                                 {s.can_approve ? (
                                     <button disabled={busy} onClick={() => approve([s.id])} className="inline-flex items-center gap-2 rounded-lg bg-ink-900 px-4 py-2 text-sm font-bold text-white shadow-sm ring-1 ring-ink-900 transition hover:bg-ink-700 active:scale-[0.98] disabled:opacity-50 shrink-0">
-                                        <CheckCircle2 className="h-4 w-4 text-brand-400" /> Approve
+                                        <CheckCircle2 className="h-4 w-4 text-brand-400" /> {verb}
                                     </button>
                                 ) : (
                                     <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-gray-400"><Clock className="h-3.5 w-3.5" /> {s[myKey] ? 'Waiting other' : 'No passport'}</span>
@@ -121,7 +150,7 @@ export default function StaffApproval({ staff = [], myRole = 'supervisor' }) {
                             </div>
                         </article>
                     ))}
-                    {rows.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-sm text-gray-400">No staff waiting for approval.</p>}
+                    {rows.length === 0 && <p className="rounded-2xl bg-white p-8 text-center text-sm text-gray-400">No staff waiting for you to {verb.toLowerCase()}.</p>}
                 </div>
 
                 {/* desktop: table */}
@@ -168,7 +197,7 @@ export default function StaffApproval({ staff = [], myRole = 'supervisor' }) {
                                     <td className="px-4 py-3 text-right">
                                         {s.can_approve ? (
                                             <button disabled={busy} onClick={() => approve([s.id])} className="inline-flex items-center gap-2 rounded-lg bg-ink-900 px-4 py-2 text-sm font-bold text-white shadow-sm ring-1 ring-ink-900 transition hover:bg-ink-700 active:scale-[0.98] disabled:opacity-50">
-                                                <CheckCircle2 className="h-4 w-4 text-brand-400" /> Approve
+                                                <CheckCircle2 className="h-4 w-4 text-brand-400" /> {verb}
                                             </button>
                                         ) : (
                                             <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-400"><Clock className="h-3.5 w-3.5" /> {s[myKey] ? 'Waiting other' : 'No passport'}</span>
@@ -177,7 +206,7 @@ export default function StaffApproval({ staff = [], myRole = 'supervisor' }) {
                                 </tr>
                             ))}
                             {rows.length === 0 && (
-                                <tr><td colSpan="8" className="p-8 text-center text-gray-400">No staff waiting for approval.</td></tr>
+                                <tr><td colSpan="8" className="p-8 text-center text-gray-400">No staff waiting for you to {verb.toLowerCase()}.</td></tr>
                             )}
                         </tbody>
                     </table>
@@ -197,19 +226,6 @@ export default function StaffApproval({ staff = [], myRole = 'supervisor' }) {
                 )}
             </div>
 
-            {selected.length > 0 && (
-                <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
-                    <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-                        <span className="text-sm font-bold text-gray-800">{selected.length} selected</span>
-                        <div className="flex gap-2">
-                            <button onClick={() => setSelected([])} className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-bold text-gray-700">Clear</button>
-                            <button disabled={busy} onClick={() => approve(selected)} className="inline-flex items-center gap-2 rounded-lg bg-ink-900 px-4 py-2 text-sm font-bold text-white shadow-sm ring-1 ring-ink-900 transition hover:bg-ink-700 active:scale-[0.98] disabled:opacity-50">
-                                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Approve selected
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </ReviewLayout>
     );
 }

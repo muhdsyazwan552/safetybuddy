@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UploadedAssets;
 use App\Models\ComplianceMetrics;
 use App\Models\Company;
 use App\Models\CompanyStaff;
@@ -49,6 +50,7 @@ class ContentController extends Controller
         // Load staff with role relationship
         $staff = CompanyStaff::with('role')  // Add this to load role relationship
             ->where('company_id', $companyId)
+            ->where('role_id', '!=', 2) // the company admin's own record is not an employee
             ->get();
 
         // The three working tiers: 1st Manager (3), 2nd Supervisor (4), 3rd Inspector (7).
@@ -375,7 +377,7 @@ class ContentController extends Controller
                     'location' => $inspection->location,
                     'evaluation' => $inspection->evaluation,
                     'description' => $inspection->description,
-                    'photo' => $inspection->photo,
+                    'photo' => json_encode(UploadedAssets::photoUrls($inspection->photo)),
                     'project' => $inspection->project ? [
                         'id' => $inspection->project->id,
                         'name' => $inspection->project->name,
@@ -478,8 +480,8 @@ class ContentController extends Controller
                 'inspections' => $talk->inspections->map(fn ($i) => [
                     'id' => $i->id, 'code' => $i->code, 'topic' => optional($i->topic)->name, 'evaluation' => $i->evaluation,
                 ])->values(),
-                'img_group' => $talk->img_group,
-                'img_attendance' => $talk->img_attendance,
+                'img_group' => UploadedAssets::url($talk->img_group),
+                'img_attendance' => UploadedAssets::url($talk->img_attendance),
             ],
         ]);
     }
@@ -616,9 +618,7 @@ class ContentController extends Controller
 
                     // ── Impact & Recording ─────────────────────────────────────
                     'lti_man_hours_lost'     => $inc->lti_man_hours_lost,
-                    'attachment_upload'      => $inc->attachment_upload
-                        ? asset('storage/' . $inc->attachment_upload)
-                        : null,
+                    'attachment_upload'      => UploadedAssets::url($inc->attachment_upload),
 
                     // ── Status ─────────────────────────────────────────────────
                     'status'                 => $inc->status, // 'open' | 'in progress' | 'closed'

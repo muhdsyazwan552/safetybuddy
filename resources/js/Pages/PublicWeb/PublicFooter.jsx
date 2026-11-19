@@ -41,8 +41,8 @@ export default function PublicFooter() {
                 <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-gray-200 pt-6 text-xs text-gray-500 sm:flex-row">
                     <p>© {new Date().getFullYear()} Safety Buddy. All rights reserved.</p>
                     <div className="flex gap-5">
-                        <a href="#" className="hover:text-ink-950">Privacy Policy</a>
-                        <a href="#" className="hover:text-ink-950">Terms of Service</a>
+                        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-ink-950">Privacy Policy</a>
+                        <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-ink-950">Terms of Service</a>
                     </div>
                 </div>
             </div>

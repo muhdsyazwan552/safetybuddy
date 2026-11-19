@@ -5,7 +5,6 @@ namespace App\Support;
 use App\Models\Inspection;
 use App\Models\ToolboxTalks;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * A "site visit" = one toolbox talk together with the inspections done in the same visit.
@@ -35,7 +34,7 @@ class VisitFeed
 
     private static function url(?string $path): ?string
     {
-        return $path ? Storage::url($path) : null;
+        return $path ? UploadedAssets::url($path) : null;
     }
 
     private static function inspectionRow(Inspection $i): array

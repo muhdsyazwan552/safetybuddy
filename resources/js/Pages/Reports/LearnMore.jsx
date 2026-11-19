@@ -64,7 +64,7 @@ export default function LearnMore({ portal, settings: s, links }) {
                     </p>
                     <p className="mt-3">
                         <b>Complete assessments are required</b> for the overall score and rank. SP, G and P penalties apply once per inspection when below
-                        benchmark; NC and CC penalties apply per finding. Calculated penalties are subject to Manager review. An approved report keeps the
+                        benchmark; NC and CC penalties apply per finding. The penalty of a report is confirmed automatically once the report is complete.An approved report keeps the
                         settings it was created with.
                     </p>
                 </div>

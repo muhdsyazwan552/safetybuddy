@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UploadedAssets;
 use App\Models\SubconCompany;
 use App\Models\SubconMachinery;
 use App\Models\SubconStaff;
@@ -10,7 +11,6 @@ use App\Support\SubconCompliance;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * Public subcontractor portal – Safety Passport rules, machinery and staff certifications.
@@ -219,7 +219,7 @@ class SubconPortalController extends Controller
             'cf_expiry' => $data['cf_expiry'] ?? null,
             'operator_id' => $this->operatorFor($company, $data['operator_id'] ?? null),
             'cf_file' => $request->hasFile('cf_file')
-                ? $request->file('cf_file')->store("subcon/{$company->id}/machinery", 'public')
+                ? UploadedAssets::store($request->file('cf_file'), "subcon/{$company->id}/machinery")
                 : null,
         ]);
 
@@ -239,17 +239,25 @@ class SubconPortalController extends Controller
             'operator_id' => $this->operatorFor($company, $data['operator_id'] ?? null),
         ];
 
+        $oldFile = $machine->cf_file;
         if ($request->hasFile('cf_file')) {
-            if ($machine->cf_file) {
-                Storage::disk('public')->delete($machine->cf_file);
-            }
-            $update['cf_file'] = $request->file('cf_file')->store("subcon/{$company->id}/machinery", 'public');
-        } elseif ($request->boolean('remove_cf_file') && $machine->cf_file) {
-            Storage::disk('public')->delete($machine->cf_file);
+            $update['cf_file'] = UploadedAssets::store($request->file('cf_file'), "subcon/{$company->id}/machinery");
+        } elseif ($request->boolean('remove_cf_file') && $oldFile) {
             $update['cf_file'] = null;
         }
 
-        $machine->update($update);
+        try {
+            $machine->update($update);
+        } catch (\Throwable $e) {
+            if (!empty($update['cf_file'])) {
+                UploadedAssets::delete($update['cf_file']);
+            }
+            throw $e;
+        }
+
+        if ($oldFile && array_key_exists('cf_file', $update)) {
+            UploadedAssets::delete($oldFile);
+        }
 
         return back()->with('success', 'Machinery updated.');
     }
@@ -260,7 +268,7 @@ class SubconPortalController extends Controller
         $machine = SubconMachinery::where('subcon_company_id', $company->id)->findOrFail($id);
 
         if ($machine->cf_file) {
-            Storage::disk('public')->delete($machine->cf_file);
+            UploadedAssets::delete($machine->cf_file);
         }
         $machine->delete();
 
@@ -329,7 +337,7 @@ class SubconPortalController extends Controller
             'subcon_staff_id' => $staff->id,
             'title' => trim($data['title']),
             'expiry_date' => $data['expiry_date'] ?? null,
-            'file' => $file->store("subcon/{$company->id}/certifications", 'public'),
+            'file' => UploadedAssets::store($file, "subcon/{$company->id}/certifications"),
             'original_name' => $file->getClientOriginalName(),
         ]);
 
@@ -342,7 +350,7 @@ class SubconPortalController extends Controller
         $staff = $this->staffOf($company, $staffId);
 
         $cert = SubconStaffCertification::where('subcon_staff_id', $staff->id)->findOrFail($certId);
-        Storage::disk('public')->delete($cert->file);
+        UploadedAssets::delete($cert->file);
         $cert->delete();
 
         return back()->with('success', 'Certification removed.');

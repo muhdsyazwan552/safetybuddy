@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UploadedAssets;
 use App\Models\ClientComplaint;
 use App\Models\CompanyStaff;
 use App\Models\Incident;
@@ -17,16 +18,14 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /**
  * PDF reports. Every report carries who generated it and two signature boxes:
  * Supervisor (tier 2) and Manager (tier 3). Names are filled in when the record
  * was already verified / approved by someone.
  *
- *  - Toolbox talk, Inspection ........ only once approved
- *  - Non-conformance, Client complaint  only once approved (case closed)
- *  - Attendance, Incident, Daily, Monthly report ... any time
+ *  - Every report, complete / approved or not, can be generated at any time. Records that are not
+ *    approved yet are marked as such in the PDF.
  */
 class PdfReportController extends Controller
 {
@@ -96,20 +95,20 @@ class PdfReportController extends Controller
         return $out;
     }
 
-    /** Read an image from the public disk, shrink it and return a base64 data URI (null if unreadable). */
+    /** Read a stored image, shrink it and return a base64 data URI (null if unreadable). */
     private function image(?string $path, int $max = 800): ?string
     {
         if (!$path) {
             return null;
         }
         $path = preg_replace('#^/?storage/#', '', $path);
-        $file = Storage::disk('public')->path($path);
-        if (!is_file($file) || !function_exists('imagecreatefromstring')) {
+        if (!function_exists('imagecreatefromstring')) {
             return null;
         }
 
         try {
-            $img = @imagecreatefromstring((string) file_get_contents($file));
+            $bytes = UploadedAssets::disk($path)->get($path);
+            $img = $bytes ? @imagecreatefromstring($bytes) : false;
             if (!$img) {
                 return null;
             }
@@ -156,7 +155,6 @@ class PdfReportController extends Controller
         if ($this->isInspector()) {
             abort_unless((int) $i->inspection_by === (int) $this->myStaffId(), 403);
         }
-        abort_unless($i->status === Inspection::STATUS_APPROVED, 403, 'The PDF report is available once the inspection is approved.');
 
         return $i;
     }
@@ -174,7 +172,7 @@ class PdfReportController extends Controller
             'i' => $i,
             'category' => $category,
             'photos' => $this->photos($i->photo),
-        ] + $this->meta('Inspection Report', $ref, optional($i->verifier)->name, $this->ts($i->verified_at), optional($i->approver)->name, $this->ts($i->approved_at)), $ref);
+        ] + $this->meta('Inspection Report' . ($i->status === Inspection::STATUS_APPROVED ? '' : ' (NOT APPROVED YET)'), $ref, optional($i->verifier)->name, $this->ts($i->verified_at), optional($i->approver)->name, $this->ts($i->approved_at)), $ref);
     }
 
     // ------------------------------------------------------------------ toolbox talk
@@ -188,7 +186,6 @@ class PdfReportController extends Controller
         if ($this->isInspector()) {
             abort_unless((int) $t->inspection_by === (int) $this->myStaffId(), 403);
         }
-        abort_unless($t->status === Inspection::STATUS_APPROVED, 403, 'The PDF report is available once the toolbox talk is approved.');
 
         $ref = $t->code ?: 'TBT-' . str_pad($t->id, 5, '0', STR_PAD_LEFT);
 
@@ -196,7 +193,7 @@ class PdfReportController extends Controller
             't' => $t,
             'imgGroup' => $this->image($t->img_group),
             'imgAttendance' => $this->image($t->img_attendance),
-        ] + $this->meta('Toolbox Talk Report', $ref, $this->staffName($t->verified_by), $this->ts($t->verified_at), $this->staffName($t->approved_by), $this->ts($t->approved_at)), $ref);
+        ] + $this->meta('Toolbox Talk Report' . ($t->status === Inspection::STATUS_APPROVED ? '' : ' (NOT APPROVED YET)'), $ref, $this->staffName($t->verified_by), $this->ts($t->verified_at), $this->staffName($t->approved_by), $this->ts($t->approved_at)), $ref);
     }
 
 
@@ -229,7 +226,7 @@ class PdfReportController extends Controller
         }
 
         $statuses = $list->pluck('status')->when($t, fn ($c) => $c->push($t->status));
-        abort_unless($statuses->isNotEmpty() && $statuses->every(fn ($s) => $s === Inspection::STATUS_APPROVED), 403, 'The PDF report is available once the whole toolbox talk & inspection is approved.');
+        abort_unless($statuses->isNotEmpty(), 404);
 
         $inspections = $list->map(fn ($i) => [
             'i' => $i,
@@ -254,7 +251,7 @@ class PdfReportController extends Controller
             'inspections' => $inspections,
             'imgGroup' => $t ? $this->image($t->img_group) : null,
             'imgAttendance' => $t ? $this->image($t->img_attendance) : null,
-        ] + $this->meta('Toolbox talk & Inspection Report', $ref, $verifier, $this->ts(optional($src)->verified_at), $approver, $this->ts(optional($src)->approved_at)), $ref);
+        ] + $this->meta('Toolbox talk & Inspection Report' . ($statuses->every(fn ($s) => $s === Inspection::STATUS_APPROVED) ? '' : ' (NOT APPROVED YET)'), $ref, $verifier, $this->ts(optional($src)->verified_at), $approver, $this->ts(optional($src)->approved_at)), $ref);
     }
 
     // ------------------------------------------------------------------ company manhour (by day, project, subcontractor)
@@ -314,7 +311,6 @@ class PdfReportController extends Controller
         if ($this->isInspector()) {
             abort_unless((int) $inspection->inspection_by === (int) $this->myStaffId(), 403);
         }
-        abort_unless($case->status === 'closed', 403, 'The PDF report is available once the case is approved (closed).');
 
         $case->load(CaseFeed::WITH);
         $row = CaseFeed::row($type, $case);
@@ -329,7 +325,7 @@ class PdfReportController extends Controller
             'evaluation' => $inspection->evaluation,
             'photos' => $photos,
         ] + $this->meta(
-            $title, $ref,
+            $title . ($case->status === 'closed' ? '' : ' (NOT CLOSED YET)'), $ref,
             $this->staffName($case->review_by) ?: optional($inspection->verifier)->name,
             $this->ts($case->date_close ?: $case->updated_at),
             optional($inspection->approver)->name,
@@ -415,8 +411,8 @@ class PdfReportController extends Controller
 
     public function daily(int $id)
     {
-        $r = InspectionReport::where('company_id', $this->companyId())->findOrFail($id);
         $perf = app(PerformanceController::class);
+        $r = $perf->freshDaily($id); // always the current figures of the day
         [$projects, $subcons] = $perf->names(collect([$r]));
         $row = $perf->dailyRow($r, $projects, $subcons, true);
 
@@ -428,11 +424,10 @@ class PdfReportController extends Controller
 
         $ref = $r->report_no ?: 'DR-' . str_pad($r->id, 5, '0', STR_PAD_LEFT);
 
-        // the approved inspections and toolbox talks of that day, with their photos
+        // every inspection and toolbox talk of that day (approved or not), with their photos
         $inspections = Inspection::with(['project', 'topic', 'subconCompany', 'inspector', 'non_conformance', 'client_complaint'])
             ->where('project_id', $r->project_id)->where('subcon_company_id', $r->subcon_company_id)
             ->whereDate('inspection_date', $r->report_date)
-            ->where('status', Inspection::STATUS_APPROVED)
             ->orderBy('id')->get()
             ->map(fn ($i) => [
                 'i' => $i,
@@ -445,7 +440,6 @@ class PdfReportController extends Controller
         $talks = ToolboxTalks::with(['project', 'CompanyStaff', 'categories:id,name', 'topics:id,name', 'attendees:id,name,role', 'inspections.topic:id,name', 'inspections.subconCompany:id,name'])
             ->where('project_id', $r->project_id)
             ->whereDate('inspection_date', $r->report_date)
-            ->where('status', Inspection::STATUS_APPROVED)
             ->orderBy('id')->get()
             ->map(fn ($t) => [
                 't' => $t,
@@ -462,8 +456,8 @@ class PdfReportController extends Controller
 
     public function monthly(int $id)
     {
-        $m = MonthlyReport::where('company_id', $this->companyId())->findOrFail($id);
         $perf = app(PerformanceController::class);
+        $m = $perf->freshMonthly($id);
         [$projects, $subcons] = $perf->names(collect([$m]));
         $row = $perf->monthlyRow($m, $projects, $subcons, true);
 
@@ -483,9 +477,48 @@ class PdfReportController extends Controller
             ->whereBetween('inspection_date', [$periodStart, $periodStart->copy()->endOfMonth()])
             ->orderBy('inspection_date')->orderBy('id')->get();
 
-        return $this->render('pdf.monthly', ['r' => $row, 'inspectionSummary' => $inspectionSummary, 'toolboxSummary' => $toolboxSummary, 'charts' => \App\Support\MonthlyReportCharts::forReport($m)] + $this->meta(
+        $monthEnd = $periodStart->copy()->endOfMonth();
+
+        // incidents of this contractor on this project during the month
+        $incidents = Incident::with(['incidentType:id,name', 'injuryType:id,name'])
+            ->where('company_id', $this->companyId())
+            ->where('project_id', $m->project_id)
+            ->where('subcon_company_id', $m->subcon_company_id)
+            ->whereBetween('incident_date', [$periodStart, $monthEnd])
+            ->orderBy('incident_date')->orderBy('id')->get();
+
+        // man-hours of this contractor on this project during the month (workers x hours of each day)
+        $manhourDays = \App\Models\Manhour::where('company_id', $this->companyId())
+            ->where('project_id', $m->project_id)
+            ->where('subcon_company_id', $m->subcon_company_id)
+            ->whereBetween('work_date', [$periodStart->toDateString(), $monthEnd->toDateString()])
+            ->orderBy('work_date')->get()
+            ->map(fn ($d) => [
+                'date' => $d->work_date->format('Y-m-d'),
+                'workers' => (int) $d->worker_count,
+                'hours' => (float) $d->working_hours,
+                'manhours' => round($d->worker_count * (float) $d->working_hours, 2),
+            ]);
+        $totalManhours = round($manhourDays->sum('manhours'), 2);
+
+        $company = \App\Models\Company::find($this->companyId());
+
+        return $this->render('pdf.monthly', [
+            'r' => $row,
+            'inspectionSummary' => $inspectionSummary,
+            'toolboxSummary' => $toolboxSummary,
+            'charts' => \App\Support\MonthlyReportCharts::forReport($m),
+            'incidents' => $incidents,
+            'manhourDays' => $manhourDays,
+            'totalManhours' => $totalManhours,
+            // incidents per 100,000 man-hours; not available until man-hours are recorded
+            'incidentRate' => $totalManhours > 0 ? round($incidents->count() * 100000 / $totalManhours, 2) : null,
+            'companyName' => optional($company)->name,
+            'logo' => $this->image(optional($company)->logo_path, 400),
+        ] + $this->meta(
             'Monthly Inspection Report', $ref,
-            $row['verified_by'], $row['verified_at'], $row['approved_by'], $row['approved_at']
+            // no manual sign-off: the report completes by itself once every daily report is complete
+            null, null, $row['completed_at'] ? 'Automatic (all sections complete)' : null, $row['completed_at']
         ), $ref);
     }
 }

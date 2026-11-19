@@ -2,10 +2,15 @@ import React, { useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { Save, Loader2 } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
+import AppLayout from '@/Pages/WSIS/Layout';
 import InspectionFields from '@/Components/inspector/InspectionFields';
 import { ActionBar, ghostBtn, primaryBtn, parsePhotos, storageUrl } from '@/Components/inspector/kit';
 
-export default function EditInspection({ inspection, projects = [], subconCompanies = [], categories = [], evaluations = [], user }) {
+export default function EditInspection({ inspection, projects = [], subconCompanies = [], categories = [], user, portal = 'inspector', endpoints = null }) {
+    const isAdmin = portal === 'admin';
+    const Shell = isAdmin ? AppLayout : InspectorLayout;
+    const shellProps = isAdmin ? { title: 'Edit inspection' } : { user };
+    const updateUrl = endpoints?.update || `/inspector/inspections/${inspection.id}`;
     const [item, setItem] = useState({
         project_id: inspection.project_id ?? '',
         subcon_company_id: inspection.subcon_company_id ?? '',
@@ -34,13 +39,16 @@ export default function EditInspection({ inspection, projects = [], subconCompan
     };
 
     const pick = (fileList) => {
-        const files = Array.from(fileList || []).filter((f) => f.size <= 2 * 1024 * 1024);
+        const all = Array.from(fileList || []);
+        const files = all.filter((f) => f.size <= 2 * 1024 * 1024);
+        const skipped = all.length - files.length;
+        setErrors((e) => ({ ...e, photos: skipped ? `${skipped} photo(s) were not added: each photo must be smaller than 2 MB.` : undefined }));
         setPhotos((p) => [...p, ...files.map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
     };
 
     const save = () => {
         const e = {};
-        ['project_id', 'evaluation', 'inspection_date'].forEach((k) => { if (!String(item[k] || '').trim()) e[k] = 'Required'; });
+        ['project_id', 'inspection_date'].forEach((k) => { if (!String(item[k] || '').trim()) e[k] = 'Required'; });
         if (item.evaluation && item.evaluation !== 'good') {
             if (!item.description.trim()) e.description = 'Notes / observations are required.';
             if (photos.length === 0 && parsePhotos(inspection.photo).length === 0) e.photos = 'Add at least one evidence photo.';
@@ -49,13 +57,12 @@ export default function EditInspection({ inspection, projects = [], subconCompan
 
         setSaving(true);
         router.post(
-            `/inspector/inspections/${inspection.id}`,
+            updateUrl,
             {
                 _method: 'put',
                 project_id: item.project_id,
                 subcon_company_id: item.subcon_company_id || '',
                 topic_inspection_id: item.topic_id || '',
-                evaluation: item.evaluation,
                 inspection_date: item.inspection_date,
                 location: item.location || '',
                 description: item.description || '',
@@ -73,10 +80,10 @@ export default function EditInspection({ inspection, projects = [], subconCompan
     };
 
     return (
-        <InspectorLayout user={user}>
+        <Shell {...shellProps}>
             <Head title="Edit Inspection" />
 
-            <div className="mx-auto max-w-2xl px-4 pb-32 pt-5 sm:px-6 lg:pb-32">
+            <div className={`mx-auto max-w-2xl px-4 pt-5 sm:px-6 ${isAdmin ? 'pb-6' : 'pb-32 lg:pb-32'}`}>
                 <div className="mb-4">
                     <p className="text-[11px] font-bold uppercase tracking-widest text-brand-800">Inspection #{inspection.id}</p>
                     <h1 className="text-2xl font-extrabold text-gray-900">Edit inspection</h1>
@@ -89,7 +96,7 @@ export default function EditInspection({ inspection, projects = [], subconCompan
                         projects={projects}
                         subcons={subcons}
                         categories={categories}
-                        evaluations={evaluations.length ? evaluations : undefined}
+                        evaluationLocked
                         errors={errors}
                         existingPhotos={parsePhotos(inspection.photo).map(storageUrl)}
                         newPhotos={photos.map((p) => ({ preview: p.preview }))}
@@ -99,12 +106,12 @@ export default function EditInspection({ inspection, projects = [], subconCompan
                 </div>
             </div>
 
-            <ActionBar>
+            <ActionBar leftClass={isAdmin ? 'lg:left-64' : ''} inline={isAdmin}>
                 <button type="button" onClick={() => window.history.back()} disabled={saving} className={ghostBtn}>Cancel</button>
                 <button type="button" onClick={save} disabled={saving} className={primaryBtn}>
                     {saving ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</> : <><Save className="h-4 w-4" /> Save changes</>}
                 </button>
             </ActionBar>
-        </InspectorLayout>
+        </Shell>
     );
 }

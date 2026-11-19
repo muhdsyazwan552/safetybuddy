@@ -79,10 +79,9 @@ const PublicStaffForm = ({ company, title = "Add Staff Member" }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Email Address *</label>
-            <input 
-              type="email" 
-              required
+            <label className="block text-sm font-medium text-gray-700">Email Address (optional)</label>
+            <input
+              type="email"
               value={data.email}
               onChange={e => setData('email', e.target.value)}
               className="mt-1 w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"
@@ -92,9 +91,11 @@ const PublicStaffForm = ({ company, title = "Add Staff Member" }) => {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Contact Number</label>
-            <input 
-              type="text" 
+            <label className="block text-sm font-medium text-gray-700">Contact Number *</label>
+            <input
+              type="text"
+              required
+              maxLength={20}
               value={data.contact}
               onChange={e => setData('contact', e.target.value)}
               className="mt-1 w-full border border-gray-300 rounded-md p-2 focus:ring-blue-500 focus:border-blue-500"

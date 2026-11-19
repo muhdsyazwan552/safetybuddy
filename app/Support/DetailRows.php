@@ -6,7 +6,6 @@ use App\Models\Inspection;
 use App\Models\InspectionCategory;
 use App\Models\ToolboxTalks;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 /** The data of a toolbox talk / inspection detail page, shared by the review portal and the inspector. */
 class DetailRows
@@ -21,7 +20,7 @@ class DetailRows
             ->map(fn ($r) => ['company' => $r->company ?: '-', 'sampled' => (int) $r->sampled, 'not_registered' => (int) $r->not_registered])
             ->values();
 
-        $url = fn ($p) => $p ? Storage::url($p) : null;
+        $url = fn ($p) => $p ? UploadedAssets::url($p) : null;
 
         return [
             'id' => $t->id,
@@ -75,7 +74,7 @@ class DetailRows
             'date' => optional($i->inspection_date)->format('Y-m-d'),
             'location' => $i->location,
             'description' => $i->description,
-            'photos' => collect($photos)->map(fn ($p) => Storage::url($p))->values(),
+            'photos' => collect($photos)->map(fn ($p) => UploadedAssets::url($p))->values(),
             'verifier' => optional($i->verifier)->name,
             'verified_at' => optional($i->verified_at)->format('Y-m-d H:i'),
             'approver' => optional($i->approver)->name,

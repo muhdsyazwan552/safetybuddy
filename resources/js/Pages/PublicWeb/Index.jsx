@@ -57,12 +57,12 @@ const KEY_MODULES = [
 ];
 
 
-const VOICES = [
-    { name: 'Mei Ling', role: 'Admin', text: 'Sets up the company, projects, users and subscription.', img: 'voice-4.jpg' },
-    { name: 'Daniel', role: 'Manager', text: 'Reviews performance, approves actions and signs off reports.', img: 'voice-2.jpg' },
-    { name: 'Aisyah', role: 'Supervisor', text: 'Follows up findings and responds to incidents on site.', img: 'voice-1.jpg' },
-    { name: 'Farid', role: 'Inspector', text: 'Runs inspections and toolbox talks from the field.', img: 'voice-3.jpg' },
-    { name: 'Kumar', role: 'Contractor', text: 'Registers workforce and declares compliance via the Contractor Portal.', img: 'voice-5.jpg' },
+const TEAM_ROLES = [
+    { name: 'Mei Ling', role: 'Admin', img: 'voice-4.jpg', summary: 'Sets up the company, projects, users and subscription.' },
+    { name: 'Daniel', role: 'Manager', img: 'voice-2.jpg', summary: 'Reviews performance, approves actions and signs off reports.' },
+    { name: 'Aisyah', role: 'Supervisor', img: 'voice-1.jpg', summary: 'Follows up on findings and responds to incidents on site.' },
+    { name: 'Farid', role: 'Inspector', img: 'voice-3.jpg', summary: 'Runs inspections and toolbox talks from the field.' },
+    { name: 'Kumar', role: 'Contractor', img: 'voice-5.jpg', summary: 'Registers workers and declares compliance via the Contractor Portal.' },
 ];
 
 const VALUES = [
@@ -536,7 +536,7 @@ export default function Landing({ subscriptionPlans = [], providerPlans = [] }) 
                         </div>
 
                         <Reveal>
-                            <Photo src="devices.jpg" alt="Safety Buddy dashboard on laptop, tablet and mobile" tone="light" hideOnError className="mt-10 aspect-[16/7] rounded-[28px]" imageClassName="object-contain" />
+                            <Photo src="devices-workflow.webp" alt="Safety Buddy inspections dashboard on a laptop, Contractor Portal on a tablet, and Create Inspection form on a phone" tone="light" hideOnError className="mt-10 aspect-[16/7] rounded-[28px]" imageClassName="object-contain" />
                         </Reveal>
                     </div>
                 </section>
@@ -563,27 +563,34 @@ export default function Landing({ subscriptionPlans = [], providerPlans = [] }) 
                     </div>
                 </section>
 
-                {/* roles / people */}
-                <section className="bg-ink-900 py-20 text-white">
+                <section aria-labelledby="team-roles-title" className="bg-ink-900 py-12 text-white sm:py-14">
                     <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
-                        <Reveal><p className="mb-3 text-base text-gray-400">Built for every role</p></Reveal>
-                        <Reveal delay={0.05}><h2 className="font-geist text-[34px] font-medium leading-[1.1] tracking-[-0.06em] sm:text-5xl">Safety is about people</h2></Reveal>
-                        <Reveal delay={0.1}><p className="mt-4 max-w-md text-gray-400">Admin, Manager, Supervisor, Inspector and Contractor Representative — every role in your package works together on one platform for simpler, safer sites.</p></Reveal>
+                        <Reveal y={16}>
+                            <p className="mb-3 text-base text-gray-400">Built for every role</p>
+                            <h2 id="team-roles-title" className="font-geist text-[34px] font-medium leading-[1.1] tracking-[-0.06em] sm:text-5xl">
+                                Roles and responsibilities
+                            </h2>
+                            <p className="mt-4 max-w-md leading-relaxed text-gray-400">
+                                Admins, managers, supervisors, inspectors and contractor representatives work together in Safety Buddy to manage site safety.
+                            </p>
+                        </Reveal>
 
-                        <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
-                            {VOICES.map((v, i) => (
-                                <Reveal key={v.name} delay={i * 0.08}>
-                                    <div className="group h-full">
-                                        <Photo src={v.img} alt={v.name} className="aspect-[3/4] rounded-3xl">
-                                            <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
-                                        </Photo>
-                                        <p className="mt-3 text-[15px] font-medium">{v.name}</p>
-                                        <p className="text-sm font-semibold text-brand-400">{v.role}</p>
-                                        <p className="mt-0.5 text-xs leading-snug text-gray-400">{v.text}</p>
-                                    </div>
-                                </Reveal>
+                        <ul className="mt-10 grid grid-cols-1 gap-x-4 gap-y-7 min-[400px]:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+                            {TEAM_ROLES.map(({ name, role, img, summary }, i) => (
+                                <li key={role} className="min-w-0">
+                                    <Reveal delay={i * 0.06} y={16}>
+                                        <article className="group">
+                                            <Photo src={img} alt="" className="aspect-[3/4] rounded-3xl" imageClassName="motion-reduce:transition-none motion-reduce:group-hover:scale-100">
+                                                <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent" />
+                                            </Photo>
+                                            <h3 className="mt-3 text-sm font-semibold leading-5">{name}</h3>
+                                            <p className="text-sm font-semibold leading-5 text-brand-400">{role}</p>
+                                            <p className="mt-1 text-xs leading-snug text-gray-400">{summary}</p>
+                                        </article>
+                                    </Reveal>
+                                </li>
                             ))}
-                        </div>
+                        </ul>
                     </div>
                 </section>
 
@@ -855,8 +862,8 @@ export default function Landing({ subscriptionPlans = [], providerPlans = [] }) 
                 <div className="mt-6 flex flex-col items-center justify-between gap-3 border-t border-gray-200 pt-6 text-xs text-gray-500 sm:flex-row">
                     <p>© {new Date().getFullYear()} Safety Buddy. All rights reserved.</p>
                     <div className="flex gap-5">
-                        <a href="#" className="hover:text-ink-950">Privacy Policy</a>
-                        <a href="#" className="hover:text-ink-950">Terms of Service</a>
+                        <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-ink-950">Privacy Policy</a>
+                        <a href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-ink-950">Terms of Service</a>
                     </div>
                 </div>
             </footer>

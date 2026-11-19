@@ -2,23 +2,27 @@
 import React from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
+import AppLayout from '@/Pages/WSIS/Layout';
 import ToolboxTalkForm from '@/Components/inspector/ToolboxTalkForm';
 import { storageUrl } from '@/Components/inspector/kit';
 
-export default function EditToolboxTalk({ toolboxTalk, attendeeIds = [], spByCompany = {}, projects = [], categories = [], staffByProject = {}, user }) {
+export default function EditToolboxTalk({ toolboxTalk, attendeeIds = [], spByCompany = {}, projects = [], categories = [], staffByProject = {}, user, portal = 'inspector', endpoints = null }) {
     const { errors } = usePage().props;
+    const isAdmin = portal === 'admin';
+    const Shell = isAdmin ? AppLayout : InspectorLayout;
+    const shellProps = isAdmin ? { title: 'Edit toolbox talk' } : { user };
     const conducted = toolboxTalk.conducted === 'yes';
 
     const submit = (payload, { setSaving }) => {
         router.post(
-            `/inspector/toolbox-talks/${toolboxTalk.id}`,
+            endpoints?.update || `/inspector/toolbox-talks/${toolboxTalk.id}`,
             { ...payload, _method: 'put' },
             { forceFormData: true, onFinish: () => setSaving(false) },
         );
     };
 
     return (
-        <InspectorLayout user={user}>
+        <Shell {...shellProps}>
             <Head title="Edit Toolbox Talk" />
             <div className="mx-auto max-w-2xl px-4 pt-5 sm:px-6">
                 <p className="text-[11px] font-bold uppercase tracking-widest text-brand-800">Toolbox talk #{toolboxTalk.id}</p>
@@ -44,7 +48,9 @@ export default function EditToolboxTalk({ toolboxTalk, attendeeIds = [], spByCom
                 serverErrors={errors || {}}
                 submitLabel="Save changes"
                 onSubmit={submit}
+                actionBarLeft={isAdmin ? 'lg:left-64' : ''}
+                wide={isAdmin}
             />
-        </InspectorLayout>
+        </Shell>
     );
 }

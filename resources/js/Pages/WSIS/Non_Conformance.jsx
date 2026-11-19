@@ -286,7 +286,7 @@ const NonConformance = ({ title, auth, nonConformances = [] }) => {
                 </button>
               </div>
 
-              {viewingReport.status === 'closed' && <div className="mb-4 flex justify-end"><PdfButton href={`/pdf/case/nc/${viewingReport.id}`} /></div>}
+              <div className="mb-4 flex justify-end"><PdfButton href={`/pdf/case/nc/${viewingReport.id}`} /></div>
               <ReviewProgress kind="case" record={viewingReport} className="mb-4" />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">

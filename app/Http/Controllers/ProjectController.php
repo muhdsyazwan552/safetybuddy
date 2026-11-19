@@ -222,16 +222,19 @@ class ProjectController extends Controller
         'name' => 'required|string|max:255',
         'role' => 'required|string|max:255',
         'email' => 'nullable|email|max:255|unique:subcon_staff,email',
-        'contact' => 'nullable|string|max:50|unique:subcon_staff,contact',
+        'contact' => ['required', 'string', 'max:20', 'regex:/^[0-9+\-\s()]{7,20}$/', 'unique:subcon_staff,contact'],
         'status' => 'required|in:active,inactive',
+    ], [
+        'contact.required' => 'Phone number is required.',
+        'contact.regex' => 'Enter a valid phone number, e.g. 012-345 6789.',
     ]);
 
     $staff = \App\Support\SeriesCodes::createSubconStaff((int) $validated['company_id'], [
         'company_id' => $validated['company_id'],
         'name' => $validated['name'],
         'role' => $validated['role'],
-        'email' => $validated['email'] ?? null,
-        'contact' => $validated['contact'] ?? null,
+        'email' => ($validated['email'] ?? null) ?: null,
+        'contact' => $validated['contact'],
         'status' => $validated['status'],
     ]);
 

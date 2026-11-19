@@ -56,6 +56,28 @@
     .photos { table-layout: fixed; }
     .photos td { padding: 4px; text-align: center; vertical-align: top; }
     .photos img { max-width: 100%; max-height: 190px; }
+
+    /* cover page */
+    .cover { height: 238mm; padding: 14mm 12mm 0; text-align: center; page-break-after: always; }
+    .cover .logo { max-width: 62mm; max-height: 48mm; }
+    .cover .co-name { margin: 12px 0 0; font-size: 17px; font-weight: bold; }
+    .cover .co-fallback { margin: 0 auto; width: 62mm; height: 34mm; border: 2px solid #171717; }
+    .cover .co-fallback td { text-align: center; vertical-align: middle; font-size: 30px; font-weight: bold; }
+    .cover .doc-title { margin: 30mm 0 0; font-size: 36px; font-weight: bold; line-height: 1.25; text-transform: none; letter-spacing: 0; }
+    .cover .doc-sub { margin: 10px 0 0; font-size: 12px; color: #2b3038; line-height: 1.7; }
+    .cover .sign-box { width: 112mm; margin: 16mm auto 0; border-collapse: collapse; }
+    .cover .sign-box td { border: 1px solid #171717; padding: 6px 8px; font-size: 11px; height: 8mm; }
+    .cover .sign-box td.k { width: 38%; text-align: right; }
+
+    /* contents page */
+    .contents-title { margin: 0 0 18px; font-size: 20px; text-decoration: underline; text-transform: none; letter-spacing: 0; }
+    .contents li { margin: 0 0 10px; font-size: 11px; list-style: none; }
+    .contents ul { padding: 0; margin: 0; }
+    .contents .desc { display: block; margin: 1px 0 0 14px; font-size: 8px; color: #626975; }
+    .sec-title { margin: 0 0 12px; font-size: 20px; text-transform: none; letter-spacing: 0; text-decoration: underline; }
+    .stat-grid td { text-align: center; }
+    .stat-grid .big { display: block; font-size: 16px; font-weight: bold; }
+    .stat-grid .lbl { display: block; font-size: 7px; color: #626975; text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -64,10 +86,9 @@
     <td class="reference">{{ $refNo }}</td>
 </tr></table></header>
 <footer><table><tr>
-    <td style="text-align:right">Page <span class="pn"></span></td>
+    <td style="text-align:center;font-weight:bold">This report is generated from Safety Buddy Application</td>
+    <td style="text-align:right;width:60px">Page <span class="pn"></span></td>
 </tr></table></footer>
-<p class="eyebrow">Safety performance / Monthly analytics</p>
-<h1>{{ $docTitle }}</h1>
 @yield('body')
 </body>
 </html>

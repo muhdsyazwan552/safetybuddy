@@ -488,7 +488,7 @@ const handleUpdateProject = (e) => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Project Type
+                      Project Category
                     </label>
                     <select
                       name="project_type_id"

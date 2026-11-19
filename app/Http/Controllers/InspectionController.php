@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UploadedAssets;
 use App\Models\Inspection;
 use App\Models\Company;
 use App\Models\CompanyStaff;
@@ -14,7 +15,6 @@ use App\Models\NoConformance;
 use App\Models\ClientComplaint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Redirect;
@@ -58,10 +58,10 @@ class InspectionController extends Controller
             ),
             // company staff (inspectors, site staff, managers) - not just users with role 4
             'employees' => $makeCard(
-                CompanyStaff::where('company_id', $companyId)->count(),
-                CompanyStaff::where('company_id', $companyId)->where('status', 'active')->count(),
-                CompanyStaff::where('company_id', $companyId)->where('created_at', '>=', $thisMonth)->count(),
-                CompanyStaff::where('company_id', $companyId)->whereBetween('created_at', [$lastMonth, $thisMonth])->count()
+                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', 2)->count(),
+                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', 2)->where('status', 'active')->count(),
+                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', 2)->where('created_at', '>=', $thisMonth)->count(),
+                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', 2)->whereBetween('created_at', [$lastMonth, $thisMonth])->count()
             ),
             // executors = subcontractor companies registered under this company
             'executors' => $makeCard(
@@ -302,7 +302,7 @@ class InspectionController extends Controller
 
                 $paths = [];
                 foreach ($request->file("inspection_items.{$index}.photos", []) as $photo) {
-                    $paths[] = $photo->store('inspections/photos', 'public');
+                    $paths[] = UploadedAssets::store($photo, 'inspections/evidence');
                 }
                 $inspection->photo = json_encode($paths);
                 $inspection->save();
@@ -416,7 +416,7 @@ class InspectionController extends Controller
                 'reject'  => in_array($roleId, self::VERIFIER_ROLES, true)
                     && in_array($inspection->status, [Inspection::STATUS_PENDING, Inspection::STATUS_VERIFIED], true),
             ],
-            'photos' => array_values($photos),
+            'photos' => array_map(UploadedAssets::url(...), array_values($photos)),
             'ncReviewer' => $reviewerName($inspection->non_conformance),
             'ccReviewer' => $reviewerName($inspection->client_complaint),
             'related' => $related,
@@ -491,6 +491,8 @@ class InspectionController extends Controller
      */
     public function update(Request $request, Inspection $inspection)
     {
+        abort_if($inspection->status === Inspection::STATUS_APPROVED, 403, 'Approved inspections cannot be edited.');
+
         $currentPhotos = json_decode((string) $inspection->photo, true);
         $currentPhotos = is_array($currentPhotos) ? $currentPhotos : array_filter([$inspection->photo]);
         $request->validate([
@@ -499,12 +501,12 @@ class InspectionController extends Controller
             'topic_inspection_id' => 'required|exists:toolbox_topic,id',
             'inspection_name' => 'required|string|max:255',
             'inspection_date' => 'required|date',
-            'location' => 'required|string|max:255',
-            'evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
-            'description' => 'required_unless:evaluation,good|string',
-            'new_photos' => [\Illuminate\Validation\Rule::requiredIf(fn () => $request->input('evaluation') !== 'good' && count($currentPhotos) === 0), 'array'],
+            'location' => 'required|string|max:50',
+            'evaluation' => ['sometimes', 'required', \Illuminate\Validation\Rule::in([$inspection->evaluation])],
+            'description' => [\Illuminate\Validation\Rule::requiredIf($inspection->evaluation !== 'good'), 'nullable', 'string', 'max:255'],
+            'new_photos' => [\Illuminate\Validation\Rule::requiredIf($inspection->evaluation !== 'good' && count($currentPhotos) === 0), 'array'],
             'new_photos.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
-        ]);
+        ], ['evaluation.in' => 'The evaluation cannot be changed after the inspection is created.']);
 
         try {
             $inspection->update($request->only([
@@ -514,7 +516,6 @@ class InspectionController extends Controller
                 'inspection_name',
                 'inspection_date',
                 'location',
-                'evaluation',
                 'description'
             ]));
 
@@ -523,7 +524,7 @@ class InspectionController extends Controller
                 $newPhotoPaths = [];
 
                 foreach ($request->file('new_photos') as $photo) {
-                    $path = $photo->store('inspections', 'public');
+                    $path = UploadedAssets::store($photo, 'inspections/evidence');
                     $newPhotoPaths[] = $path;
                 }
 
@@ -551,13 +552,19 @@ class InspectionController extends Controller
     {
         try {
             // Delete associated photos
-            if ($inspection->photo) {
-                foreach ($inspection->photo as $photoPath) {
-                    Storage::disk('public')->delete($photoPath);
-                }
+            // the photo column holds a JSON list (older rows: a single path string)
+            $paths = json_decode((string) $inspection->photo, true);
+            $paths = is_array($paths) ? $paths : array_filter([(string) $inspection->photo]);
+            foreach ($paths as $photoPath) {
+                UploadedAssets::delete($photoPath);
             }
 
-            $inspection->delete();
+            \Illuminate\Support\Facades\DB::transaction(function () use ($inspection) {
+                // the NC / CC case opened by this inspection goes with it
+                \Illuminate\Support\Facades\DB::table('non_conformances')->where('inspection_id', $inspection->id)->delete();
+                \Illuminate\Support\Facades\DB::table('client_complaints')->where('inspection_id', $inspection->id)->delete();
+                $inspection->delete();
+            });
 
             return response()->json([
                 'success' => true,
@@ -576,6 +583,8 @@ class InspectionController extends Controller
      */
     public function removePhotos(Inspection $inspection, Request $request)
     {
+        abort_if($inspection->status === Inspection::STATUS_APPROVED, 403, 'Approved inspections cannot be edited.');
+
         $request->validate([
             'photo_paths' => 'required|array',
             'photo_paths.*' => 'string'
@@ -584,7 +593,7 @@ class InspectionController extends Controller
         try {
             $currentPhotos = json_decode((string) $inspection->photo, true);
             $currentPhotos = is_array($currentPhotos) ? $currentPhotos : array_filter([$inspection->photo]);
-            $photosToRemove = $request->photo_paths;
+            $photosToRemove = array_intersect($currentPhotos, $request->photo_paths);
 
             if ($inspection->evaluation !== 'good' && count(array_diff($currentPhotos, $photosToRemove)) === 0) {
                 return response()->json(['success' => false, 'message' => 'At least one evidence photo is required.'], 422);
@@ -592,7 +601,7 @@ class InspectionController extends Controller
 
             // Delete files from storage
             foreach ($photosToRemove as $photoPath) {
-                Storage::disk('public')->delete($photoPath);
+                UploadedAssets::delete($photoPath);
             }
 
             // Remove from array
@@ -661,11 +670,11 @@ class InspectionController extends Controller
         $groupPhotoPath      = null;
 
         if ($request->hasFile('attendance_photo')) {
-            $attendancePhotoPath = $request->file('attendance_photo')->store('toolbox-attendance', 'public');
+            $attendancePhotoPath = UploadedAssets::store($request->file('attendance_photo'), 'toolbox-talks/attendance');
         }
 
         if ($request->hasFile('group_photo')) {
-            $groupPhotoPath = $request->file('group_photo')->store('toolbox-group', 'public');
+            $groupPhotoPath = UploadedAssets::store($request->file('group_photo'), 'toolbox-talks/group');
         }
 
         $spSampled = null;

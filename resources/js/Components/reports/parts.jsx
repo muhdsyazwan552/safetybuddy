@@ -6,12 +6,9 @@ export const rm = (v) => `RM${Number(v || 0).toLocaleString('en-MY', { maximumFr
 export const num = (v) => (v === null || v === undefined ? '-' : Number(v).toLocaleString('en-MY'));
 const trim = (v) => String(Number(v));
 
-export const STATUS_LABEL = {
-    pending_verification: 'Pending Supervisor verification',
-    verified: 'Pending Manager approval',
-    approved: 'Approved',
-    rejected: 'Returned',
-};
+// Reports are not approved by hand: they are complete (approved automatically) or not complete.
+export const isComplete = (value) => value === 'approved';
+export const STATUS_LABEL = { approved: 'Complete', other: 'Not complete' };
 
 export const RANK = {
     GOLD: { bg: 'bg-amber-500', text: 'text-amber-700', ring: 'ring-amber-300', soft: 'bg-amber-50' },
@@ -69,27 +66,39 @@ export function ResultText({ result }) {
 }
 
 export function Status({ value, className = '' }) {
-    const tone = {
-        pending_verification: 'bg-amber-100 text-amber-800',
-        verified: 'bg-cyan-100 text-cyan-800',
-        approved: 'bg-emerald-100 text-emerald-800',
-        rejected: 'bg-rose-100 text-rose-800',
-    }[value] || 'bg-slate-100 text-slate-700';
-    return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-extrabold ${tone} ${className}`}>{STATUS_LABEL[value] || value}</span>;
+    const done = isComplete(value);
+    const tone = done ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800';
+    return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-extrabold ${tone} ${className}`}>{done ? STATUS_LABEL.approved : STATUS_LABEL.other}</span>;
 }
 
 export const benchLabel = (v) => `${trim(v)}%`;
 
 // Status as plain coloured text for the dark header (colours readable on dark)
-const HERO_STATUS = {
-    pending_verification: 'text-amber-300',
-    verified: 'text-sky-300',
-    approved: 'text-emerald-400',
-    rejected: 'text-red-400',
-};
-
 export function HeroStatusText({ value }) {
-    return <span className={`font-extrabold uppercase tracking-wide ${HERO_STATUS[value] || 'text-gray-300'}`}>{STATUS_LABEL[value] || value}</span>;
+    const done = isComplete(value);
+    return <span className={`font-extrabold uppercase tracking-wide ${done ? 'text-emerald-400' : 'text-amber-300'}`}>{done ? STATUS_LABEL.approved : STATUS_LABEL.other}</span>;
+}
+
+/** Complete / Not complete card with the reasons a report is not complete yet (replaces the review progress). */
+export function CompletionCard({ status, blockers = [], kind = 'report' }) {
+    const done = isComplete(status);
+    return (
+        <div className={`rounded-3xl border p-4 shadow-sm ${done ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+            <p className={`text-sm font-extrabold ${done ? 'text-emerald-800' : 'text-amber-800'}`}>
+                {done ? `This ${kind} is complete` : `This ${kind} is not complete yet`}
+            </p>
+            <p className={`mt-1 text-sm ${done ? 'text-emerald-800' : 'text-amber-900'}`}>
+                {done
+                    ? 'Every section is complete and approved, so the report was approved automatically. No manual approval is needed.'
+                    : 'It becomes complete automatically once every section is complete and approved. No manual approval is needed.'}
+            </p>
+            {!done && blockers.length > 0 && (
+                <ul className="mt-2 list-disc space-y-0.5 pl-5 text-sm font-semibold text-amber-900">
+                    {blockers.map((b) => <li key={b}>{b}</li>)}
+                </ul>
+            )}
+        </div>
+    );
 }
 
 // "Scoring ON · BSPR ON · Penalties OFF" as coloured text for the dark header

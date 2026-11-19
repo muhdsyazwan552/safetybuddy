@@ -168,11 +168,11 @@ export default function AddStaffModal({ isOpen, onClose, onSubmit, data, setData
                             <Field label="Full name *" icon={User} error={errors.name}>
                                 <input className={input} value={data.name} onChange={(e) => setData('name', e.target.value)} placeholder="e.g. Ahmad bin Ali" required autoFocus />
                             </Field>
-                            <Field label="Email *" icon={Mail} error={errors.email}>
-                                <input type="email" className={input} value={data.email} onChange={(e) => setData('email', e.target.value)} placeholder="name@company.com" required />
+                            <Field label="Email (optional)" icon={Mail} error={errors.email}>
+                                <input type="email" className={input} value={data.email || ''} onChange={(e) => setData('email', e.target.value)} placeholder="name@company.com" />
                             </Field>
-                            <Field label="Phone number" icon={Phone} error={errors.contact} hint="Needed for a complete record">
-                                <input type="tel" inputMode="tel" className={input} value={data.contact || ''} onChange={(e) => setData('contact', e.target.value)} placeholder="012-345 6789" />
+                            <Field label="Phone number *" icon={Phone} error={errors.contact}>
+                                <input type="tel" inputMode="tel" className={input} value={data.contact || ''} onChange={(e) => setData('contact', e.target.value)} placeholder="012-345 6789" required maxLength={20} />
                             </Field>
                             <Field label="Role / position" icon={BriefcaseBusiness} error={errors.role} hint="Needed for a complete record">
                                 <input className={input} value={data.role || ''} onChange={(e) => setData('role', e.target.value)} placeholder="e.g. Supervisor, Welder, Safety Officer" />

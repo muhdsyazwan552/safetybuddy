@@ -3,6 +3,7 @@
 
 namespace App\Http\Controllers\Inspector;
 
+use App\Support\UploadedAssets;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Inspection;
@@ -357,10 +358,34 @@ class DashboardController extends Controller
      * One flow for the day on site: toolbox talk first (can be skipped),
      * then the inspections - or the toolbox talk only.
      */
+    /**
+     * The staff record of the signed-in user. The company admin is not created as an employee, so the first time
+     * the admin records a toolbox talk / inspection a staff record is made for them (role Admin, not an employee seat).
+     */
+    private function currentStaff($user): ?CompanyStaff
+    {
+        $staff = CompanyStaff::where('user_id', $user->id)->first();
+        if ($staff || (int) $user->role_id !== 2 || !$user->company_id) {
+            return $staff;
+        }
+
+        $email = (string) $user->email;
+
+        return \App\Support\SeriesCodes::createEmployee((int) $user->company_id, [
+            'company_id' => $user->company_id,
+            'user_id' => $user->id,
+            'name' => \Illuminate\Support\Str::limit((string) $user->name, 50, ''),
+            'email' => strlen($email) <= 50 ? $email : null,
+            'contact' => \Illuminate\Support\Str::limit((string) ($user->phone ?? ''), 50, ''),
+            'role_id' => 2,
+            'status' => 'active',
+        ]);
+    }
+
     public function createVisit()
     {
         $user = Auth::user();
-        $staff = CompanyStaff::where('user_id', $user->id)->first();
+        $staff = $this->currentStaff($user);
         if (!$staff) {
             return redirect()->back()->with('error', 'Staff record not found');
         }
@@ -386,7 +411,8 @@ class DashboardController extends Controller
     public function storeVisit(Request $request)
     {
         $user = Auth::user();
-        $staff = CompanyStaff::where('user_id', $user->id)->firstOrFail();
+        $staff = $this->currentStaff($user);
+        abort_unless($staff, 404, 'Staff record not found.');
 
         $toolbox = $request->boolean('toolbox');
         $toolboxOnly = $toolbox && $request->boolean('toolbox_only');
@@ -421,8 +447,8 @@ class DashboardController extends Controller
                 'inspections.*.topic_id' => 'required|exists:toolbox_topic,id',
                 'inspections.*.evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
                 'inspections.*.inspection_date' => 'required|date',
-                'inspections.*.location' => 'required|string|max:255',
-                'inspections.*.description' => 'required_unless:inspections.*.evaluation,good|string',
+                'inspections.*.location' => 'required|string|max:50',
+                'inspections.*.description' => 'required_unless:inspections.*.evaluation,good|nullable|string|max:255',
                 'inspections.*.photos' => 'required_unless:inspections.*.evaluation,good|array',
                 'inspections.*.photos.*' => 'image|max:2048',
             ];
@@ -430,6 +456,7 @@ class DashboardController extends Controller
         $request->validate($rules, [
             'attendees.required' => 'Select at least one person for Safety Passport sampling.',
             'attendees.min' => 'Select at least one person for Safety Passport sampling.',
+            'inspections.*.description.required_unless' => 'Notes / observations are required for inspection #:position.',
         ]);
 
         if ((int) $user->role_id === 2) {
@@ -446,7 +473,26 @@ class DashboardController extends Controller
             abort_unless($isAssigned, 403, 'You are not assigned to this project.');
         }
 
-        $result = DB::transaction(function () use ($request, $user, $staff, $toolbox, $toolboxOnly, $conducted) {
+        // an inactive project accepts no new visits (the form hides it, the server must refuse it too)
+        $project = Project::findOrFail($request->project_id);
+        if (strtolower((string) $project->status) === 'inactive') {
+            throw \Illuminate\Validation\ValidationException::withMessages(['project_id' => 'This project is inactive and cannot accept new visits.']);
+        }
+
+        // every inspected contractor must be assigned to this project
+        if (!$toolboxOnly) {
+            $assigned = DB::table('project_assign')->where('entity_type', 'compsub')
+                ->where('project_id', $project->id)->pluck('entity_id')->map(fn ($v) => (int) $v)->all();
+            foreach ($request->input('inspections', []) as $n => $item) {
+                if (!in_array((int) ($item['subcon_company_id'] ?? 0), $assigned, true)) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "inspections.{$n}.subcon_company_id" => 'Inspection #' . ($n + 1) . ': this contractor is not assigned to the selected project.',
+                    ]);
+                }
+            }
+        }
+
+        $result = UploadedAssets::cleanupOnFailure(fn ($upload) => DB::transaction(function () use ($request, $user, $staff, $toolbox, $toolboxOnly, $conducted, $upload) {
             $talk = null;
 
             if ($toolbox) {
@@ -481,8 +527,8 @@ class DashboardController extends Controller
                     'sp_sampled' => $spSampled,
                     'sp_not_registered' => $spNotRegistered,
                     'inspection_date' => date('Y-m-d', strtotime($request->visit_date)),
-                    'img_group' => ($conducted && $request->hasFile('img_group')) ? $request->file('img_group')->store('toolbox-talks/group', 'public') : null,
-                    'img_attendance' => ($conducted && $request->hasFile('img_attendance')) ? $request->file('img_attendance')->store('toolbox-talks/attendance', 'public') : null,
+                    'img_group' => ($conducted && $request->hasFile('img_group')) ? $upload($request->file('img_group'), 'toolbox-talks/group') : null,
+                    'img_attendance' => ($conducted && $request->hasFile('img_attendance')) ? $upload($request->file('img_attendance'), 'toolbox-talks/attendance') : null,
                 ]);
                 if ($conducted) {
                     $talk->categories()->sync($request->categories);
@@ -498,7 +544,7 @@ class DashboardController extends Controller
                 foreach ($request->inspections as $index => $item) {
                     $paths = [];
                     foreach ($request->file("inspections.{$index}.photos", []) as $photo) {
-                        $paths[] = $photo->store('inspections/photos', 'public');
+                        $paths[] = $upload($photo, 'inspections/evidence');
                     }
 
                     $inspection = Inspection::create([
@@ -513,7 +559,7 @@ class DashboardController extends Controller
                         'description' => $item['description'] ?? null,
                         'subcon_company_id' => $item['subcon_company_id'],
                         'inspectee_id' => null,
-                        'photo' => $this->encodePhotoPaths($paths),
+                        'photo' => $paths ? json_encode($paths, JSON_THROW_ON_ERROR) : null,
                     ]);
 
                     // NC / CC cases are opened automatically, same as a stand-alone inspection
@@ -528,7 +574,7 @@ class DashboardController extends Controller
             }
 
             return ['toolbox' => (bool) $talk, 'inspections' => $saved];
-        });
+        }));
 
         return response()->json(['success' => true] + $result);
     }
@@ -569,8 +615,8 @@ class DashboardController extends Controller
                 'inspections.*.topic_id' => 'required|exists:toolbox_topic,id',
                 'inspections.*.evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
                 'inspections.*.inspection_date' => 'required|date',
-                'inspections.*.location' => 'required|string|max:255',
-                'inspections.*.description' => 'required_unless:inspections.*.evaluation,good|string',
+                'inspections.*.location' => 'required|string|max:50',
+                'inspections.*.description' => 'required_unless:inspections.*.evaluation,good|nullable|string|max:255',
                 'inspections.*.photos' => 'required_unless:inspections.*.evaluation,good|array',
                 'inspections.*.photos.*' => 'image|max:2048',
             ]);
@@ -584,7 +630,7 @@ class DashboardController extends Controller
                     $photoPaths = [];
                     if ($request->hasFile("inspections.{$index}.photos")) {
                         foreach ($request->file("inspections.{$index}.photos") as $photo) {
-                            $path = $photo->store('inspections/photos', 'public');
+                            $path = UploadedAssets::store($photo, 'inspections/evidence');
                             $photoPaths[] = $path;
                         }
                     }
@@ -601,7 +647,7 @@ class DashboardController extends Controller
                         'description' => $item['description'] ?? null,
                         'subcon_company_id' => $item['subcon_company_id'],
                         'inspectee_id' => null,
-                        'photo' => $this->encodePhotoPaths($photoPaths),
+                        'photo' => $photoPaths ? json_encode($photoPaths, JSON_THROW_ON_ERROR) : null,
                     ]);
 
                     // Auto-create nonconformance record
@@ -800,34 +846,18 @@ class DashboardController extends Controller
     public function editInspection($id)
     {
         $inspection = Inspection::findOrFail($id);
-        $this->authorizeOwnEdit($inspection);
+        $this->authorizeRecordChange($inspection);
 
-        $user = Auth::user();
-        $staff = CompanyStaff::where('user_id', $user->id)->first();
-
-        $assignedProjectIds = ProjectAssign::where('entity_type', 'staff')
-            ->where('entity_id', $staff->id)
-            ->pluck('project_id');
-
-        $projects = Project::whereIn('id', $assignedProjectIds)->get()->map(function ($project) {
-            $subconCompanyIds = ProjectAssign::where('entity_type', 'compsub')
-                ->where('project_id', $project->id)
-                ->pluck('entity_id')
-                ->unique();
-
-            $project->subcon_companies = SubconCompany::whereIn('id', $subconCompanyIds)
-                ->orderBy('name')
-                ->select('id', 'name', 'status')
-                ->get();
-
-            return $project;
-        });
+        $projects = $this->manageProjects($inspection->project_id);
         $subconCompanies = SubconCompany::where('status', 'active')->get();
         $categories = \App\Models\InspectionCategory::catalogue();
         $evaluations = Inspection::$evaluationOptions;
 
-        return Inertia::render('Inspector/EditInspection', [
-            'inspection' => $inspection->load('topic:id,inspection_category_id,name'),
+        return Inertia::render('Inspector/EditInspection', $this->manageContext('inspection', $inspection->id) + [
+            'inspection' => array_replace(
+                $inspection->load('topic:id,inspection_category_id,name')->toArray(),
+                ['photo' => json_encode(UploadedAssets::photoUrls($inspection->photo))]
+            ),
             'projects' => $projects,
             'subconCompanies' => $subconCompanies,
             'categories' => $categories,
@@ -837,30 +867,12 @@ class DashboardController extends Controller
     }
 
     /**
-     * Encode uploaded photo paths for the `photo` column.
-     * The column is varchar(255) on older databases, so keep as many as fit.
-     */
-    private function encodePhotoPaths(array $paths): ?string
-    {
-        $paths = array_values($paths);
-        while (count($paths) > 0) {
-            $json = json_encode($paths);
-            if (strlen($json) <= 255) {
-                return $json;
-            }
-            array_pop($paths);
-        }
-
-        return null;
-    }
-
-    /**
      * Update inspection
      */
     public function updateInspection(Request $request, $id)
     {
         $inspection = Inspection::findOrFail($id);
-        $this->authorizeOwnEdit($inspection);
+        $this->authorizeRecordChange($inspection);
 
         $existingPhotos = json_decode((string) $inspection->photo, true);
         $existingPhotos = is_array($existingPhotos) ? $existingPhotos : array_filter([$inspection->photo]);
@@ -869,35 +881,61 @@ class DashboardController extends Controller
             'project_id' => 'required|exists:projects,id',
             'subcon_company_id' => 'nullable|exists:subcon_company,id',
             'topic_inspection_id' => 'nullable|exists:toolbox_topic,id',
-            'evaluation' => 'required|in:good,poor,nonconformance,clientcomplaint',
-            'description' => 'required_unless:evaluation,good|string',
+            'evaluation' => ['sometimes', 'required', \Illuminate\Validation\Rule::in([$inspection->evaluation])],
+            'description' => [\Illuminate\Validation\Rule::requiredIf($inspection->evaluation !== 'good'), 'nullable', 'string', 'max:255'],
             'inspection_date' => 'required|date',
-            'location' => 'nullable|string|max:255',
+            'location' => 'nullable|string|max:50',
             'inspectee_id' => 'nullable|exists:subcon_staff,id',
-            'photos' => [\Illuminate\Validation\Rule::requiredIf(fn () => $request->input('evaluation') !== 'good' && count($existingPhotos) === 0), 'array'],
+            'photos' => [\Illuminate\Validation\Rule::requiredIf($inspection->evaluation !== 'good' && count($existingPhotos) === 0), 'array'],
             'photos.*' => 'image|max:2048',
-        ]);
+        ], ['evaluation.in' => 'The evaluation cannot be changed after the inspection is created.']);
 
-        unset($validated['photos']);
+        unset($validated['photos'], $validated['evaluation']);
+
+        $this->assertMayUseProject((int) $validated['project_id'], (int) $inspection->project_id);
+        if (!empty($validated['subcon_company_id'])
+            && (int) $validated['subcon_company_id'] !== (int) $inspection->subcon_company_id) {
+            $onProject = DB::table('project_assign')->where('entity_type', 'compsub')
+                ->where('project_id', $validated['project_id'])->where('entity_id', $validated['subcon_company_id'])->exists();
+            if (!$onProject) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['subcon_company_id' => 'This contractor is not assigned to the selected project.']);
+            }
+        }
 
         // Append any newly uploaded photos to the existing list
         if ($request->hasFile('photos')) {
             $existing = json_decode((string) $inspection->photo, true);
             $existing = is_array($existing) ? $existing : array_filter([$inspection->photo]);
             foreach ($request->file('photos') as $photo) {
-                $existing[] = $photo->store('inspections/photos', 'public');
+                $existing[] = UploadedAssets::store($photo, 'inspections/evidence');
             }
-            $validated['photo'] = $this->encodePhotoPaths(array_values($existing));
+            $validated['photo'] = json_encode(array_values($existing), JSON_THROW_ON_ERROR);
         }
 
-        // a returned inspection goes back into the verification queue once corrected
-        if ($inspection->status === Inspection::STATUS_REJECTED) {
+        // a returned inspection stays returned until the inspector sends the visit back (resubmitVisit);
+        // the admin has no send-back step, so for the admin a correction goes straight back into the queue
+        if ($inspection->status === Inspection::STATUS_REJECTED && $this->isCompanyAdmin()) {
             $validated['status'] = Inspection::STATUS_PENDING;
         }
 
         $inspection->update($validated);
 
-        return redirect()->route('inspector.inspections')->with('success', 'Inspection updated successfully');
+        return redirect($this->afterEditUrl('inspection', $inspection))->with('success', 'Inspection updated successfully');
+    }
+
+    /** The project a record is moved to must be one the user may work on (unchanged projects always pass). */
+    private function assertMayUseProject(int $projectId, int $currentProjectId): void
+    {
+        if ($projectId === $currentProjectId) {
+            return;
+        }
+        if ($this->isCompanyAdmin()) {
+            abort_unless(Project::where('id', $projectId)->where('company_id', Auth::user()->company_id)->exists(), 403, 'This project does not belong to your company.');
+
+            return;
+        }
+        $staff = CompanyStaff::where('user_id', Auth::id())->first();
+        abort_unless($staff && $this->assignedProjectIds($staff)->contains($projectId), 403, 'You are not assigned to this project.');
     }
 
     /**
@@ -906,10 +944,16 @@ class DashboardController extends Controller
     public function destroyInspection($id)
     {
         $inspection = Inspection::findOrFail($id);
-        $this->authorizeOwnEdit($inspection);
-        $inspection->delete();
+        $this->authorizeRecordChange($inspection, deleting: true);
+        $done = $this->manageContext('inspection', $inspection->id)['endpoints']['done'];
+        DB::transaction(function () use ($inspection) {
+            // the NC / CC case opened by this inspection goes with it
+            DB::table('non_conformances')->where('inspection_id', $inspection->id)->delete();
+            DB::table('client_complaints')->where('inspection_id', $inspection->id)->delete();
+            $inspection->delete();
+        });
 
-        return redirect()->route('inspector.inspections')->with('success', 'Inspection deleted successfully');
+        return redirect($done)->with('success', 'Inspection deleted successfully');
     }
 
     // ==================== TOOLBOX TALK METHODS ====================
@@ -1112,11 +1156,11 @@ class DashboardController extends Controller
 
             if ($request->is_conducted == 1) {
                 if ($request->hasFile('img_group')) {
-                    $imgGroupPath = $request->file('img_group')->store('toolbox-talks/group', 'public');
+                    $imgGroupPath = UploadedAssets::store($request->file('img_group'), 'toolbox-talks/group');
                     \Log::info('Group photo saved: ' . $imgGroupPath);
                 }
                 if ($request->hasFile('img_attendance')) {
-                    $imgAttendancePath = $request->file('img_attendance')->store('toolbox-talks/attendance', 'public');
+                    $imgAttendancePath = UploadedAssets::store($request->file('img_attendance'), 'toolbox-talks/attendance');
                     \Log::info('Attendance photo saved: ' . $imgAttendancePath);
                 }
             }
@@ -1185,22 +1229,17 @@ class DashboardController extends Controller
     public function editToolboxTalk($id)
     {
         $toolboxTalk = ToolboxTalks::with('topics')->findOrFail($id);
-        $this->authorizeOwnEdit($toolboxTalk);
+        $this->authorizeRecordChange($toolboxTalk);
 
-        $user = Auth::user();
-        $staff = CompanyStaff::where('user_id', $user->id)->first();
-
-        $assignedProjectIds = ProjectAssign::where('entity_type', 'staff')
-            ->where('entity_id', $staff->id)
-            ->pluck('project_id');
-
-        $projects = Project::whereIn('id', $assignedProjectIds)->where('status', 'active')->get();
-        $topics = ToolboxTopic::all();
+        $projects = $this->manageProjects($toolboxTalk->project_id);
 
         $toolboxTalk->load(['attendees:id', 'categories:id,name']);
 
-        return Inertia::render('Inspector/EditToolboxTalk', [
-            'toolboxTalk' => $toolboxTalk,
+        return Inertia::render('Inspector/EditToolboxTalk', $this->manageContext('talk', $toolboxTalk->id) + [
+            'toolboxTalk' => array_replace($toolboxTalk->toArray(), [
+                'img_group' => UploadedAssets::url($toolboxTalk->img_group),
+                'img_attendance' => UploadedAssets::url($toolboxTalk->img_attendance),
+            ]),
             'attendeeIds' => $toolboxTalk->attendees->pluck('id')->values(),
             'spByCompany' => (object) \App\Support\ToolboxSp::forTalk($toolboxTalk->id),
             'projects' => $projects,
@@ -1216,7 +1255,7 @@ class DashboardController extends Controller
     public function updateToolboxTalk(Request $request, $id)
     {
         $toolboxTalk = ToolboxTalks::findOrFail($id);
-        $this->authorizeOwnEdit($toolboxTalk);
+        $this->authorizeRecordChange($toolboxTalk);
 
         $conducted = (int) $request->input('is_conducted', 1) === 1;
 
@@ -1240,6 +1279,8 @@ class DashboardController extends Controller
             'attendees.required' => 'Select at least one person for Safety Passport sampling.',
             'attendees.min' => 'Select at least one person for Safety Passport sampling.',
         ]);
+
+        $this->assertMayUseProject((int) $validated['project_id'], (int) $toolboxTalk->project_id);
 
         $attendeeIds = !empty($validated['attendees'])
             ? \App\Support\ToolboxAttendees::validIds((int) $validated['project_id'], $validated['attendees'], Auth::user()->company_id)
@@ -1272,15 +1313,16 @@ class DashboardController extends Controller
 
         if ($conducted) {
             if ($request->hasFile('img_group')) {
-                $data['img_group'] = $request->file('img_group')->store('toolbox-talks/group', 'public');
+                $data['img_group'] = UploadedAssets::store($request->file('img_group'), 'toolbox-talks/group');
             }
             if ($request->hasFile('img_attendance')) {
-                $data['img_attendance'] = $request->file('img_attendance')->store('toolbox-talks/attendance', 'public');
+                $data['img_attendance'] = UploadedAssets::store($request->file('img_attendance'), 'toolbox-talks/attendance');
             }
         }
 
-        // a returned talk goes back into the verification queue once corrected
-        if ($toolboxTalk->status === 'rejected') {
+        // a returned talk stays returned until the inspector sends the visit back (resubmitVisit);
+        // the admin has no send-back step, so for the admin a correction goes straight back into the queue
+        if ($toolboxTalk->status === 'rejected' && $this->isCompanyAdmin()) {
             $data['status'] = 'pending_verification';
         }
 
@@ -1291,7 +1333,47 @@ class DashboardController extends Controller
         \App\Support\ToolboxAttendees::sync($toolboxTalk, $attendeeIds);
         \App\Support\ToolboxSp::persist($toolboxTalk, $spPlan);
 
-        return redirect()->route('inspector.toolbox-talks')->with('success', 'Toolbox Talk updated successfully');
+        return redirect($this->afterEditUrl('talk', $toolboxTalk))->with('success', 'Toolbox Talk updated successfully');
+    }
+
+    /** After a save the inspector lands on the visit page (to send it back); the admin on the list. */
+    private function afterEditUrl(string $kind, $record): string
+    {
+        if ($this->isCompanyAdmin()) {
+            return $this->manageContext($kind, $record->id)['endpoints']['done'];
+        }
+        $key = $kind === 'talk'
+            ? 'talk-' . $record->id
+            : ($record->toolbox_talk_id ? 'talk-' . $record->toolbox_talk_id : 'insp-' . $record->id);
+
+        return '/inspector/visits/' . $key;
+    }
+
+    /**
+     * The inspector has finished correcting a returned visit: every returned item of it goes
+     * back into the verification queue.
+     */
+    public function resubmitVisit(string $key)
+    {
+        $staff = CompanyStaff::where('user_id', Auth::id())->firstOrFail();
+
+        if (str_starts_with($key, 'talk-')) {
+            $talk = ToolboxTalks::findOrFail((int) substr($key, 5));
+            $items = Inspection::where('toolbox_talk_id', $talk->id)->get()->push($talk);
+        } else {
+            $items = collect([Inspection::findOrFail((int) substr($key, 5))]);
+        }
+
+        // only what the inspector recorded themself and that is currently returned
+        $mine = $items->filter(fn ($r) => (int) $r->inspection_by === (int) $staff->id && ($r->status === 'rejected'));
+        abort_if($mine->isEmpty(), 422, 'Nothing in this visit is waiting to be sent back.');
+
+        foreach ($mine as $record) {
+            abort_unless(Project::where('id', $record->project_id)->where('company_id', Auth::user()->company_id)->exists(), 403);
+            $record->update(['status' => Inspection::STATUS_PENDING, 'review_comment' => null]);
+        }
+
+        return redirect('/inspector/visits/' . $key)->with('success', 'Sent back to the reviewer for verification.');
     }
 
     /**
@@ -1300,11 +1382,20 @@ class DashboardController extends Controller
     public function destroyToolboxTalk($id)
     {
         $toolboxTalk = ToolboxTalks::findOrFail($id);
-        $this->authorizeOwnEdit($toolboxTalk);
-        $toolboxTalk->topics()->detach();
-        $toolboxTalk->delete();
+        $this->authorizeRecordChange($toolboxTalk, deleting: true);
+        $done = $this->manageContext('talk', $toolboxTalk->id)['endpoints']['done'];
 
-        return redirect()->route('inspector.toolbox-talks')->with('success', 'Toolbox Talk deleted successfully');
+        DB::transaction(function () use ($toolboxTalk) {
+            $toolboxTalk->topics()->detach();
+            $toolboxTalk->categories()->detach();
+            $toolboxTalk->attendees()->detach();
+            DB::table('toolbox_talk_sp')->where('toolbox_talk_id', $toolboxTalk->id)->delete();
+            // inspections of the same visit stay, as stand-alone inspections
+            Inspection::where('toolbox_talk_id', $toolboxTalk->id)->update(['toolbox_talk_id' => null]);
+            $toolboxTalk->delete();
+        });
+
+        return redirect($done)->with('success', 'Toolbox Talk deleted successfully');
     }
 
     // ==================== PROJECT METHODS ====================
@@ -1330,11 +1421,67 @@ class DashboardController extends Controller
      * An inspector may change only their own inspections / toolbox talks, and only
      * while they are still waiting for verification or were returned to them.
      */
-    private function authorizeOwnEdit($record): void
+    private function authorizeRecordChange($record, bool $deleting = false): void
     {
+        if ($this->isCompanyAdmin()) {
+            // Company admins may manage records belonging to their own company.
+            $projectId = $record->project_id ?? null;
+            abort_unless(
+                $projectId && Project::where('id', $projectId)->where('company_id', Auth::user()->company_id)->exists(),
+                403,
+                'This record does not belong to your company.'
+            );
+            abort_if(!$deleting && $record->status === Inspection::STATUS_APPROVED, 403, 'Approved records cannot be edited.');
+
+            return;
+        }
+
         $staff = CompanyStaff::where('user_id', Auth::id())->first();
         abort_unless($staff && (int) $record->inspection_by === (int) $staff->id, 403, 'You can only edit your own records.');
         abort_unless($this->stillEditable($record), 403, 'This record is already verified or approved and can no longer be changed.');
+    }
+
+    private function isCompanyAdmin(): bool
+    {
+        return (int) Auth::user()->role_id === 2;
+    }
+
+    /** Where the edit / delete pages send the user afterwards, and the endpoints they post to. */
+    private function manageContext(string $kind, $id): array
+    {
+        if ($this->isCompanyAdmin()) {
+            $base = $kind === 'talk' ? '/site-visits/toolbox-talks/' : '/site-visits/inspections/';
+
+            return ['portal' => 'admin', 'endpoints' => ['update' => $base . $id, 'done' => '/inspection']];
+        }
+        $base = $kind === 'talk' ? '/inspector/toolbox-talks/' : '/inspector/inspections/';
+
+        return ['portal' => 'inspector', 'endpoints' => ['update' => $base . $id, 'done' => $kind === 'talk' ? '/inspector/toolbox-talks' : '/inspector/inspections']];
+    }
+
+    /** Projects the user may move a record to: every project of the company for the admin, else the assigned ones. */
+    private function manageProjects($currentProjectId = null)
+    {
+        $user = Auth::user();
+        if ($this->isCompanyAdmin()) {
+            $list = $this->visitProjects(null, true, $user->company_id);
+        } else {
+            $staff = CompanyStaff::where('user_id', $user->id)->first();
+            $list = $this->visitProjects($staff);
+        }
+
+        // the project the record is on now stays selectable even if it has since been made inactive
+        if ($currentProjectId && !$list->contains('id', (int) $currentProjectId)) {
+            $current = Project::find($currentProjectId);
+            if ($current) {
+                $current->subcon_companies = SubconCompany::whereIn('id', DB::table('project_assign')
+                    ->where('entity_type', 'compsub')->where('project_id', $current->id)->pluck('entity_id'))
+                    ->orderBy('name')->select('id', 'name', 'status')->get();
+                $list->push($current);
+            }
+        }
+
+        return $list;
     }
 
     private function stillEditable($record): bool

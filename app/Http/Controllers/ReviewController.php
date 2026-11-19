@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UploadedAssets;
 use App\Models\CompanyStaff;
 use App\Models\Inspection;
 use App\Support\CaseFeed;
@@ -60,13 +61,8 @@ class ReviewController extends Controller
             ? $incidents->filter(fn ($i) => strtolower((string) ($i->status ?: 'open')) === 'open')->count()
             : $incidents->filter(fn ($i) => in_array(strtolower((string) ($i->status ?: 'open')), ['open', 'inprogress'], true))->count();
 
-        $monthly = \App\Models\MonthlyReport::where('company_id', $companyId)->get();
-        $reportCount = $monthly->whereIn('status', ['pending_verification', 'rejected'])->where('inspections_approved', '>', 0)->count();
-        if ($isManager) {
-            $reportCount += $monthly->where('status', 'verified')->count();
-            $reportCount += \App\Models\InspectionReport::where('company_id', $companyId)->where('status', 'approved')
-                ->where('penalty_status', 'pending_review')->where('penalty_total', '>', 0)->count();
-        }
+        // reports complete themselves: the number shows how many daily + monthly reports are not complete yet
+        $reportCount = $this->notCompleteReports();
 
         $staffCount = \App\Models\SubconStaff::where('status', 'pending')->where('is_safetypassport', true)
             ->whereNull($isManager ? 'manager_approved_at' : 'supervisor_approved_at')
@@ -81,12 +77,75 @@ class ReviewController extends Controller
         ];
     }
 
-    public function dashboard()
+    /** Daily + monthly reports that are not complete yet (not every section approved). */
+    private function notCompleteReports(): int
+    {
+        // bring the reports up to date (at most once a minute), so the number is right without opening the reports page
+        $this->refreshReportsThrottled($this->companyId(), true);
+
+        $notComplete = fn ($q) => $q->where('company_id', $this->companyId())
+            ->where(fn ($w) => $w->whereNull('status')->orWhere('status', '!=', 'approved'));
+
+        return $notComplete(\App\Models\InspectionReport::query())->count()
+            + $notComplete(\App\Models\MonthlyReport::query())->count();
+    }
+
+    /** Performance cards of one month: only that month's complete daily reports are read, and only the columns needed. */
+    private function performanceFor($companyId, string $month, string $currentPeriod): array
+    {
+        $start = \Carbon\Carbon::parse($month . '-01')->startOfMonth();
+
+        $reports = \App\Models\InspectionReport::where('company_id', $companyId)->where('status', 'approved')
+            ->whereBetween('report_date', [$start->toDateString(), $start->copy()->endOfMonth()->toDateString()])
+            ->get(['spgpnc', 'rank', 'penalty_total']);
+        $scored = $reports->whereNotNull('spgpnc');
+
+        return [
+            'period' => $month,
+            'current_period' => $currentPeriod,
+            'reports' => $reports->count(),
+            'avg' => $scored->count() ? round($scored->avg('spgpnc'), 2) : null,
+            'ranks' => [
+                'GOLD' => $scored->where('rank', 'GOLD')->count(),
+                'SILVER' => $scored->where('rank', 'SILVER')->count(),
+                'BRONZE' => $scored->where('rank', 'BRONZE')->count(),
+            ],
+            'penalty' => (float) $reports->sum('penalty_total'),
+        ];
+    }
+
+    /**
+     * Refresh the generated reports at most once a minute per company. The dashboard and the menu badges use this;
+     * the reports page itself still refreshes every time it is opened.
+     */
+    private function refreshReportsThrottled($companyId, bool $monthly): void
+    {
+        $key = 'reports-refresh:' . ($monthly ? 'm' : 'd') . ':' . $companyId;
+        if (\Illuminate\Support\Facades\Cache::add($key, 1, 60)) {
+            $monthly ? \App\Support\ReportBuilder::refreshMonthly($companyId) : \App\Support\ReportBuilder::refreshDaily($companyId);
+        }
+    }
+
+    public function dashboard(Request $request)
     {
         $companyId = $this->companyId();
         $flags = $this->roleFlags();
 
-        \App\Support\ReportBuilder::refreshDaily($companyId);
+        $currentPeriod = now('Asia/Kuala_Lumpur')->format('Y-m');
+        $year = substr($currentPeriod, 0, 4);
+        $requestedMonth = $request->query('month');
+        $month = is_string($requestedMonth) && preg_match("/^{$year}-(0[1-9]|1[0-2])$/D", $requestedMonth)
+            ? $requestedMonth
+            : $currentPeriod;
+
+        // The month filter only asks for the performance cards (Inertia partial reload). Answer just that:
+        // everything else below (visits, cases, incidents, report refresh) does not depend on the month and is heavy.
+        if ($request->header('X-Inertia-Partial-Data') === 'performance') {
+            return Inertia::render('Review/Dashboard', ['performance' => $this->performanceFor($companyId, $month, $currentPeriod)]);
+        }
+
+        // keep the daily reports up to date, at most once a minute per company (the reports page always refreshes)
+        $this->refreshReportsThrottled($companyId, false);
 
         // site visits waiting for a decision
         $visits = \App\Support\VisitFeed::collect($companyId);
@@ -103,18 +162,6 @@ class ReviewController extends Controller
         $incOpen = $incidents->filter(fn ($i) => in_array(strtolower((string) ($i->status ?: 'open')), ['open', 'inprogress'], true));
         $incNew = $incidents->filter(fn ($i) => strtolower((string) ($i->status ?: 'open')) === 'open');
 
-        // reports
-        $monthly = \App\Models\MonthlyReport::where('company_id', $companyId)->get();
-        $dailyAll = \App\Models\InspectionReport::where('company_id', $companyId)->get();
-        $penaltyPending = $dailyAll->where('status', 'approved')->where('penalty_status', 'pending_review')->where('penalty_total', '>', 0);
-
-        // this month's performance (approved daily reports)
-        $month = now()->format('Y-m');
-        $thisMonth = $dailyAll->filter(fn ($d) => $d->status === 'approved' && $d->report_date->format('Y-m') === $month);
-        $scored = $thisMonth->whereNotNull('spgpnc');
-
-        $names = \App\Models\Project::where('company_id', $companyId)->pluck('name', 'id');
-
         $visitRow = fn ($v) => [
             'key' => $v['key'], 'date' => $v['date'], 'project' => $v['project'], 'by' => $v['by'],
             'status' => $v['status'], 'inspections' => count($v['inspections']),
@@ -129,9 +176,6 @@ class ReviewController extends Controller
                 'cases_waiting' => $caseWaiting->count(),
                 'incidents_open' => $incOpen->count(),
                 'incidents_new' => $incNew->count(),
-                'monthly_verify' => $monthly->whereIn('status', ['pending_verification', 'rejected'])->where('inspections_approved', '>', 0)->count(),
-                'monthly_approve' => $monthly->where('status', 'verified')->count(),
-                'penalties_pending' => $penaltyPending->count(),
                 // contractor (subcontractor) staff registered with a Safety Passport, waiting for this person's approval
                 'staff_pending' => \App\Models\SubconStaff::where('status', 'pending')->where('is_safetypassport', true)
                     ->whereNull($flags['is_manager'] ? 'manager_approved_at' : 'supervisor_approved_at')
@@ -140,18 +184,7 @@ class ReviewController extends Controller
             'queue' => ($flags['is_manager'] ? $toApprove->concat($toVerify) : $toVerify)->sortBy('sort')->take(5)->map($visitRow)->values(),
             'cases' => $caseReview->concat($caseWaiting)->take(4)->values(),
             'incidents' => $incOpen->take(4)->map(fn ($i) => $this->incidentRow($i))->values(),
-            'performance' => [
-                'period' => $month,
-                'reports' => $thisMonth->count(),
-                'avg' => $scored->count() ? round($scored->avg('spgpnc'), 2) : null,
-                'ranks' => [
-                    'GOLD' => $scored->where('rank', 'GOLD')->count(),
-                    'SILVER' => $scored->where('rank', 'SILVER')->count(),
-                    'BRONZE' => $scored->where('rank', 'BRONZE')->count(),
-                ],
-                'penalty' => (float) $thisMonth->sum('penalty_total'),
-                'pending_penalty' => (float) $penaltyPending->sum('penalty_total'),
-            ],
+            'performance' => $this->performanceFor($companyId, $month, $currentPeriod),
             'today' => [
                 'visits' => $visits->where('date', now()->toDateString())->count(),
                 'incidents' => $incidents->filter(fn ($i) => optional($i->incident_date)->toDateString() === now()->toDateString())->count(),
@@ -583,7 +616,7 @@ class ReviewController extends Controller
                 'underlying_cause' => $i->underlying_cause,
                 'immediate_action' => $i->immediate_action,
                 'corrective' => $i->corrective,
-                'attachment' => $i->attachment_upload ? \Illuminate\Support\Facades\Storage::url($i->attachment_upload) : null,
+                'attachment' => $i->attachment_upload ? UploadedAssets::url($i->attachment_upload) : null,
                 'involved' => $i->involvedStaff->map(fn ($x) => ['id' => $x->id, 'name' => $x->name, 'role' => $x->role])->values(),
                 'reviewed_by' => optional($i->reviewedBy)->name,
                 'responses' => $i->responses->map(fn ($r) => [

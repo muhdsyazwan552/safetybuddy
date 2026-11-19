@@ -80,7 +80,7 @@ class CaseFeed
                 'inspection_date' => optional($i?->inspection_date)->format('Y-m-d'),
                 'inspector' => $i?->inspector?->name,
                 'approval' => $i?->status ?: \App\Models\Inspection::STATUS_PENDING, // review stage of the inspection itself
-                'photos' => array_values($photos),
+                'photos' => array_map(UploadedAssets::url(...), array_values($photos)),
             ],
         ];
     }

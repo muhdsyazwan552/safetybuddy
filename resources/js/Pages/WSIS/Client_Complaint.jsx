@@ -277,7 +277,7 @@ const ClientComplaint = ({ title, auth, clientComplaints = [] }) => {
                 </button>
               </div>
 
-              {viewingComplaint.status === 'closed' && <div className="mb-4 flex justify-end"><PdfButton href={`/pdf/case/cc/${viewingComplaint.id}`} /></div>}
+              <div className="mb-4 flex justify-end"><PdfButton href={`/pdf/case/cc/${viewingComplaint.id}`} /></div>
               <ReviewProgress kind="case" record={viewingComplaint} className="mb-4" />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm mb-4">

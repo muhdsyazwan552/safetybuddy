@@ -21,7 +21,12 @@ function EvalText({ value }) {
     return <span className={`text-base font-extrabold uppercase tracking-wide ${textColor(ev?.badge)}`}>{ev?.label || value || '-'}</span>;
 }
 
-export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspectionHref, toolboxHref, children }) {
+// buttons of one card (edit / fix / delete); nothing is drawn when the card has none
+const actionsRow = (buttons, extra = '') => (buttons
+    ? <div className={`${extra} flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-4`}>{buttons}</div>
+    : null);
+
+export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspectionHref, toolboxHref, talkActions, inspectionActions, children }) {
     const t = visit.talk;
 
     return (
@@ -47,7 +52,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
 
             <ReviewProgress kind="visit" status={visit.status} />
 
-            {visit.status === 'approved' && /^(talk|insp)-[0-9]+$/.test(visit.key) && (
+            {/^(talk|insp)-[0-9]+$/.test(visit.key) && (
                 <div className="flex justify-end"><PdfButton href={`/pdf/visit/${visit.key}`} label="Full toolbox talk & inspection PDF" /></div>
             )}
 
@@ -61,7 +66,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                     <div className="space-y-5">
                         <div className="flex items-start justify-between gap-3">
                             <SeriesCode code={t.series_code} className="text-xs" />
-                            {t.status === 'approved' && t.id && <PdfButton href={`/pdf/toolbox/${t.id}`} />}
+                            {t.id && <PdfButton href={`/pdf/toolbox/${t.id}`} />}
                         </div>
 
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -116,6 +121,8 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                                 </Link>
                             </div>
                         )}
+
+                        {t.id && actionsRow(talkActions?.(t))}
                     </div>
                 )}
             </SectionCard>
@@ -133,7 +140,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                                         <SeriesCode code={i.series_code} className="block" />
                                         <p className="text-[15px] font-bold text-gray-900">{i.topic || '-'}</p>
                                     </div>
-                                    {i.status === 'approved' && <PdfButton href={`/pdf/inspection/${i.id}`} className="shrink-0" />}
+                                    <PdfButton href={`/pdf/inspection/${i.id}`} className="shrink-0" />
                                 </div>
                                 <div className="mt-4 grid grid-cols-2 gap-4">
                                     <InfoRow label="Location">{i.location || '-'}</InfoRow>
@@ -167,6 +174,8 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                                         </Link>
                                     </div>
                                 )}
+
+                                {actionsRow(inspectionActions?.(i), 'mt-4')}
                             </div>
                         ))}
                     </div>

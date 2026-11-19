@@ -122,7 +122,7 @@ class PerformanceController extends Controller
             'project_id' => $r->project_id,
             'project' => $projects[$r->project_id] ?? '-',
             'subcon' => $subcons[$r->subcon_company_id] ?? '-',
-            'status' => $r->status,
+            'status' => $r->status === 'approved' ? 'approved' : 'pending_verification', // complete / not complete
             'sampled' => $r->sp_sampled, 'not_registered' => $r->sp_not_registered, 'compliant' => $calc['compliant'],
             'good' => $r->good, 'poor' => $r->poor, 'nc' => $r->nc, 'cc' => $r->cc, 'total' => $r->total,
             'sp' => $r->sp_score, 'g' => $r->g_score, 'p' => $r->p_score, 'n' => $r->n_score, 'c' => $r->c_score,
@@ -141,11 +141,78 @@ class PerformanceController extends Controller
                 ->whereDate('inspection_date', $r->report_date)->pluck('id');
             $openNc = NoConformance::whereIn('inspection_id', $ids)->where('status', 'open')->count();
             $row['open_nc'] = $openNc;
+            $row['blockers'] = $this->dailyBlockers($r);
+            $row['items'] = $this->dailyItems($r);
+            $row['sp_sources'] = $this->dailySpSources($r);
             $row['follow_up'] = $this->followUp($row, $openNc, $settings);
-            $row['reviewed_by'] = $r->penalty_reviewed_by ? CompanyStaff::where('id', $r->penalty_reviewed_by)->value('name') : null;
         }
 
         return $row;
+    }
+
+    /**
+     * Where the Safety Passport numbers come from: the sampling that was recorded in each toolbox talk of the day
+     * for this contractor (workers ticked present = sampled, workers typed as not registered).
+     */
+    private function dailySpSources(InspectionReport $r): array
+    {
+        $date = $r->report_date->format('Y-m-d');
+
+        return DB::table('toolbox_talk_sp as sp')
+            ->join('toolbox_talks as t', 't.id', '=', 'sp.toolbox_talk_id')
+            ->where('t.project_id', $r->project_id)->whereDate('t.inspection_date', $date)
+            ->where('sp.subcon_company_id', $r->subcon_company_id)
+            ->orderBy('t.id')
+            ->get(['t.id', 't.code', 'sp.sampled', 'sp.not_registered'])
+            ->map(fn ($x) => [
+                'talk_id' => (int) $x->id, 'code' => $x->code ?: 'TBX-' . $x->id,
+                'sampled' => (int) $x->sampled, 'not_registered' => (int) $x->not_registered,
+            ])->all();
+    }
+
+    /** The toolbox talks and inspections this daily report is made of, so each can be opened. */
+    private function dailyItems(InspectionReport $r): array
+    {
+        $date = $r->report_date->format('Y-m-d');
+        $norm = fn ($s) => $s ?: 'pending_verification';
+
+        $inspections = \App\Models\Inspection::with('topic:id,name')
+            ->where('project_id', $r->project_id)->where('subcon_company_id', $r->subcon_company_id)
+            ->whereDate('inspection_date', $date)->orderBy('id')->get()
+            ->map(fn ($i) => [
+                'id' => $i->id, 'code' => $i->code ?: 'INS-' . $i->id, 'topic' => optional($i->topic)->name,
+                'evaluation' => $i->evaluation, 'status' => $norm($i->status),
+            ]);
+
+        // toolbox talks are recorded per project and day, so they count for every contractor of the project
+        $talks = \App\Models\ToolboxTalks::where('project_id', $r->project_id)->whereDate('inspection_date', $date)->orderBy('id')->get()
+            ->map(fn ($t) => [
+                'id' => $t->id, 'code' => $t->code ?: 'TBX-' . $t->id, 'conducted' => $t->conducted === 'yes',
+                'attended' => (int) $t->total_attended, 'status' => $norm($t->status),
+            ]);
+
+        return [
+            'inspections' => $inspections->values(),
+            'talks' => $talks->values(),
+            // inspections with an evaluation that the score does not count (older records), so the totals can be explained
+            'not_scored' => $inspections->filter(fn ($i) => !in_array($i['evaluation'], ['good', 'poor', 'nonconformance', 'clientcomplaint'], true))->count(),
+        ];
+    }
+
+    /** Why a daily report is not complete yet: what is still waiting for approval. */
+    private function dailyBlockers(InspectionReport $r): array
+    {
+        $date = $r->report_date->format('Y-m-d');
+        $pending = DB::table('inspections')->where('project_id', $r->project_id)->where('subcon_company_id', $r->subcon_company_id)
+            ->whereDate('inspection_date', $date)->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'approved'))->count();
+        $talks = DB::table('toolbox_talks')->where('project_id', $r->project_id)->whereDate('inspection_date', $date)
+            ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'approved'))->count();
+
+        $out = [];
+        if ($pending > 0) $out[] = $pending . ' inspection(s) not approved yet.';
+        if ($talks > 0) $out[] = $talks . ' toolbox talk(s) not approved yet.';
+
+        return $out;
     }
 
     private function followUp(array $r, int $openNc, array $s): array
@@ -174,7 +241,7 @@ class PerformanceController extends Controller
             'project_id' => $m->project_id,
             'project' => $projects[$m->project_id] ?? '-',
             'subcon' => $subcons[$m->subcon_company_id] ?? '-',
-            'status' => $m->status,
+            'status' => $m->status === 'approved' ? 'approved' : 'pending_verification', // complete / not complete
             'inspections_total' => $m->inspections_total, 'inspections_approved' => $m->inspections_approved,
             'sp_assessed' => $m->sp_assessed, 'sp_observations' => $m->sp_observations, 'sp_compliant' => $m->sp_compliant,
             'good' => $m->good, 'poor' => $m->poor, 'nc' => $m->nc, 'cc' => $m->cc, 'total' => $m->total,
@@ -191,17 +258,19 @@ class PerformanceController extends Controller
         ];
 
         if ($full) {
-            $row['verified_by'] = $m->verified_by ? CompanyStaff::where('id', $m->verified_by)->value('name') : null;
-            $row['approved_by'] = $m->approved_by ? CompanyStaff::where('id', $m->approved_by)->value('name') : null;
-            $row['verified_at'] = optional($m->verified_at)->format('Y-m-d H:i');
-            $row['approved_at'] = optional($m->approved_at)->format('Y-m-d H:i');
+            $row['completed_at'] = $m->status === 'approved' ? optional($m->approved_at)->format('Y-m-d H:i') : null;
             $row['days'] = InspectionReport::where('project_id', $m->project_id)->where('subcon_company_id', $m->subcon_company_id)
                 ->where('report_date', 'like', $m->period . '%')->orderBy('report_date')
                 ->get(['id', 'report_date', 'status', 'spgpnc', 'rank', 'penalty_total'])
                 ->map(fn ($d) => [
-                    'id' => $d->id, 'date' => $d->report_date->format('Y-m-d'), 'status' => $d->status,
+                    'id' => $d->id, 'date' => $d->report_date->format('Y-m-d'), 'status' => $d->status === 'approved' ? 'approved' : 'pending_verification',
                     'spgpnc' => $d->spgpnc, 'rank' => $d->rank, 'penalty' => (float) $d->penalty_total,
                 ]);
+            $notComplete = $row['days']->filter(fn ($d) => $d['status'] !== 'approved')->count();
+            $row['blockers'] = array_values(array_filter([
+                $notComplete > 0 ? $notComplete . ' daily report(s) of this month are not complete yet.' : null,
+                $row['days']->count() > 0 && !$row['coverage_ok'] && $notComplete === 0 ? 'Safety Passport sampling is missing on some days.' : null,
+            ]));
         }
 
         return $row;
@@ -264,10 +333,31 @@ class PerformanceController extends Controller
         ]);
     }
 
+    /**
+     * Recalculate one daily report from the records of its day, so the figures always match the toolbox talks
+     * and inspections listed in it (also after something was added, changed or removed later).
+     */
+    public function freshDaily(int $id): InspectionReport
+    {
+        $r = InspectionReport::where('company_id', $this->companyId())->findOrFail($id);
+        ReportBuilder::refreshDaily($this->companyId(), $r->subcon_company_id, $r->project_id, $r->report_date->format('Y-m-d'));
+
+        // when every inspection of the day was removed the report is gone
+        return InspectionReport::where('company_id', $this->companyId())->findOrFail($id);
+    }
+
+    public function freshMonthly(int $id): MonthlyReport
+    {
+        MonthlyReport::where('company_id', $this->companyId())->findOrFail($id);
+        ReportBuilder::refreshMonthly($this->companyId());
+
+        return MonthlyReport::where('company_id', $this->companyId())->findOrFail($id);
+    }
+
     public function dailyShow(Request $request, int $id)
     {
         $portal = $this->portal($request);
-        $r = InspectionReport::where('company_id', $this->companyId())->findOrFail($id);
+        $r = $this->freshDaily($id);
         [$projects, $subcons] = $this->names(collect([$r]));
 
         return Inertia::render('Reports/DailyShow', [
@@ -280,7 +370,7 @@ class PerformanceController extends Controller
     public function monthlyShow(Request $request, int $id)
     {
         $portal = $this->portal($request);
-        $m = MonthlyReport::where('company_id', $this->companyId())->findOrFail($id);
+        $m = $this->freshMonthly($id);
         [$projects, $subcons] = $this->names(collect([$m]));
 
         return Inertia::render('Reports/MonthlyShow', [
@@ -333,59 +423,6 @@ class PerformanceController extends Controller
         return CompanyStaff::where('user_id', Auth::id())->value('id');
     }
 
-    /** Manager confirms or waives the calculated penalty of an approved daily report. */
-    public function penaltyReview(Request $request, int $id)
-    {
-        abort_unless((int) Auth::user()->role_id === 3, 403, 'Only a Manager can review penalties.');
-        $data = $request->validate(['decision' => 'required|in:confirmed,waived']);
-
-        $r = InspectionReport::where('company_id', $this->companyId())->findOrFail($id);
-        abort_unless($r->status === 'approved', 422, 'The inspection report must be approved first.');
-
-        $r->update([
-            'penalty_status' => $data['decision'],
-            'penalty_reviewed_by' => $this->staffId(),
-            'penalty_reviewed_at' => now(),
-        ]);
-
-        return back()->with('success', 'Penalty ' . $data['decision'] . '.');
-    }
-
-    private function monthly(int $id): MonthlyReport
-    {
-        return MonthlyReport::where('company_id', $this->companyId())->findOrFail($id);
-    }
-
-    public function monthlyVerify(int $id)
-    {
-        $m = $this->monthly($id);
-        abort_unless(in_array($m->status, ['pending_verification', 'rejected'], true), 422, 'This report is not waiting for verification.');
-        abort_unless($m->inspections_approved > 0, 422, 'There are no approved inspections in this month yet.');
-
-        $m->update(['status' => 'verified', 'verified_by' => $this->staffId(), 'verified_at' => now(), 'review_comment' => null]);
-
-        return back()->with('success', 'Monthly report verified.');
-    }
-
-    public function monthlyApprove(int $id)
-    {
-        abort_unless((int) Auth::user()->role_id === 3, 403, 'Only a Manager can approve.');
-        $m = $this->monthly($id);
-        abort_unless($m->status === 'verified', 422, 'The report must be verified first.');
-
-        $m->update(['status' => 'approved', 'approved_by' => $this->staffId(), 'approved_at' => now()]);
-
-        return back()->with('success', 'Monthly report approved.');
-    }
-
-    public function monthlyReject(Request $request, int $id)
-    {
-        $data = $request->validate(['comment' => 'required|string|max:1000']);
-        $m = $this->monthly($id);
-        abort_unless(in_array($m->status, ['pending_verification', 'verified'], true), 422);
-
-        $m->update(['status' => 'rejected', 'review_comment' => $data['comment'], 'verified_by' => null, 'verified_at' => null]);
-
-        return back()->with('success', 'Monthly report returned.');
-    }
+    // Daily and monthly reports are no longer approved by hand: ReportBuilder marks a report complete
+    // (approved) by itself once every section is complete and approved, and not complete otherwise.
 }

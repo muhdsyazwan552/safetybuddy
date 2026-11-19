@@ -1,5 +1,5 @@
 import React from 'react';
-import { Head, Link, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     ClipboardCheck, AlertTriangle, Siren, Users, BarChart3, BadgeCheck, Wallet, ChevronRight, CheckCircle2, Sun, CalendarDays, ArrowUpRight,
 } from 'lucide-react';
@@ -8,6 +8,7 @@ import { StatusBadge } from '@/Components/inspector/kit';
 import { incidentTone } from './Incidents';
 
 const rm = (v) => `RM${Number(v || 0).toLocaleString('en-MY', { maximumFractionDigits: 2 })}`;
+const monthLabel = (period) => new Date(`${period}-01T00:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 const greeting = () => {
     const h = new Date().getHours();
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
@@ -44,11 +45,12 @@ function ActionTile({ icon: Icon, label, hint, value, href, tone }) {
     );
 }
 
-function Section({ title, href, linkLabel = 'See all', children }) {
+function Section({ title, href, linkLabel = 'See all', action = null, children }) {
     return (
         <section className="min-w-0 space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
                 <h2 className="text-sm font-extrabold uppercase tracking-wider text-gray-700">{title}</h2>
+                {action}
                 {href && <Link href={href} className="inline-flex items-center gap-1 text-xs font-bold text-brand-700">{linkLabel} <ArrowUpRight className="h-3.5 w-3.5" /></Link>}
             </div>
             {children}
@@ -67,10 +69,16 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
     const first = (user?.name || '').split(' ')[0];
     const need =
         counts.visits_verify + (is_manager ? counts.visits_approve : 0) + counts.cases_review + counts.incidents_new
-        + counts.monthly_verify + counts.staff_pending + (is_manager ? counts.monthly_approve + counts.penalties_pending : 0);
+        + counts.staff_pending;
 
     const rankTone = { GOLD: 'bg-amber-500', SILVER: 'bg-slate-400', BRONZE: 'bg-orange-600' };
-    const month = new Date(`${performance.period}-01T00:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    const month = monthLabel(performance.period);
+    const year = performance.current_period.slice(0, 4);
+    const months = Array.from({ length: 12 }, (_, i) => `${year}-${String(i + 1).padStart(2, '0')}`);
+    const goMonth = (value) => {
+        if (!months.includes(value) || value === performance.period) return;
+        router.get('/review/dashboard', value === performance.current_period ? {} : { month: value }, { preserveScroll: true, preserveState: true, only: ['performance'] });
+    };
 
     return (
         <ReviewLayout title="Home">
@@ -109,24 +117,33 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
                         <ActionTile icon={Users} tone="emerald" value={counts.staff_pending} label={is_manager ? 'Contractor staff to approve' : 'Contractor staff to verify'} hint="Pending Safety Passport registrations" href="/review/staff-approval" />
                         <ActionTile icon={AlertTriangle} tone="violet" value={counts.cases_review} label="NC / CC replies to review" hint={`${counts.cases_waiting} waiting for the subcontractor`} href="/review/cases?state=responded" />
                         {!is_manager && <ActionTile icon={Siren} tone="rose" value={counts.incidents_open} label="Incidents awaiting approval" hint={counts.incidents_new ? `${counts.incidents_new} awaiting review` : 'All reviewed; awaiting approval'} href="/review/incidents" />}
-                        <ActionTile icon={BarChart3} tone="sky" value={is_manager ? counts.monthly_approve : counts.monthly_verify} label={is_manager ? 'Monthly reports to approve' : 'Monthly reports to verify'} hint={is_manager ? `${counts.monthly_verify} more waiting for verification` : 'Pooled from approved inspections'} href="/review/reports?tab=monthly" />
-                        {is_manager && <ActionTile icon={Wallet} tone="amber" value={counts.penalties_pending} label="Penalties to review" hint={`${rm(performance.pending_penalty)} not yet confirmed`} href="/review/reports?tab=daily&status=approved" />}
                     </div>
                 </Section>
 
                 {/* performance */}
-                <Section title={`Performance • ${month}`} href="/review/reports" linkLabel="Open reports">
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                <Section
+                    title={`Performance • ${month}`}
+                    href="/review/reports"
+                    linkLabel="Open reports"
+                    action={(
+                        <div className="order-last w-full min-w-0 rounded-xl border border-gray-200 bg-white p-1 shadow-sm md:order-none md:ml-auto md:w-auto">
+                            <select value={performance.period} onChange={(e) => goMonth(e.target.value)} aria-label="Month" className="h-11 w-full min-w-0 cursor-pointer rounded-lg border-0 bg-transparent py-0 pl-3 pr-9 text-center text-sm font-bold text-gray-800 [text-align-last:center] focus:ring-2 focus:ring-brand-500 md:h-8 md:w-48">
+                                {months.map((period) => <option key={period} value={period}>{monthLabel(period)}</option>)}
+                            </select>
+                        </div>
+                    )}
+                >
+                    <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 md:grid-cols-3">
+                        <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:p-5">
                             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Average SPGPNC</p>
                             <p className="mt-1 text-3xl font-extrabold text-ink-900 sm:text-4xl">{performance.avg !== null ? `${performance.avg.toFixed(2)}%` : '-'}</p>
-                            <p className="mt-1 text-xs text-gray-500">{performance.reports} approved daily report(s) this month</p>
+                            <p className="mt-1 text-xs text-gray-500">{performance.reports} complete daily report(s) in {month}</p>
                         </div>
-                        <div className="order-last col-span-2 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:order-none sm:col-span-1 sm:p-5">
+                        <div className="order-last min-w-0 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm min-[360px]:col-span-2 sm:p-5 md:order-none md:col-span-1">
                             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">BSPR ranks</p>
-                            <div className="mt-3 flex gap-2">
+                            <div className="mt-3 grid grid-cols-3 gap-1.5 sm:gap-2">
                                 {Object.entries(performance.ranks).map(([rank, n]) => (
-                                    <div key={rank} className="flex-1 rounded-xl bg-gray-50 p-2 text-center">
+                                    <div key={rank} className="min-w-0 rounded-xl bg-gray-50 px-1 py-2 text-center">
                                         <span className={`mx-auto mb-1 block h-2 w-8 rounded-full ${rankTone[rank]}`} />
                                         <p className="text-xl font-extrabold text-gray-900">{n}</p>
                                         <p className="text-[10px] font-bold uppercase text-gray-500">{rank}</p>
@@ -134,42 +151,15 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
                                 ))}
                             </div>
                         </div>
-                        <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                        <div className="min-w-0 rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:p-5">
                             <p className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Calculated penalties</p>
-                            <p className="mt-1 text-2xl font-extrabold text-gray-900 sm:text-4xl">{rm(performance.penalty)}</p>
-                            <p className="mt-1 text-xs text-gray-500">{performance.pending_penalty > 0 ? `${rm(performance.pending_penalty)} waiting for Manager review` : 'Nothing pending review'}</p>
+                            <p className="mt-1 break-words text-2xl font-extrabold text-gray-900 lg:text-4xl">{rm(performance.penalty)}</p>
+                            <p className="mt-1 text-xs text-gray-500">Confirmed automatically when a report is complete</p>
                         </div>
                     </div>
                 </Section>
 
-                <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
-                    {/* waiting list */}
-                    <Section title={is_manager ? 'Waiting for approval' : 'Waiting for verification'} href="/review/visits">
-                        {queue.length === 0 ? (
-                            <Empty text="No toolbox talk & inspection is waiting. Nice work." />
-                        ) : (
-                            <div className="space-y-2">
-                                {queue.map((v, n) => (
-                                    <Link
-                                        key={v.key}
-                                        href={`/review/visits/${v.key}`}
-                                        className={`${n >= 3 ? 'hidden sm:flex' : 'flex'} min-w-0 items-center gap-2.5 rounded-xl border border-amber-100 bg-white px-3 py-2.5 shadow-sm active:scale-[0.99] transition`}
-                                    >
-                                        <span className="flex h-9 w-9 shrink-0 flex-col items-center justify-center rounded-lg bg-gray-100 text-center leading-none">
-                                            <span className="text-[9px] font-bold uppercase text-gray-500">{v.date ? new Date(`${v.date}T00:00:00`).toLocaleDateString('en-GB', { month: 'short' }) : ''}</span>
-                                            <span className="text-sm font-extrabold text-gray-900">{v.date ? v.date.slice(8, 10) : '-'}</span>
-                                        </span>
-                                        <span className="min-w-0 flex-1">
-                                            <span className="block truncate text-[13px] font-bold text-gray-900">{v.project}</span>
-                                            <span className="block truncate text-[11px] text-gray-500">{v.by} · {v.inspections} insp.{v.toolbox ? ` · ${v.toolbox}` : ''}</span>
-                                        </span>
-                                        <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
-                                    </Link>
-                                ))}
-                            </div>
-                        )}
-                    </Section>
-
+                <div className="grid min-w-0 grid-cols-1 gap-5 lg:gap-6">
                     {/* cases */}
                     <Section title="NC / CC cases" href="/review/cases">
                         {cases.length === 0 ? (

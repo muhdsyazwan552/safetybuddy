@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UploadedAssets;
 use App\Models\Company;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
 
 class CompanyDetailsController extends Controller
 {
@@ -57,20 +57,21 @@ class CompanyDetailsController extends Controller
         ]);
 
         $oldPath = $company->logo_path;
-        $newPath = $validated['logo']->store('company-logos', 'public');
-        if (! $newPath) {
+        try {
+            $newPath = UploadedAssets::store($validated['logo'], "companies/{$company->id}/logos");
+        } catch (\League\Flysystem\UnableToWriteFile $e) {
             return back()->withErrors(['logo' => 'The logo could not be saved. Please try again.']);
         }
 
         try {
             $company->update(['logo_path' => $newPath]);
         } catch (\Throwable $exception) {
-            Storage::disk('public')->delete($newPath);
+            UploadedAssets::delete($newPath);
             throw $exception;
         }
 
         if ($oldPath) {
-            Storage::disk('public')->delete($oldPath);
+            UploadedAssets::delete($oldPath);
         }
 
         return redirect('/profile#company')->with('success', 'Company logo updated');

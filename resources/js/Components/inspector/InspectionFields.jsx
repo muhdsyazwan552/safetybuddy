@@ -13,6 +13,7 @@ export default function InspectionFields({
     subcons = [],
     categories = [],         // [{ id, name, items: [{ id, name, code }] }]
     evaluations = EVAL_ORDER,
+    evaluationLocked = false,
     errors = {},
     newPhotos = [],          // [{ preview }]
     onPickPhotos,            // (FileList) => void
@@ -71,7 +72,14 @@ export default function InspectionFields({
                 </Field>
             )}
 
-            {/* Evaluation as big tap targets */}
+            {evaluationLocked ? (
+                <Field label="Evaluation" className={wide ? 'lg:col-span-2' : ''}>
+                    <p className="rounded-2xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-sm font-bold text-gray-800">
+                        {EVAL[item.evaluation]?.label || item.evaluation || '—'}
+                    </p>
+                    <p className="mt-1.5 text-xs text-gray-500">The evaluation is locked after the inspection is created.</p>
+                </Field>
+            ) : (
             <div className={wide ? 'lg:col-span-2' : ''}>
                 <p className={labelClass}>Evaluation *</p>
                 <div className={`grid grid-cols-2 gap-2.5 ${wide ? 'lg:grid-cols-4' : ''}`}>
@@ -95,18 +103,19 @@ export default function InspectionFields({
                 </div>
                 {errors.evaluation && <p className="mt-1.5 ml-1 text-xs font-medium text-red-500">{errors.evaluation}</p>}
             </div>
+            )}
 
             <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 ${wide ? 'lg:col-span-2' : ''}`}>
                 <Field label="Date *" error={errors.inspection_date}>
                     <input type="date" className={inputClass} value={item.inspection_date} onChange={(e) => onChange('inspection_date', e.target.value)} />
                 </Field>
                 <Field label="Location *" error={errors.location}>
-                    <input type="text" className={inputClass} placeholder="Level 3, Zone B…" value={item.location} onChange={(e) => onChange('location', e.target.value)} />
+                    <input type="text" maxLength={50} className={inputClass} placeholder="Level 3, Zone B…" value={item.location} onChange={(e) => onChange('location', e.target.value)} />
                 </Field>
             </div>
 
-            <Field label={`Notes / observations${item.evaluation && item.evaluation !== 'good' ? ' *' : ''}`} error={errors.description} className={wide ? 'lg:col-span-2' : ''}>
-                <textarea rows={4} className={inputClass} placeholder="Describe what you observed…" value={item.description} onChange={(e) => onChange('description', e.target.value)} />
+            <Field label={`Notes / observations${item.evaluation === 'good' ? ' (optional)' : item.evaluation ? ' *' : ''}`} error={errors.description} className={wide ? 'lg:col-span-2' : ''}>
+                <textarea rows={4} maxLength={255} className={inputClass} placeholder="Describe what you observed…" value={item.description} aria-required={Boolean(item.evaluation && item.evaluation !== 'good')} onChange={(e) => onChange('description', e.target.value)} />
             </Field>
 
             {/* Photos */}
