@@ -18,13 +18,13 @@ export default function ReviewProgress({ kind, status, record, className = '' })
     const steps = [
         { label: 'Submitted', who: caseWorkflow || visitWorkflow ? 'Inspector' : 'Reporter', done: true },
         { label: returned ? 'Returned' : 'Review', who: caseWorkflow ? 'Subcontractor and reviewer' : 'Supervisor', done: reviewed },
-        { label: 'Approved', who: visitWorkflow ? 'Manager' : caseWorkflow ? 'Reviewer' : 'Supervisor', done: approved },
+        { label: 'Approved', who: caseWorkflow ? 'Reviewer' : 'Manager', done: approved },
     ];
     const detail = caseWorkflow
         ? { open: 'Awaiting subcontractor reply', responded: 'Reply received; awaiting review', returned: 'Returned for another reply', closed: 'Approved and closed' }[state]
         : visitWorkflow
             ? { pending_verification: 'Awaiting supervisor review', verified: 'Reviewed by supervisor; awaiting manager approval', rejected: 'Returned to inspector for correction', approved: 'Approved by manager' }[state]
-            : { open: 'Awaiting supervisor review', inprogress: 'Reviewed; awaiting supervisor approval', closed: 'Approved by supervisor' }[state];
+            : { open: 'Awaiting supervisor review', inprogress: 'Reviewed by supervisor; awaiting manager approval', closed: 'Approved by manager' }[state];
 
     return (
         <section className={`rounded-2xl border border-gray-200 bg-white p-4 ${className}`} aria-label="Review progress">

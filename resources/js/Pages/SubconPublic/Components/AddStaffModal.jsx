@@ -2,6 +2,7 @@
 // Register: step 1 = read + tick every Safety Passport topic, step 2 = staff details (+ optional certification).
 import React, { useEffect, useState } from 'react';
 import { X, User, Mail, Phone, BriefcaseBusiness, Loader2, Save, UserPlus, AlertCircle, ShieldCheck, ChevronDown, ArrowRight, ArrowLeft, Check } from 'lucide-react';
+import DateInput from '@/Components/shared/DateInput';
 
 const input =
     'w-full rounded-2xl border border-gray-200 bg-gray-50 py-3 pl-12 pr-4 text-base text-gray-900 placeholder-gray-400 ' +
@@ -183,7 +184,7 @@ export default function AddStaffModal({ isOpen, onClose, onSubmit, data, setData
                                     <p className="text-xs font-extrabold text-gray-700">Certification <span className="font-medium text-gray-400">(optional)</span></p>
                                     <input className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" placeholder="Certificate name (e.g. Welding)" value={data.cert_title || ''} onChange={(e) => setData('cert_title', e.target.value)} />
                                     {errors.cert_title && <p className="text-xs font-medium text-red-500">{errors.cert_title}</p>}
-                                    <input type="date" className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" value={data.cert_expiry || ''} onChange={(e) => setData('cert_expiry', e.target.value)} aria-label="Expiry date" />
+                                    <DateInput  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm" value={data.cert_expiry || ''} onChange={(e) => setData('cert_expiry', e.target.value)} aria-label="Expiry date" />
                                     <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="block w-full text-xs" onChange={(e) => setData('cert_file', e.target.files[0] || null)} />
                                     {errors.cert_file && <p className="text-xs font-medium text-red-500">{errors.cert_file}</p>}
                                     <p className="text-[11px] text-gray-400">Status stays Pending until the Supervisor and Manager approve.</p>

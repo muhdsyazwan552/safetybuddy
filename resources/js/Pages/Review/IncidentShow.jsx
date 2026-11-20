@@ -11,7 +11,7 @@ import PdfButton from '@/Components/shared/PdfButton';
 // status text colours that stay readable on the dark header
 const HERO_TONE = { open: 'text-rose-300', inprogress: 'text-amber-300', closed: 'text-emerald-400' };
 
-function ResponsePanel({ i, can_review, can_reopen }) {
+function ResponsePanel({ i, can_review, can_approve, can_reopen }) {
     const [text, setText] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
@@ -29,7 +29,7 @@ function ResponsePanel({ i, can_review, can_reopen }) {
     };
 
     return (
-        <SectionCard title={`Supervisor review and approval (${i.responses.length})`} icon={MessageSquare}>
+        <SectionCard title={`Review and approval (${i.responses.length})`} icon={MessageSquare}>
             {i.responses.length === 0 ? (
                 <p className="text-sm text-gray-500">Awaiting supervisor review.</p>
             ) : (
@@ -50,7 +50,7 @@ function ResponsePanel({ i, can_review, can_reopen }) {
                     })}
                 </ul>
             )}
-            {can_review && !closed && (
+            {((can_review && i.status === 'open') || (can_approve && i.status === 'inprogress')) && (
                 <div className="mt-5 space-y-3 border-t border-gray-100 pt-4">
                     <textarea
                         rows={3}
@@ -61,10 +61,10 @@ function ResponsePanel({ i, can_review, can_reopen }) {
                     />
                     {error && <p className="text-xs font-medium text-red-500">{error}</p>}
                     <div className="flex flex-wrap gap-2">
-                        {i.status === 'open' && <button type="button" disabled={busy || text.trim().length < 3} onClick={() => act('respond')} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">
+                        {i.status === 'open' && can_review && <button type="button" disabled={busy || text.trim().length < 3} onClick={() => act('respond')} className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">
                             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Submit review
                         </button>}
-                        {i.status === 'inprogress' && <button type="button" disabled={busy || text.trim().length < 3} onClick={() => act('close')} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">
+                        {i.status === 'inprogress' && can_approve && <button type="button" disabled={busy || text.trim().length < 3} onClick={() => act('close')} className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-40">
                             <CheckCircle2 className="h-4 w-4" /> Approve incident
                         </button>}
                     </div>
@@ -84,7 +84,7 @@ function ResponsePanel({ i, can_review, can_reopen }) {
 }
 
 // The page content, shared with the inspector's read-only incident page
-export function IncidentDetail({ incident: i, canReview = false, canReopen = false, backHref = '/review/incidents' }) {
+export function IncidentDetail({ incident: i, canReview = false, canApprove = false, canReopen = false, backHref = '/review/incidents' }) {
     const tone = incidentTone(i.status);
     const isImage = i.attachment && /\.(png|jpe?g|webp|gif)$/i.test(i.attachment);
 
@@ -142,7 +142,7 @@ export function IncidentDetail({ incident: i, canReview = false, canReopen = fal
                     </SectionCard>
                 )}
 
-                <ResponsePanel i={i} can_review={canReview} can_reopen={canReopen} />
+                <ResponsePanel i={i} can_review={canReview} can_approve={canApprove} can_reopen={canReopen} />
 
                 {i.attachment && (
                     <SectionCard title="Evidence" icon={ShieldAlert}>
@@ -161,11 +161,11 @@ export function IncidentDetail({ incident: i, canReview = false, canReopen = fal
     );
 }
 
-export default function IncidentShow({ incident, can_review_incident, can_reopen_incident }) {
+export default function IncidentShow({ incident, can_review_incident, can_approve_incident, can_reopen_incident }) {
     return (
         <ReviewLayout title="Incident">
             <Head title={`Incident ${incident.series_code || ''}`.trim()} />
-            <IncidentDetail incident={incident} canReview={can_review_incident} canReopen={can_reopen_incident} />
+            <IncidentDetail incident={incident} canReview={can_review_incident} canApprove={can_approve_incident} canReopen={can_reopen_incident} />
         </ReviewLayout>
     );
 }

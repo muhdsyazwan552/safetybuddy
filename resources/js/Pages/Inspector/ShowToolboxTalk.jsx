@@ -17,8 +17,8 @@ export default function ShowToolboxTalk({ talk, user, can_edit = false }) {
 
             <ActionBar>
                 {can_edit && (
-                    <Link href={`/inspector/toolbox-talks/${talk.id}/edit`} className={darkBtn}>
-                        <Pencil className="h-4 w-4" /> Edit
+                    <Link href={`/inspector/toolbox-talks/${talk.id}/edit`} className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-ink-900 text-white active:scale-95 transition" aria-label="Edit toolbox talk" title="Edit toolbox talk">
+                        <Pencil className="h-5 w-5" />
                     </Link>
                 )}
                 {can_edit && (

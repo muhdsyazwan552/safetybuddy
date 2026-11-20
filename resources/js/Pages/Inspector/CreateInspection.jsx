@@ -63,8 +63,8 @@ export default function CreateInspection({ projects = [], categories = [], evalu
     };
 
     const pickPhotos = (fileList) => {
-        const files = Array.from(fileList || []).filter((f) => f.size <= 2 * 1024 * 1024);
-        if (files.length !== (fileList?.length || 0)) setServerError('Some photos were skipped (over 2 MB).');
+        const files = Array.from(fileList || []).filter((f) => f.size <= 5 * 1024 * 1024);
+        if (files.length !== (fileList?.length || 0)) setServerError('Some photos were skipped (over 5 MB).');
         const previews = files.map((f) => URL.createObjectURL(f));
         setItems((all) => all.map((it, i) => (i === step ? { ...it, photos: [...it.photos, ...files], previews: [...it.previews, ...previews] } : it)));
     };

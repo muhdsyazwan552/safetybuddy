@@ -11,7 +11,7 @@
 <tr><td class="k">Location</td><td class="v">{{ $i->location ?: '-' }}</td></tr>
 <tr><td class="k">Reported by</td><td class="v">{{ optional($i->reportedBy)->name ?: '-' }}</td></tr>
 <tr><td class="k">Responsible person</td><td class="v">{{ optional($i->responsibleBy)->name ?: '-' }}</td></tr>
-<tr><td class="k">Status</td><td class="v"><span class="badge b-{{ strtolower($i->status ?: 'open') }}">{{ strtoupper($i->status ?: 'open') }}</span></td></tr>
+<tr><td class="k">Status</td><td class="v">{{ strtoupper($i->status ?: 'open') }}</td></tr>
 @if($i->lti_worker_count || $i->lti_days_lost)
 <tr><td class="k">LTI workers / days lost</td><td class="v">{{ (int) $i->lti_worker_count }} / {{ (int) $i->lti_days_lost }}</td></tr>
 <tr><td class="k">Man-hours lost</td><td class="v">{{ (int) ($i->manhours_lost ?: $i->lti_man_hours_lost) }}</td></tr>

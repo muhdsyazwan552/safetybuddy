@@ -49,7 +49,7 @@
 </head>
 <body>
 <header><table><tr>
-    <td class="company">{{ $company }}</td>
+    <td class="company">@if(!empty($companyLogo))<img src="{{ $companyLogo }}" alt="" style="height:9mm;vertical-align:middle;margin-right:8px">@endif<span style="vertical-align:middle">{{ $company }}</span></td>
     <td class="reference">{{ $refNo }}</td>
 </tr></table></header>
 <footer><table><tr>

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { usePage, useForm, Head, Link, router } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
 import { showAlert } from '@/Helpers/alert';
+import DateInput from '@/Components/shared/DateInput';
 
 const ProjectManagement = () => {
   const { projects: initialProjects = [], projectTypes = [], inspectors = [], contractors = [], title, flash } = usePage().props || {};
@@ -437,8 +438,8 @@ const handleUpdateProject = (e) => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Start Date*
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
+                        
                         name="start_date"
                         value={formData.start_date}
                         onChange={handleInputChange}
@@ -454,8 +455,8 @@ const handleUpdateProject = (e) => {
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         End Date*
                       </label>
-                      <input
-                        type="date"
+                      <DateInput
+                        
                         name="end_date"
                         value={formData.end_date}
                         onChange={handleInputChange}

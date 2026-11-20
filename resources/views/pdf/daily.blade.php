@@ -2,9 +2,8 @@
 @section('body')
 <table class="overview">
 <tr><td class="label">Project</td><td>{{ $r['project'] }}</td><td class="label">Subcontractor</td><td>{{ $r['subcon'] }}</td></tr>
-<tr><td class="label">Date</td><td>{{ \Carbon\Carbon::parse($r['date'])->format('d M Y') }}</td><td class="label">Safety Passport</td><td>{{ $r['sampled'] ?? '-' }} sampled / {{ $r['not_registered'] ?? '-' }} not registered</td></tr>
-<tr><td class="label">Report no.</td><td>{{ $r['report_no'] ?: $refNo }}</td><td class="label">Penalty</td><td>{{ ['confirmed' => 'CONFIRMED (AUTOMATIC)', 'waived' => 'WAIVED'][$r['penalty_status']] ?? 'CONFIRMS WHEN COMPLETE' }}</td></tr>
-<tr><td class="label">Status</td><td colspan="3">{{ $r['status'] === 'approved' ? 'COMPLETE' : 'NOT COMPLETE' }}</td></tr>
+<tr><td class="label">Date</td><td>{{ \Carbon\Carbon::parse($r['date'])->format('d M Y') }}</td><td class="label">Score</td><td>{{ $r['spgpnc'] !== null ? number_format((float) $r['spgpnc'], 2) . '%' : '-' }}@if(!empty($r['rank'])) ({{ $r['rank'] }})@endif</td></tr>
+<tr><td class="label">Report no.</td><td>{{ $r['report_no'] ?: $refNo }}</td><td class="label">Status</td><td>{{ $r['status'] === 'approved' ? 'COMPLETE' : 'NOT COMPLETE' }}</td></tr>
 </table>
 @include('pdf._score', ['plainText' => true])
 @if(!empty($r['follow_up']))

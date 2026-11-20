@@ -8,21 +8,17 @@
     body { font-family: DejaVu Sans, sans-serif; font-size: 9px; color: #1f2937; }
     h1 { font-size: 16px; margin: 0; color: #111827; }
     .sub { color: #6b7280; margin: 2px 0 10px; }
-    .head { width: 100%; border-bottom: 2px solid #0f766e; padding-bottom: 6px; margin-bottom: 8px; }
+    .head { width: 100%; border-bottom: 1px solid #171717; padding-bottom: 6px; margin-bottom: 8px; }
     .head td { vertical-align: bottom; }
-    .co { font-size: 11px; font-weight: bold; color: #0f766e; text-align: right; }
+    .co { font-size: 11px; font-weight: bold; color: #2457d6; text-align: right; }
     table.grid { width: 100%; border-collapse: collapse; }
-    table.grid th { background: #f3f4f6; text-align: left; padding: 5px 6px; border: 1px solid #d1d5db; font-size: 8.5px; text-transform: uppercase; }
+    table.grid th { background: #f4f5f7; text-align: left; padding: 5px 6px; border: 1px solid #d1d5db; font-size: 8.5px; text-transform: uppercase; }
     table.grid td { padding: 5px 6px; border: 1px solid #d1d5db; vertical-align: top; }
     table.grid tr { page-break-inside: avoid; }
     .c { text-align: center; }
     .ok { color: #065f46; font-weight: bold; }
     .no { color: #991b1b; font-weight: bold; }
     .wait { color: #92400e; }
-    .badge { display: inline-block; padding: 1px 7px; border-radius: 8px; font-size: 8px; font-weight: bold; }
-    .b-active { background: #d1fae5; color: #065f46; }
-    .b-pending { background: #fef3c7; color: #92400e; }
-    .b-inactive { background: #e5e7eb; color: #374151; }
     .small { color: #6b7280; font-size: 8px; }
     .muted { color: #9ca3af; }
 </style>
@@ -55,7 +51,7 @@
             <td>{{ $s->name }}</td>
             <td>{{ $s->code ?: '-' }}</td>
             <td>{{ $s->role ?: '-' }}</td>
-            <td class="c"><span class="badge b-{{ in_array($st, ['active', 'pending']) ? $st : 'inactive' }}">{{ ucfirst($st ?: 'inactive') }}</span></td>
+            <td class="c">{{ ucfirst($st ?: 'inactive') }}</td>
             <td class="c">@if($s->is_safetypassport)<span class="ok">Yes</span>@else<span class="no">No</span>@endif</td>
             @foreach([['supervisor_approved_at', 'supervisor_approved_by'], ['manager_approved_at', 'manager_approved_by']] as [$at, $by])
                 <td>

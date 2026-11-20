@@ -2,15 +2,13 @@
 <table class="kv">
 <tr><td class="k">Project</td><td class="v">{{ optional($t->project)->name ?: '-' }}</td></tr>
 <tr><td class="k">Date</td><td class="v">{{ optional($t->inspection_date)->format('d M Y') ?: '-' }}</td></tr>
-<tr><td class="k">Conducted by</td><td class="v">{{ optional($t->CompanyStaff)->name ?: '-' }}</td></tr>
-<tr><td class="k">Conducted</td><td class="v">{{ $t->conducted === 'yes' ? 'Yes' : 'No' }}</td></tr>
-<tr><td class="k">Total attended</td><td class="v">{{ (int) $t->total_attended }}</td></tr>
+<tr><td class="k">Inspection by</td><td class="v">{{ optional($t->CompanyStaff)->name ?: '-' }}</td></tr>
 <tr><td class="k">Categories</td><td class="v">{{ $t->categories->pluck('name')->implode(', ') ?: '-' }}</td></tr>
 @if($t->topics->count())<tr><td class="k">Topics</td><td class="v">{{ $t->topics->pluck('name')->implode(', ') }}</td></tr>@endif
 <tr><td class="k">Safety Passport sampled</td><td class="v">{{ $t->sp_sampled ?? '-' }}</td></tr>
 <tr><td class="k">Not registered</td><td class="v">{{ $t->sp_not_registered ?? '-' }}</td></tr>
 <tr><td class="k">SP compliance</td><td class="v">{{ $t->sp_compliance !== null ? $t->sp_compliance . '%' : '-' }}</td></tr>
-<tr><td class="k">Status</td><td class="v"><span @if(empty($plainText)) class="badge b-approved" @endif>APPROVED</span></td></tr>
+<tr><td class="k">Status</td><td class="v">{{ strtoupper(str_replace('_', ' ', $t->status ?: 'pending_verification')) }}</td></tr>
 </table>
 <h2>Attendees ({{ $t->attendees->count() }})</h2>
 @if($t->attendees->count())

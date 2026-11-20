@@ -282,7 +282,7 @@ class InspectionController extends Controller
                 'inspection_items.*.evaluation'        => 'required|in:good,poor,nonconformance,clientcomplaint',
                 'inspection_items.*.description'       => 'required_unless:inspection_items.*.evaluation,good|string',
                 'inspection_items.*.photos'            => 'required_unless:inspection_items.*.evaluation,good|array',
-                'inspection_items.*.photos.*'          => 'image|max:2048',
+                'inspection_items.*.photos.*'          => 'image|max:5120',
             ]);
 
             $savedInspections = [];
@@ -505,7 +505,7 @@ class InspectionController extends Controller
             'evaluation' => ['sometimes', 'required', \Illuminate\Validation\Rule::in([$inspection->evaluation])],
             'description' => [\Illuminate\Validation\Rule::requiredIf($inspection->evaluation !== 'good'), 'nullable', 'string', 'max:255'],
             'new_photos' => [\Illuminate\Validation\Rule::requiredIf($inspection->evaluation !== 'good' && count($currentPhotos) === 0), 'array'],
-            'new_photos.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'new_photos.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120',
         ], ['evaluation.in' => 'The evaluation cannot be changed after the inspection is created.']);
 
         try {
@@ -638,8 +638,8 @@ class InspectionController extends Controller
             'sp_not_registered' => 'nullable|integer|min:0|max:100000',
             'categories'       => 'nullable|array',
             'categories.*'     => 'integer|exists:toolbox_categories,id',
-            'attendance_photo' => 'nullable|image|max:2048',
-            'group_photo'      => 'nullable|image|max:2048',
+            'attendance_photo' => 'nullable|image|max:5120',
+            'group_photo'      => 'nullable|image|max:5120',
         ], [
             'attendee_ids.required' => 'Select at least one person for Safety Passport sampling.',
             'attendee_ids.min' => 'Select at least one person for Safety Passport sampling.',

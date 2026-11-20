@@ -44,9 +44,19 @@ final class UploadedAssets
             return $path;
         }
 
-        return str_starts_with($path, self::PREFIX)
-            ? self::disk($path)->temporaryUrl($path, now()->addHours(2))
-            : Storage::disk('public')->url($path);
+        if (!str_starts_with($path, self::PREFIX)) {
+            return Storage::disk('public')->url($path);
+        }
+
+        // A file on S3 needs the S3 settings of this server. If they are missing or S3 cannot be reached, the page
+        // must still open (without the image) instead of failing with a 500 error.
+        try {
+            return self::disk($path)->temporaryUrl($path, now()->addHours(2));
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return null;
+        }
     }
 
     public static function photoUrls(?string $value): array

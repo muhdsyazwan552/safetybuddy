@@ -7,8 +7,8 @@
 <tr><td class="k">Subcontractor</td><td class="v">{{ optional($i->subconCompany)->name ?: '-' }}</td></tr>
 <tr><td class="k">Location</td><td class="v">{{ $i->location ?: '-' }}</td></tr>
 <tr><td class="k">Inspector</td><td class="v">{{ optional($i->inspector)->name ?: '-' }}</td></tr>
-<tr><td class="k">Evaluation</td><td class="v"><span @if(empty($plainText)) class="badge b-{{ $i->evaluation }}" @endif>{{ strtoupper($i->evaluation) }}</span></td></tr>
-<tr><td class="k">Status</td><td class="v"><span @if(empty($plainText)) class="badge b-approved" @endif>APPROVED</span></td></tr>
+<tr><td class="k">Evaluation</td><td class="v">{{ strtoupper($i->evaluation) }}</td></tr>
+<tr><td class="k">Status</td><td class="v">{{ strtoupper(str_replace('_', ' ', $i->status ?: 'pending_verification')) }}</td></tr>
 @if($i->non_conformance)<tr><td class="k">Non-conformance</td><td class="v">NC-{{ str_pad($i->non_conformance->id, 5, '0', STR_PAD_LEFT) }} ({{ $i->non_conformance->status }})</td></tr>@endif
 @if($i->client_complaint)<tr><td class="k">Client complaint</td><td class="v">CC-{{ str_pad($i->client_complaint->id, 5, '0', STR_PAD_LEFT) }} ({{ $i->client_complaint->status }})</td></tr>@endif
 </table>

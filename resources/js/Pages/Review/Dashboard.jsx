@@ -68,7 +68,7 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
     const user = usePage().props.auth?.user;
     const first = (user?.name || '').split(' ')[0];
     const need =
-        counts.visits_verify + (is_manager ? counts.visits_approve : 0) + counts.cases_review + counts.incidents_new
+        counts.visits_verify + (is_manager ? counts.visits_approve : 0) + counts.cases_review + (is_manager ? counts.incidents_approve : counts.incidents_new)
         + counts.staff_pending;
 
     const rankTone = { GOLD: 'bg-amber-500', SILVER: 'bg-slate-400', BRONZE: 'bg-orange-600' };
@@ -116,7 +116,7 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
                         {is_manager && <ActionTile icon={BadgeCheck} tone="sky" value={counts.visits_approve} label="Toolbox talk & Inspection to approve" hint="Verified by a supervisor" href="/review/visits?status=verified" />}
                         <ActionTile icon={Users} tone="emerald" value={counts.staff_pending} label={is_manager ? 'Contractor staff to approve' : 'Contractor staff to verify'} hint="Pending Safety Passport registrations" href="/review/staff-approval" />
                         <ActionTile icon={AlertTriangle} tone="violet" value={counts.cases_review} label="NC / CC replies to review" hint={`${counts.cases_waiting} waiting for the subcontractor`} href="/review/cases?state=responded" />
-                        {!is_manager && <ActionTile icon={Siren} tone="rose" value={counts.incidents_open} label="Incidents awaiting approval" hint={counts.incidents_new ? `${counts.incidents_new} awaiting review` : 'All reviewed; awaiting approval'} href="/review/incidents" />}
+                        <ActionTile icon={Siren} tone="rose" value={counts.incidents_open} label={is_manager ? 'Incidents to approve' : 'Incidents to review'} hint={is_manager ? 'Reviewed by a supervisor' : 'Newly reported'} href="/review/incidents" />
                     </div>
                 </Section>
 
@@ -192,7 +192,7 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
                 </div>
 
                 {/* incidents */}
-                <Section title="Incidents awaiting approval" href="/review/incidents">
+                <Section title={is_manager ? 'Incidents to approve' : 'Incidents to review'} href="/review/incidents">
                     {incidents.length === 0 ? (
                         <Empty text="No incident is awaiting approval." />
                     ) : (

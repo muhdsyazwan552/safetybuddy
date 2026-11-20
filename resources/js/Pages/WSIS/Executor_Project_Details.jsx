@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Head, useForm, router, Link } from '@inertiajs/react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import DateInput from '@/Components/shared/DateInput';
 import { showAlert } from '@/Helpers/alert'; // Import Sweet Alert helper
 
 export default function ExecutorProjectDetails({
@@ -520,7 +521,7 @@ export default function ExecutorProjectDetails({
                                 {[['start_date', 'Start Date*'], ['end_date', 'End Date*']].map(([key, label]) => (
                                     <div key={key}>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                                        <input type="date" value={projData[key]} onChange={(e) => setProjData(key, e.target.value)} required
+                                        <DateInput  value={projData[key]} onChange={(e) => setProjData(key, e.target.value)} required
                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
                                         {projErrors[key] && <p className="text-red-500 text-xs mt-1">{projErrors[key]}</p>}
                                     </div>

@@ -5,6 +5,7 @@ import SeriesCode from '@/Components/shared/SeriesCode';
 import { Head, Link, router } from '@inertiajs/react';
 import { Plus, MapPin, CalendarDays, Building2, ChevronRight, Pencil, Trash2, Eye } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
+import DateInput from '@/Components/shared/DateInput';
 import {
     EVAL, EVAL_ORDER, EvalBadge, StatusBadge, ListHeader, Sheet, EmptyState, Pager, Field,
     inputClass, fmtDate, primaryBtn, ghostBtn,
@@ -209,10 +210,10 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                     </Field>
                     <div className="grid grid-cols-2 gap-3">
                         <Field label="From">
-                            <input type="date" className={inputClass} value={values.start_date || ''} onChange={(e) => setValues({ ...values, start_date: e.target.value })} />
+                            <DateInput  className={inputClass} value={values.start_date || ''} onChange={(e) => setValues({ ...values, start_date: e.target.value })} />
                         </Field>
                         <Field label="To">
-                            <input type="date" className={inputClass} value={values.end_date || ''} onChange={(e) => setValues({ ...values, end_date: e.target.value })} />
+                            <DateInput  className={inputClass} value={values.end_date || ''} onChange={(e) => setValues({ ...values, end_date: e.target.value })} />
                         </Field>
                     </div>
                 </div>

@@ -76,7 +76,7 @@ export default function ToolboxShow({ talk }) {
                         <SectionCard title="Toolbox talk details" icon={FolderKanban}>
                             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                 <InfoRow label="Project">{talk.project}</InfoRow>
-                                <InfoRow label="Conducted by">{talk.by}</InfoRow>
+                                <InfoRow label="Inspection by">{talk.by}</InfoRow>
                                 <InfoRow label="Date">{fmtDate(talk.date, { day: 'numeric', month: 'long', year: 'numeric' })}</InfoRow>
                                 <InfoRow label="Total attended">{talk.attended}</InfoRow>
                             </div>

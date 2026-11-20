@@ -40,9 +40,9 @@ export default function EditInspection({ inspection, projects = [], subconCompan
 
     const pick = (fileList) => {
         const all = Array.from(fileList || []);
-        const files = all.filter((f) => f.size <= 2 * 1024 * 1024);
+        const files = all.filter((f) => f.size <= 5 * 1024 * 1024);
         const skipped = all.length - files.length;
-        setErrors((e) => ({ ...e, photos: skipped ? `${skipped} photo(s) were not added: each photo must be smaller than 2 MB.` : undefined }));
+        setErrors((e) => ({ ...e, photos: skipped ? `${skipped} photo(s) were not added: each photo must be smaller than 5 MB.` : undefined }));
         setPhotos((p) => [...p, ...files.map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
     };
 

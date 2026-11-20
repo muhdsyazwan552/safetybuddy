@@ -5,6 +5,7 @@ import AppLayout from '@/Pages/WSIS/Layout';
 import TableViewIcon, { tableViewActionClass } from '@/Components/shared/TableViewIcon';
 import SeriesCode from '@/Components/shared/SeriesCode';
 import PdfButton from '@/Components/shared/PdfButton';
+import DateInput from '@/Components/shared/DateInput';
 
 const today = new Date().toISOString().slice(0, 10);
 
@@ -220,8 +221,8 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
           <h2 className="font-bold text-slate-800">Manhour PDF report</h2>
           <p className="text-sm text-slate-500">Report by day, project and subcontractor. Leave a field empty to include everything.</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <label className="text-xs font-semibold text-slate-500">From<input type="date" value={pdf.from} onChange={(e) => setPdf({ ...pdf, from: e.target.value })} className="mt-1 w-full rounded-md border-slate-300 text-sm" /></label>
-            <label className="text-xs font-semibold text-slate-500">To<input type="date" value={pdf.to} onChange={(e) => setPdf({ ...pdf, to: e.target.value })} className="mt-1 w-full rounded-md border-slate-300 text-sm" /></label>
+            <label className="text-xs font-semibold text-slate-500">From<DateInput  value={pdf.from} onChange={(e) => setPdf({ ...pdf, from: e.target.value })} className="mt-1 w-full rounded-md border-slate-300 text-sm" /></label>
+            <label className="text-xs font-semibold text-slate-500">To<DateInput  value={pdf.to} onChange={(e) => setPdf({ ...pdf, to: e.target.value })} className="mt-1 w-full rounded-md border-slate-300 text-sm" /></label>
             <label className="text-xs font-semibold text-slate-500">Project<select value={pdf.project_id} onChange={(e) => setPdf({ ...pdf, project_id: e.target.value })} className="mt-1 w-full rounded-md border-slate-300 text-sm"><option value="">All projects</option>{pdfProjects.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
             <label className="text-xs font-semibold text-slate-500">Subcontractor<select value={pdf.subcon_id} onChange={(e) => setPdf({ ...pdf, subcon_id: e.target.value })} className="mt-1 w-full rounded-md border-slate-300 text-sm"><option value="">All subcontractors</option>{pdfSubcons.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select></label>
             <div className="flex items-end"><PdfButton href={`/pdf/manhour?${new URLSearchParams(Object.entries(pdf).filter(([, v]) => v)).toString()}`} label="Generate PDF" className="!py-2.5" /></div>
@@ -366,7 +367,7 @@ const ManHour = ({ title = 'Manhours & Incident', projects = [], entries = [] })
                 <div className="space-y-4">
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">Work date</label>
-                    <input type="date" value={data.work_date} onChange={(e) => setData('work_date', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />
+                    <DateInput  value={data.work_date} onChange={(e) => setData('work_date', e.target.value)} className="w-full rounded-md border-slate-300 text-sm focus:border-blue-600 focus:ring-blue-600" />
                     {errors.work_date && <p className="mt-2 text-xs text-red-600">{errors.work_date}</p>}
                   </div>
                   <div>

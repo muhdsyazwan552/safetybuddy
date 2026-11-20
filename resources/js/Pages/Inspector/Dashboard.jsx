@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useId, useMemo, useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import {
     ClipboardCheck,
@@ -19,6 +19,7 @@ import {
     MapPin,
     ShieldCheck,
     CheckCircle2,
+    Award,
 } from 'lucide-react';
 
 const EVAL = {
@@ -42,33 +43,63 @@ function greeting(d) {
     return 'Good night';
 }
 
-function ComplianceRing({ value = 0, size = 112 }) {
-    const stroke = 10;
-    const r = (size - stroke) / 2;
-    const c = 2 * Math.PI * r;
-    const offset = c - (Math.min(100, Math.max(0, value)) / 100) * c;
+const COMPLIANCE_TIERS = {
+    GOLD: { label: 'Gold', light: '#fef08a', dark: '#eab308' },
+    SILVER: { label: 'Silver', light: '#f8fafc', dark: '#94a3b8' },
+    BRONZE: { label: 'Bronze', light: '#fed7aa', dark: '#c77c45' },
+    UNRANKED: { label: 'Unranked', light: '#cbd5e1', dark: '#64748b' },
+};
+
+function ComplianceRing({ value, tier }) {
+    const gradientId = useId();
+    const reduceMotion = useReducedMotion();
+    const { label, light, dark } = COMPLIANCE_TIERS[tier] ?? COMPLIANCE_TIERS.UNRANKED;
+    const progress = Math.min(100, Math.max(0, value ?? 0));
+    const displayValue = value == null ? '—' : `${value}%`;
+
     return (
-        <div className="relative shrink-0" style={{ width: size, height: size }}>
-            <svg width={size} height={size} className="-rotate-90">
-                <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth={stroke} />
-                <motion.circle
-                    cx={size / 2}
-                    cy={size / 2}
-                    r={r}
-                    fill="none"
-                    stroke="#F7D31A"
-                    strokeWidth={stroke}
-                    strokeLinecap="round"
-                    strokeDasharray={c}
-                    initial={{ strokeDashoffset: c }}
-                    animate={{ strokeDashoffset: offset }}
-                    transition={{ duration: 1, ease: 'easeOut' }}
-                />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-2xl font-extrabold text-white leading-none">{value}%</span>
-                <span className="text-[10px] uppercase tracking-wider text-gray-400 mt-1">Compliance</span>
+        <div
+            className="flex shrink-0 flex-col items-center gap-1 rounded-2xl border border-white/15 px-2 py-2 sm:px-3"
+            style={{ background: `linear-gradient(155deg, ${light}18, #0f172a66 75%)` }}
+            title="Dashboard compliance rate based on the share of inspections marked Good"
+        >
+            <span className="text-[11px] font-semibold tracking-wide text-slate-200">BSPR Status:</span>
+            <div className="relative size-24 sm:size-28">
+                <svg viewBox="0 0 112 112" className="h-full w-full -rotate-90" aria-hidden="true">
+                    <defs>
+                        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stopColor={light} />
+                            <stop offset="100%" stopColor={dark} />
+                        </linearGradient>
+                    </defs>
+                    <circle cx="56" cy="56" r="48" fill="none" stroke="white" strokeOpacity="0.14" strokeWidth="7" />
+                    {progress > 0 && (
+                        <motion.circle
+                            cx="56"
+                            cy="56"
+                            r="48"
+                            fill="none"
+                            stroke={`url(#${gradientId})`}
+                            strokeWidth="7"
+                            strokeLinecap="round"
+                            initial={reduceMotion ? false : { pathLength: 0 }}
+                            animate={{ pathLength: progress / 100 }}
+                            transition={{ duration: reduceMotion ? 0 : 0.8, ease: 'easeOut' }}
+                        />
+                    )}
+                </svg>
+                <div
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-1"
+                    style={{ color: light }}
+                >
+                    <Award className="size-7 sm:size-8" aria-hidden="true" />
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider">{label}</span>
+                </div>
             </div>
+            <span className="text-2xl font-extrabold leading-none tabular-nums sm:text-3xl">
+                {value == null && <span className="sr-only">No inspection data</span>}
+                <span aria-hidden={value == null}>{displayValue}</span>
+            </span>
         </div>
     );
 }
@@ -215,7 +246,7 @@ export default function Dashboard({
                                         : 'All clear — no open issues right now.'}
                                 </p>
                             </div>
-                            <ComplianceRing value={insights.compliance_rate ?? 0} />
+                            <ComplianceRing value={insights.compliance_rate} tier={insights.compliance_tier} />
                         </div>
 
                         <div className="relative mt-5 flex flex-wrap gap-2">

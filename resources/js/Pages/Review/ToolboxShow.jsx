@@ -44,7 +44,7 @@ export function ToolboxDetail({ talk: t, backHref = null, children }) {
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <InfoRow label="Project">{t.project}</InfoRow>
                         <InfoRow label="Date">{fmtDate(t.date)}</InfoRow>
-                        <InfoRow label="Conducted by">{t.by}</InfoRow>
+                        <InfoRow label="Inspection by">{t.by}</InfoRow>
                         <InfoRow label="Toolbox talk">
                             <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-bold ${t.conducted ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
                                 {t.conducted ? 'Conducted' : 'Not conducted'}

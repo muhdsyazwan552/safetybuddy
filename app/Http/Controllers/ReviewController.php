@@ -57,9 +57,8 @@ class ReviewController extends Controller
         $caseCount = $this->cases()->where('state', 'responded')->count();
 
         $incidents = $this->incidentQuery()->get();
-        $incidentCount = $isManager
-            ? $incidents->filter(fn ($i) => strtolower((string) ($i->status ?: 'open')) === 'open')->count()
-            : $incidents->filter(fn ($i) => in_array(strtolower((string) ($i->status ?: 'open')), ['open', 'inprogress'], true))->count();
+        // the supervisor reviews new incidents; the manager approves the reviewed ones
+        $incidentCount = $incidents->filter(fn ($i) => strtolower((string) ($i->status ?: 'open')) === ($isManager ? 'inprogress' : 'open'))->count();
 
         // reports complete themselves: the number shows how many daily + monthly reports are not complete yet
         $reportCount = $this->notCompleteReports();
@@ -159,8 +158,9 @@ class ReviewController extends Controller
 
         // incidents
         $incidents = $this->incidentQuery()->orderByDesc('incident_date')->get();
-        $incOpen = $incidents->filter(fn ($i) => in_array(strtolower((string) ($i->status ?: 'open')), ['open', 'inprogress'], true));
         $incNew = $incidents->filter(fn ($i) => strtolower((string) ($i->status ?: 'open')) === 'open');
+        $incApprove = $incidents->filter(fn ($i) => strtolower((string) $i->status) === 'inprogress');
+        $incOpen = $flags['is_manager'] ? $incApprove : $incNew;
 
         $visitRow = fn ($v) => [
             'key' => $v['key'], 'date' => $v['date'], 'project' => $v['project'], 'by' => $v['by'],
@@ -176,6 +176,7 @@ class ReviewController extends Controller
                 'cases_waiting' => $caseWaiting->count(),
                 'incidents_open' => $incOpen->count(),
                 'incidents_new' => $incNew->count(),
+                'incidents_approve' => $incApprove->count(),
                 // contractor (subcontractor) staff registered with a Safety Passport, waiting for this person's approval
                 'staff_pending' => \App\Models\SubconStaff::where('status', 'pending')->where('is_safetypassport', true)
                     ->whereNull($flags['is_manager'] ? 'manager_approved_at' : 'supervisor_approved_at')
@@ -712,10 +713,10 @@ class ReviewController extends Controller
         return back()->with('success', 'Incident reviewed.');
     }
 
-    /** A Supervisor approves an incident after review. */
+    /** A Manager approves an incident after the Supervisor's review. */
     public function incidentClose(Request $request, int $id)
     {
-        abort_unless((int) Auth::user()->role_id === 4, 403, 'Only a Supervisor can approve incidents.');
+        abort_unless((int) Auth::user()->role_id === 3, 403, 'Only a Manager can approve incidents.');
         $data = $request->validate(['message' => 'required|string|min:3|max:2000']);
         $incident = $this->incidentOwn($id);
         abort_unless(strtolower((string) $incident->status) === 'inprogress', 422, 'The incident must be reviewed before approval.');
@@ -747,6 +748,7 @@ class ReviewController extends Controller
         return Inertia::render('Review/IncidentShow', [
             'incident' => $this->incidentRow($incident, true),
             'can_review_incident' => (int) Auth::user()->role_id === 4,
+            'can_approve_incident' => (int) Auth::user()->role_id === 3,
             'can_reopen_incident' => (int) Auth::user()->role_id === 3,
         ]);
     }

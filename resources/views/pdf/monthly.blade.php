@@ -59,7 +59,7 @@
 <p class="muted">Project-wide toolbox talks recorded during the month, across all subcontractors and approval statuses. Attendance totals count attendance per session, not unique workers.</p>
 <table class="grid"><tr><th>Total talks</th><th>Conducted</th><th>Approved</th><th>Total attendance</th></tr><tr><td>{{ $toolboxSummary->count() }}</td><td>{{ $toolboxSummary->where('conducted', 'yes')->count() }}</td><td>{{ $toolboxSummary->where('status', 'approved')->count() }}</td><td>{{ $toolboxSummary->sum('total_attended') }}</td></tr></table>
 <h2>Toolbox register</h2>
-<table class="grid"><thead><tr><th style="width:5%">#</th><th style="width:14%">Date</th><th style="width:14%">Reference</th><th style="width:23%">Categories / topics</th><th style="width:17%">Conducted by</th><th style="width:8%">Held</th><th style="width:7%">Attend.</th><th style="width:12%">Status</th></tr></thead>
+<table class="grid"><thead><tr><th style="width:5%">#</th><th style="width:14%">Date</th><th style="width:14%">Reference</th><th style="width:23%">Categories / topics</th><th style="width:17%">Inspection by</th><th style="width:8%">Held</th><th style="width:7%">Attend.</th><th style="width:12%">Status</th></tr></thead>
 <tbody>
 @forelse($toolboxSummary as $talk)
 <tr><td>{{ $loop->iteration }}</td><td>{{ optional($talk->inspection_date)->format('d M Y') ?: '-' }}</td><td>{{ $talk->code ?: 'TBX-'.$talk->id }}</td><td>{{ $talk->categories->pluck('name')->merge($talk->topics->pluck('name'))->unique()->implode(', ') ?: '-' }}</td><td>{{ $talk->CompanyStaff?->name ?: '-' }}</td><td>{{ $talk->conducted === 'yes' ? 'Yes' : 'No' }}</td><td>{{ $talk->total_attended ?? '-' }}</td><td>{{ ucwords(str_replace('_', ' ', $talk->status)) }}</td></tr>

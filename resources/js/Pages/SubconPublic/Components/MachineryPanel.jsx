@@ -5,6 +5,7 @@ import { router, useForm } from '@inertiajs/react';
 import { Plus, Pencil, Trash2, Tractor, Paperclip, ChevronRight, X, Loader2, Save, Info, Lock, FileUp, AlertCircle } from 'lucide-react';
 import { showAlert } from '@/Helpers/alert';
 import { formatDate } from './staffUtils';
+import DateInput from '@/Components/shared/DateInput';
 
 const field =
     'w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/20';
@@ -93,7 +94,7 @@ function MachineryModal({ open, onClose, machine, staffs, publicToken, leaderKey
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-gray-500">CF expiry date</label>
-                            <input type="date" className={field} value={form.data.cf_expiry} onChange={(e) => form.setData('cf_expiry', e.target.value)} />
+                            <DateInput  className={field} value={form.data.cf_expiry} onChange={(e) => form.setData('cf_expiry', e.target.value)} />
                             {err.cf_expiry && <p className="mt-1 text-xs font-medium text-red-500">{err.cf_expiry}</p>}
                         </div>
                         <div>

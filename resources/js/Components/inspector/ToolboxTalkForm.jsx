@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { Camera, X, Check, Loader2, Save, Users, Search } from 'lucide-react';
 import { ActionBar, Field, inputClass, labelClass, ghostBtn, primaryBtn } from '@/Components/inspector/kit';
 import SpPerSubcon, { spGroups } from '@/Components/shared/SpPerSubcon';
+import DateInput from '@/Components/shared/DateInput';
 
-const MAX = 2 * 1024 * 1024;
+const MAX = 5 * 1024 * 1024;
 // local calendar date (toISOString would give the UTC date, i.e. yesterday in Malaysia before 8am)
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
@@ -172,7 +173,7 @@ export default function ToolboxTalkForm({ projects, topics, initial, conductor, 
         e.target.value = '';
         if (!file) return;
         if (!TYPES.includes(file.type)) return setPhotoErrors((p) => ({ ...p, [field]: 'Only JPEG, PNG or WEBP images are allowed.' }));
-        if (file.size > MAX) return setPhotoErrors((p) => ({ ...p, [field]: 'Image must be smaller than 2 MB.' }));
+        if (file.size > MAX) return setPhotoErrors((p) => ({ ...p, [field]: 'Image must be smaller than 5 MB.' }));
         setPhotoErrors((p) => ({ ...p, [field]: null }));
         setFiles((f) => ({ ...f, [field]: file }));
         setPreviews((p) => ({ ...p, [field]: URL.createObjectURL(file) }));
@@ -234,7 +235,7 @@ export default function ToolboxTalkForm({ projects, topics, initial, conductor, 
                         </select>
                     </Field>
                     <Field label="Date of talk *" error={err.inspection_date}>
-                        <input type="date" className={inputClass} value={data.inspection_date} onChange={(e) => set('inspection_date', e.target.value)} />
+                        <DateInput  className={inputClass} value={data.inspection_date} onChange={(e) => set('inspection_date', e.target.value)} />
                     </Field>
                 </div>
 

@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { router } from '@inertiajs/react';
 import { Search, X, SlidersHorizontal, ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
+import DateInput from '@/Components/shared/DateInput';
 
 const iso = (d) => d.toISOString().slice(0, 10);
 const presets = () => {
@@ -138,10 +139,10 @@ export default function ListControls({ path, filters, tabs = [], tabKey = 'statu
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-3">
                             <label className="block text-xs font-semibold text-gray-500">From
-                                <input type="date" className={`${base} mt-1 w-full`} value={filters.from || ''} max={filters.to || undefined} onChange={(e) => change({ from: e.target.value })} />
+                                <DateInput  className={`${base} mt-1 w-full`} value={filters.from || ''} max={filters.to || undefined} onChange={(e) => change({ from: e.target.value })} />
                             </label>
                             <label className="block text-xs font-semibold text-gray-500">To
-                                <input type="date" className={`${base} mt-1 w-full`} value={filters.to || ''} min={filters.from || undefined} onChange={(e) => change({ to: e.target.value })} />
+                                <DateInput  className={`${base} mt-1 w-full`} value={filters.to || ''} min={filters.from || undefined} onChange={(e) => change({ to: e.target.value })} />
                             </label>
                         </div>
                     </div>

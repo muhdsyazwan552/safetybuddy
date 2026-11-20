@@ -11,7 +11,7 @@
 <tr><td class="k">Inspection date</td><td class="v">{{ $c['inspection']['inspection_date'] ?: '-' }}</td></tr>
 <tr><td class="k">Date opened</td><td class="v">{{ $c['date_open'] ?: '-' }}</td></tr>
 <tr><td class="k">Date closed</td><td class="v">{{ $c['date_close'] ?: '-' }}</td></tr>
-<tr><td class="k">Status</td><td class="v"><span class="badge b-closed">APPROVED / CLOSED</span></td></tr>
+<tr><td class="k">Status</td><td class="v">APPROVED / CLOSED</td></tr>
 </table>
 <h2>Finding</h2>
 <div class="box">{{ $c['inspection']['description'] ?: 'No description.' }}</div>

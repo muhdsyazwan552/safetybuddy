@@ -69,6 +69,7 @@ class PdfReportController extends Controller
             'docTitle' => $title,
             'refNo' => $refNo,
             'company' => optional($user->company)->name ?: config('app.name'),
+            'companyLogo' => $this->image(optional($user->company)->logo_path, 200),
             'createdBy' => $name,
             'createdRole' => optional($user->role)->display_name ?: optional($user->role)->name,
             'createdAt' => now()->format('d M Y, H:i'),
@@ -120,6 +121,12 @@ class PdfReportController extends Controller
                 imagedestroy($img);
                 $img = $small;
             }
+            // transparent PNG logos would turn black as a JPEG: flatten them on white first
+            $flat = imagecreatetruecolor(imagesx($img), imagesy($img));
+            imagefill($flat, 0, 0, imagecolorallocate($flat, 255, 255, 255));
+            imagecopy($flat, $img, 0, 0, 0, 0, imagesx($img), imagesy($img));
+            imagedestroy($img);
+            $img = $flat;
             ob_start();
             imagejpeg($img, null, 78);
             $data = ob_get_clean();
@@ -127,6 +134,8 @@ class PdfReportController extends Controller
 
             return 'data:image/jpeg;base64,' . base64_encode($data);
         } catch (\Throwable $e) {
+            report($e);
+
             return null;
         }
     }
@@ -251,6 +260,7 @@ class PdfReportController extends Controller
             'inspections' => $inspections,
             'imgGroup' => $t ? $this->image($t->img_group) : null,
             'imgAttendance' => $t ? $this->image($t->img_attendance) : null,
+            'overallStatus' => $statuses->contains(Inspection::STATUS_REJECTED) ? Inspection::STATUS_REJECTED : ($statuses->every(fn ($s) => $s === Inspection::STATUS_APPROVED) ? Inspection::STATUS_APPROVED : ($statuses->contains(fn ($s) => !$s || $s === Inspection::STATUS_PENDING) ? Inspection::STATUS_PENDING : Inspection::STATUS_VERIFIED)),
         ] + $this->meta('Toolbox talk & Inspection Report' . ($statuses->every(fn ($s) => $s === Inspection::STATUS_APPROVED) ? '' : ' (NOT APPROVED YET)'), $ref, $verifier, $this->ts(optional($src)->verified_at), $approver, $this->ts(optional($src)->approved_at)), $ref);
     }
 

@@ -10,6 +10,7 @@ import AppLayout from '@/Pages/WSIS/Layout';
 import InspectionFields from '@/Components/inspector/InspectionFields';
 import ToolboxTalkForm from '@/Components/inspector/ToolboxTalkForm';
 import { ActionBar, Field, EVAL, inputClass, ghostBtn, darkBtn, primaryBtn } from '@/Components/inspector/kit';
+import DateInput from '@/Components/shared/DateInput';
 
 // local calendar date (toISOString would give the UTC date, i.e. yesterday in Malaysia before 8am)
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -119,9 +120,9 @@ export default function NewVisit({
     };
     const pickPhotos = (fileList) => {
         const all = Array.from(fileList || []);
-        const files = all.filter((f) => f.size <= 2 * 1024 * 1024);
+        const files = all.filter((f) => f.size <= 5 * 1024 * 1024);
         const skipped = all.length - files.length;
-        setErrors((e) => ({ ...e, photos: skipped ? `${skipped} photo(s) were not added: each photo must be smaller than 2 MB.` : undefined }));
+        setErrors((e) => ({ ...e, photos: skipped ? `${skipped} photo(s) were not added: each photo must be smaller than 5 MB.` : undefined }));
         const previews = files.map((f) => URL.createObjectURL(f));
         setItems((all) => all.map((it, i) => (i === idx ? { ...it, photos: [...it.photos, ...files], previews: [...it.previews, ...previews] } : it)));
     };
@@ -223,7 +224,7 @@ export default function NewVisit({
                                 )}
                             </Field>
                             <Field label="Date *" error={startErrors.date}>
-                                <input type="date" className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
+                                <DateInput  className={inputClass} value={date} onChange={(e) => setDate(e.target.value)} />
                             </Field>
                         </div>
 

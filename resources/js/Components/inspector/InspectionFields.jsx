@@ -1,6 +1,7 @@
 import React from 'react';
-import { Camera, X } from 'lucide-react';
+import { Camera, Lock, X } from 'lucide-react';
 import { EVAL, EVAL_ORDER, Field, inputClass, labelClass } from '@/Components/inspector/kit';
+import DateInput from '@/Components/shared/DateInput';
 
 /**
  * Fields shared by the Create (multi) and Edit inspection forms.
@@ -74,10 +75,11 @@ export default function InspectionFields({
 
             {evaluationLocked ? (
                 <Field label="Evaluation" className={wide ? 'lg:col-span-2' : ''}>
-                    <p className="rounded-2xl border border-gray-200 bg-gray-50 px-3.5 py-3 text-sm font-bold text-gray-800">
+                    <p className="flex cursor-not-allowed items-center gap-2 rounded-2xl border border-gray-600 bg-gray-700 px-3.5 py-3 text-sm font-bold text-white">
+                        <Lock className="h-4 w-4 shrink-0 text-gray-300" />
                         {EVAL[item.evaluation]?.label || item.evaluation || '—'}
                     </p>
-                    <p className="mt-1.5 text-xs text-gray-500">The evaluation is locked after the inspection is created.</p>
+                    <p className="mt-1.5 text-xs text-gray-500">The evaluation cannot be edited. If you want to change it, delete this inspection and create a new one.</p>
                 </Field>
             ) : (
             <div className={wide ? 'lg:col-span-2' : ''}>
@@ -107,7 +109,7 @@ export default function InspectionFields({
 
             <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 ${wide ? 'lg:col-span-2' : ''}`}>
                 <Field label="Date *" error={errors.inspection_date}>
-                    <input type="date" className={inputClass} value={item.inspection_date} onChange={(e) => onChange('inspection_date', e.target.value)} />
+                    <DateInput  className={inputClass} value={item.inspection_date} onChange={(e) => onChange('inspection_date', e.target.value)} />
                 </Field>
                 <Field label="Location *" error={errors.location}>
                     <input type="text" maxLength={50} className={inputClass} placeholder="Level 3, Zone B…" value={item.location} onChange={(e) => onChange('location', e.target.value)} />
@@ -152,7 +154,7 @@ export default function InspectionFields({
                         />
                     </label>
                 </div>
-                <p className="mt-2 ml-1 text-[11px] text-gray-400">JPG / PNG, up to 2&nbsp;MB each.</p>
+                <p className="mt-2 ml-1 text-[11px] text-gray-400">JPG / PNG, up to 5&nbsp;MB each.</p>
                 {errors.photos && <p className="mt-1 ml-1 text-xs font-medium text-red-500">{errors.photos}</p>}
             </div>
         </div>

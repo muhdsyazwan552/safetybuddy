@@ -5,6 +5,7 @@ import { router, useForm } from '@inertiajs/react';
 import { Award, FileText, Trash2, Upload, Loader2, AlertCircle } from 'lucide-react';
 import { showAlert } from '@/Helpers/alert';
 import { formatDate } from './staffUtils';
+import DateInput from '@/Components/shared/DateInput';
 
 function expiry(date) {
     if (!date) return null;
@@ -82,7 +83,7 @@ export default function CertificationsSection({ staff, publicToken, leaderKey, i
                 </div>
                 <div className="grid grid-cols-2 gap-2.5">
                     <div>
-                        <input type="date" className={input} value={form.data.expiry_date} onChange={(e) => form.setData('expiry_date', e.target.value)} title="Expiry date (optional)" />
+                        <DateInput  className={input} value={form.data.expiry_date} onChange={(e) => form.setData('expiry_date', e.target.value)} title="Expiry date (optional)" />
                         {err.expiry_date && <p className="mt-1 text-xs text-red-500">{err.expiry_date}</p>}
                     </div>
                     <label className="flex cursor-pointer items-center justify-center gap-2 truncate rounded-xl border border-dashed border-gray-300 bg-white px-3 py-2.5 text-xs font-bold text-gray-600 hover:border-brand-500">

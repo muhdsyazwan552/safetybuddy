@@ -5,6 +5,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Plus, CalendarDays, Users, UserRound, CheckCircle2, XCircle, ChevronRight, Pencil, Trash2, Eye } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import { ListHeader, Sheet, EmptyState, Pager, Field, inputClass, fmtDate, primaryBtn, ghostBtn } from '@/Components/inspector/kit';
+import DateInput from '@/Components/shared/DateInput';
 
 export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}, user }) {
     const [sheet, setSheet] = useState(false);
@@ -114,7 +115,7 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
                                     <tr>
                                         <th className="w-12 px-5 py-3">#</th>
                                         <th className="px-5 py-3">Project</th>
-                                        <th className="px-5 py-3">Conducted by</th>
+                                        <th className="px-5 py-3">Inspection by</th>
                                         <th className="px-5 py-3">Category</th>
                                         <th className="px-5 py-3">Attendees</th>
                                         <th className="px-5 py-3">Date</th>
@@ -166,8 +167,8 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
                         </select>
                     </Field>
                     <div className="grid grid-cols-2 gap-3">
-                        <Field label="From"><input type="date" className={inputClass} value={values.start_date || ''} onChange={(e) => setValues({ ...values, start_date: e.target.value })} /></Field>
-                        <Field label="To"><input type="date" className={inputClass} value={values.end_date || ''} onChange={(e) => setValues({ ...values, end_date: e.target.value })} /></Field>
+                        <Field label="From"><DateInput  className={inputClass} value={values.start_date || ''} onChange={(e) => setValues({ ...values, start_date: e.target.value })} /></Field>
+                        <Field label="To"><DateInput  className={inputClass} value={values.end_date || ''} onChange={(e) => setValues({ ...values, end_date: e.target.value })} /></Field>
                     </div>
                 </div>
             </Sheet>

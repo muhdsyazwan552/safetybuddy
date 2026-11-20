@@ -7,6 +7,7 @@ import TableViewIcon, { tableViewActionClass, TableEditIcon, TableDeleteIcon, ta
 import { showAlert } from '@/Helpers/alert';
 import AttendeePicker from '@/Components/shared/AttendeePicker';
 import SpPerSubcon, { spGroups } from '@/Components/shared/SpPerSubcon';
+import DateInput from '@/Components/shared/DateInput';
 
 const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromLaravel, stafftoolbox, projectStaff = {}, embedded = false }) => {
 
@@ -273,8 +274,8 @@ const Toolbox = ({ title, projects = [], toolboxTopics, toolboxTalks: talksFromL
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
-                      <input
-                        type="date"
+                      <DateInput
+                        
                         value={data.inspection_date}
                         onChange={(e) => setData('inspection_date', e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"

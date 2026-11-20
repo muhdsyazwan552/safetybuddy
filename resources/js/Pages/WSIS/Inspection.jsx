@@ -6,6 +6,7 @@ import AppLayout from '@/Pages/WSIS/Layout';
 import TableViewIcon, { tableViewActionClass, TableEditIcon, TableDeleteIcon, tableEditActionClass, tableDeleteActionClass } from '@/Components/shared/TableViewIcon';
 import Toolbox from './Toolbox';
 import { showAlert } from '@/Helpers/alert';
+import DateInput from '@/Components/shared/DateInput';
 
 const Inspection = ({
   title,
@@ -477,8 +478,8 @@ const Inspection = ({
                             <label className={`block text-sm font-medium text-gray-700 mb-2 ${requiredFieldStyle}`}>
                               Inspection Date
                             </label>
-                            <input
-                              type="date"
+                            <DateInput
+                              
                               value={data.inspection_date}
                               onChange={(e) => setData('inspection_date', e.target.value)}
                               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"

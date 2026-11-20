@@ -4,6 +4,7 @@
 namespace App\Http\Controllers\Inspector;
 
 use App\Support\UploadedAssets;
+use App\Support\Spgpnc;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Inspection;
@@ -14,6 +15,7 @@ use App\Models\CompanyStaff;
 use App\Models\ProjectAssign;
 use App\Models\ToolboxTopic;
 use App\Models\NoConformance;
+use App\Models\PerformanceSetting;
 use App\Models\ClientComplaint;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -112,6 +114,15 @@ class DashboardController extends Controller
         $startOfWeek = now()->startOfWeek();
         $totalEvaluated = $inspectionsQuery()->count();
         $goodCount = $inspectionsQuery()->where('evaluation', 'good')->count();
+        $complianceRate = $totalEvaluated > 0 ? round(($goodCount / $totalEvaluated) * 100) : null;
+        $performanceSettings = PerformanceSetting::where('company_id', $user->company_id)->first()?->snapshot()
+            ?? Spgpnc::DEFAULTS;
+        $complianceTier = match (true) {
+            $complianceRate === null, !$performanceSettings['scoring_on'], !$performanceSettings['bspr_on'] => null,
+            $complianceRate >= $performanceSettings['gold_min'] => 'GOLD',
+            $complianceRate >= $performanceSettings['silver_min'] => 'SILVER',
+            default => 'BRONZE',
+        };
 
         $openNc = NoConformance::where('status', 'open')
             ->whereHas('inspection', fn ($q) => $q->whereIn('project_id', $assignedProjectIds))
@@ -126,7 +137,8 @@ class DashboardController extends Controller
             'last_week_inspections' => $inspectionsQuery()
                 ->whereBetween('inspection_date', [$startOfWeek->copy()->subWeek(), $startOfWeek])
                 ->count(),
-            'compliance_rate' => $totalEvaluated > 0 ? round(($goodCount / $totalEvaluated) * 100) : 0,
+            'compliance_rate' => $complianceRate,
+            'compliance_tier' => $complianceTier,
             'open_nc' => $openNc,
             'open_cc' => $openCc,
             'toolbox_this_month' => ToolboxTalks::whereIn('project_id', $assignedProjectIds)
@@ -429,8 +441,8 @@ class DashboardController extends Controller
                 'attendees.*' => 'integer',
                 'categories' => 'required|array|min:1',
                 'categories.*' => 'integer|exists:toolbox_categories,id',
-                'img_group' => 'nullable|image|max:2048',
-                'img_attendance' => 'nullable|image|max:2048',
+                'img_group' => 'nullable|image|max:5120',
+                'img_attendance' => 'nullable|image|max:5120',
             ];
         } elseif ($toolbox) {
             // not conducted: attendance + Safety Passport sampling are still recorded
@@ -450,7 +462,7 @@ class DashboardController extends Controller
                 'inspections.*.location' => 'required|string|max:50',
                 'inspections.*.description' => 'required_unless:inspections.*.evaluation,good|nullable|string|max:255',
                 'inspections.*.photos' => 'required_unless:inspections.*.evaluation,good|array',
-                'inspections.*.photos.*' => 'image|max:2048',
+                'inspections.*.photos.*' => 'image|max:5120',
             ];
         }
         $request->validate($rules, [
@@ -618,7 +630,7 @@ class DashboardController extends Controller
                 'inspections.*.location' => 'required|string|max:50',
                 'inspections.*.description' => 'required_unless:inspections.*.evaluation,good|nullable|string|max:255',
                 'inspections.*.photos' => 'required_unless:inspections.*.evaluation,good|array',
-                'inspections.*.photos.*' => 'image|max:2048',
+                'inspections.*.photos.*' => 'image|max:5120',
             ]);
 
             $savedInspections = [];
@@ -887,7 +899,7 @@ class DashboardController extends Controller
             'location' => 'nullable|string|max:50',
             'inspectee_id' => 'nullable|exists:subcon_staff,id',
             'photos' => [\Illuminate\Validation\Rule::requiredIf($inspection->evaluation !== 'good' && count($existingPhotos) === 0), 'array'],
-            'photos.*' => 'image|max:2048',
+            'photos.*' => 'image|max:5120',
         ], ['evaluation.in' => 'The evaluation cannot be changed after the inspection is created.']);
 
         unset($validated['photos'], $validated['evaluation']);
@@ -1108,8 +1120,8 @@ class DashboardController extends Controller
                 $rules['attendees'] = 'required|array|min:1';
                 $rules['categories'] = 'required|array|min:1';
                 $rules['categories.*'] = 'integer|exists:toolbox_categories,id';
-                $rules['img_group'] = 'nullable|image|max:2048';
-                $rules['img_attendance'] = 'nullable|image|max:2048';
+                $rules['img_group'] = 'nullable|image|max:5120';
+                $rules['img_attendance'] = 'nullable|image|max:5120';
             }
 
             $validated = $request->validate($rules, [
@@ -1271,8 +1283,8 @@ class DashboardController extends Controller
             $rules['attendees'] = 'required|array|min:1';
             $rules['categories'] = 'required|array|min:1';
             $rules['categories.*'] = 'integer|exists:toolbox_categories,id';
-            $rules['img_group'] = 'nullable|image|max:2048';
-            $rules['img_attendance'] = 'nullable|image|max:2048';
+            $rules['img_group'] = 'nullable|image|max:5120';
+            $rules['img_attendance'] = 'nullable|image|max:5120';
         }
 
         $validated = $request->validate($rules, [

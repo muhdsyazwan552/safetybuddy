@@ -5,6 +5,7 @@ import InspectorLayout from '@/Layouts/InspectorLayout';
 import { EmptyState } from '@/Components/inspector/kit';
 import PdfButton from '@/Components/shared/PdfButton';
 import SeriesCode from '@/Components/shared/SeriesCode';
+import DateInput from '@/Components/shared/DateInput';
 
 function SubconRow({ subcon }) {
     const [open, setOpen] = useState(false);
@@ -52,8 +53,8 @@ export default function Attendance({ date, groups = [], user }) {
                         <span className="mb-1 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gray-500">
                             <CalendarDays className="h-4 w-4" /> Date
                         </span>
-                        <input
-                            type="date"
+                        <DateInput
+                            
                             value={date}
                             max={new Date().toISOString().slice(0, 10)}
                             onChange={(e) => e.target.value && go(e.target.value)}

@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { router } from '@inertiajs/react';
 import axios from 'axios';
 import { Loader2, Save, CalendarDays, Lock, ChevronDown, History } from 'lucide-react';
+import DateInput from '@/Components/shared/DateInput';
 
 const today = () => new Date().toISOString().slice(0, 10);
 
@@ -81,7 +82,7 @@ export default function AttendancePanel({ projects = [], staffs = [], hours = 8,
                 </label>
                 <label className="block">
                     <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-gray-500">Date</span>
-                    <input type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-base" />
+                    <DateInput  max={today()} value={date} onChange={(e) => setDate(e.target.value)} className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-base" />
                 </label>
             </div>
 

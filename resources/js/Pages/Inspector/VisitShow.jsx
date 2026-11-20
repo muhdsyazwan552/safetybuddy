@@ -1,10 +1,11 @@
 // One toolbox talk & inspection of the inspector. Same layout as the review portal (VisitDetail),
 // plus what only the inspector needs: who recorded it and the edit / fix button on each card.
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
-import { Pencil, UserRound, Send, Loader2 } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import { UserRound, Send, Loader2 } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import VisitDetail from '@/Components/shared/VisitDetail';
+import EditDeleteIcons from '@/Components/shared/EditDeleteIcons';
 
 const EDITABLE = ['pending_verification', 'rejected'];
 
@@ -22,20 +23,10 @@ export default function VisitShow({ visit, me = null, user }) {
         router.post(`/inspector/visits/${visit.key}/resubmit`, {}, { preserveScroll: true, onFinish: () => setSending(false) });
     };
 
-    // the button sits on the card it changes: red "Fix" when the item was returned, dark "Edit" otherwise
-    const editButton = (x, href, what) => {
-        if (!canEdit(x)) return null;
-        const returned = x.status === 'rejected';
-
-        return (
-            <Link
-                href={href}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white active:scale-95 ${returned ? 'bg-red-600 hover:bg-red-700' : 'bg-ink-900 hover:bg-ink-700'}`}
-            >
-                <Pencil className="h-3.5 w-3.5" /> {returned ? `Fix ${what}` : `Edit ${what}`}
-            </Link>
-        );
-    };
+    // icon buttons sit on the card they change: red pencil when the item was returned, grey otherwise
+    const actions = (x, base, what, note) => (canEdit(x) ? (
+        <EditDeleteIcons editHref={`${base}/${x.id}/edit`} deleteUrl={`${base}/${x.id}`} what={what} note={note} returned={x.status === 'rejected'} />
+    ) : null);
 
     return (
         <InspectorLayout user={user}>
@@ -46,14 +37,14 @@ export default function VisitShow({ visit, me = null, user }) {
                 backLabel="Back to toolbox talk & inspection"
                 inspectionHref={(i) => `/inspector/inspections/${i.id}`}
                 toolboxHref={(x) => `/inspector/toolbox-talks/${x.id}`}
-                talkActions={(t) => editButton(t, `/inspector/toolbox-talks/${t.id}/edit`, 'toolbox talk')}
-                inspectionActions={(i) => editButton(i, `/inspector/inspections/${i.id}/edit`, 'inspection')}
+                talkActions={(t) => actions(t, '/inspector/toolbox-talks', 'toolbox talk', 'The toolbox talk record will be removed. Its inspections stay.')}
+                inspectionActions={(i) => actions(i, '/inspector/inspections', 'inspection', 'The inspection and its non-conformance / client complaint record will be removed.')}
             >
                 {returned.length > 0 && (
                     <section className="rounded-3xl border border-red-200 bg-white p-4 shadow-sm">
                         <p className="text-sm font-extrabold text-red-700">Returned by the reviewer ({returned.length})</p>
                         <p className="mt-1 text-sm text-gray-600">
-                            Fix each returned part with its <b>Fix</b> button below. When you are done, send it back to the reviewer.
+                            Fix each returned part with its red <b>pencil</b> button below. When you are done, send it back to the reviewer.
                         </p>
                         <button type="button" onClick={sendBack} disabled={sending}
                             className="mt-3 inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white active:scale-95 disabled:opacity-60">
