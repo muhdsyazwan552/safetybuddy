@@ -10,6 +10,8 @@ import ReviewProgress from '@/Components/shared/ReviewProgress';
 import HeroMeta, { HeroStatus } from '@/Components/shared/HeroMeta';
 import PdfButton from '@/Components/shared/PdfButton';
 
+const detailLinkClass = 'flex w-full items-center justify-center gap-2 rounded-2xl bg-ink-900 px-5 py-3 text-sm font-bold text-brand-400 shadow-sm transition hover:bg-ink-800 sm:ml-auto sm:w-auto sm:min-w-[260px]';
+
 // Plain coloured text (no badge) so the value stands out; the colour comes from the badge palette in kit.
 const textColor = (badge, fallback = 'text-gray-600') => (badge || '').split(' ').find((c) => c.startsWith('text-')) || fallback;
 
@@ -28,7 +30,7 @@ const actionsRow = (buttons, extra = '') => (buttons
     ? <div className={`${extra} flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-4`}>{buttons}</div>
     : null);
 
-export default function VisitDetail({ visit, backHref, inspectionHref, toolboxHref, talkActions, inspectionActions, children }) {
+export default function VisitDetail({ visit, backHref, inspectionHref, caseHref, toolboxHref, talkActions, inspectionActions, children }) {
     const t = visit.talk;
 
     return (
@@ -115,7 +117,7 @@ export default function VisitDetail({ visit, backHref, inspectionHref, toolboxHr
 
                         {toolboxHref && t.id && (
                             <div className="border-t border-gray-100 pt-4">
-                                <Link href={toolboxHref(t)} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink-900 px-5 py-3 text-sm font-bold text-brand-400 shadow-sm transition hover:bg-ink-800 sm:ml-auto sm:w-auto sm:min-w-[260px]">
+                                <Link href={toolboxHref(t)} className={detailLinkClass}>
                                     View toolbox talk detail <ChevronRight className="h-4 w-4" />
                                 </Link>
                             </div>
@@ -132,48 +134,55 @@ export default function VisitDetail({ visit, backHref, inspectionHref, toolboxHr
                     <p className="text-sm text-gray-500">No inspection was recorded for this visit.</p>
                 ) : (
                     <div className="space-y-3">
-                        {visit.inspections.map((i) => (
-                            <div key={i.id} className="rounded-2xl border border-gray-100 p-4">
-                                <div>
-                                    <SeriesCode code={i.series_code} className="block" />
-                                    <p className="text-[15px] font-bold text-gray-900">{i.topic || '-'}</p>
-                                </div>
-                                <div className="mt-4 grid grid-cols-2 gap-4">
-                                    <InfoRow label="Location">{i.location || '-'}</InfoRow>
-                                    <InfoRow label="Subcontractor">{i.subcon || '-'}</InfoRow>
-                                    <InfoRow label="Status"><StatusText value={i.status} /></InfoRow>
-                                    <InfoRow label="Evaluation"><EvalText value={i.evaluation} /></InfoRow>
-                                    {i.description && (
-                                        <div className="col-span-2">
-                                            <InfoRow label="Comment"><span className="whitespace-pre-wrap">{i.description}</span></InfoRow>
+                        {visit.inspections.map((i) => {
+                            const caseType = { nonconformance: 'nc', clientcomplaint: 'cc' }[i.evaluation];
+                            const caseId = caseType ? i[`${caseType}_id`] : null;
+                            const linkedCaseHref = caseId && caseHref?.(caseType, caseId);
+                            const detailHref = linkedCaseHref || inspectionHref?.(i);
+
+                            return (
+                                <div key={i.id} className="rounded-2xl border border-gray-100 p-4">
+                                    <div>
+                                        <SeriesCode code={i.series_code} className="block" />
+                                        <p className="text-[15px] font-bold text-gray-900">{i.topic || '-'}</p>
+                                    </div>
+                                    <div className="mt-4 grid grid-cols-2 gap-4">
+                                        <InfoRow label="Location">{i.location || '-'}</InfoRow>
+                                        <InfoRow label="Subcontractor">{i.subcon || '-'}</InfoRow>
+                                        <InfoRow label="Status"><StatusText value={i.status} /></InfoRow>
+                                        <InfoRow label="Evaluation"><EvalText value={i.evaluation} /></InfoRow>
+                                        {i.description && (
+                                            <div className="col-span-2">
+                                                <InfoRow label="Comment"><span className="whitespace-pre-wrap">{i.description}</span></InfoRow>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {i.photos?.length > 0 && (
+                                        <div className="mt-3 flex gap-2 overflow-x-auto">
+                                            {i.photos.map((p) => (
+                                                <ImageViewer key={p} src={p} label="Inspection photo" className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-200">
+                                                    <img src={p} alt="" className="h-full w-full object-cover" />
+                                                </ImageViewer>
+                                            ))}
                                         </div>
                                     )}
+                                    {i.review_comment && i.status === 'rejected' && (
+                                        <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">Returned: {i.review_comment}</p>
+                                    )}
+
+                                    {detailHref && (
+                                        <div className="mt-4 border-t border-gray-100 pt-4">
+                                            <Link href={detailHref} className={detailLinkClass}>
+                                                View inspection detail <ChevronRight className="h-4 w-4" />
+                                            </Link>
+                                        </div>
+                                    )}
+
+                                    {actionsRow(inspectionActions?.(i), 'mt-4')}
                                 </div>
-
-                                {i.photos?.length > 0 && (
-                                    <div className="mt-3 flex gap-2 overflow-x-auto">
-                                        {i.photos.map((p) => (
-                                            <ImageViewer key={p} src={p} label="Inspection photo" className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-200">
-                                                <img src={p} alt="" className="h-full w-full object-cover" />
-                                            </ImageViewer>
-                                        ))}
-                                    </div>
-                                )}
-                                {i.review_comment && i.status === 'rejected' && (
-                                    <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">Returned: {i.review_comment}</p>
-                                )}
-
-                                {inspectionHref && (
-                                    <div className="mt-4 border-t border-gray-100 pt-4">
-                                        <Link href={inspectionHref(i)} className="flex w-full items-center justify-center gap-2 rounded-2xl bg-ink-900 px-5 py-3 text-sm font-bold text-brand-400 shadow-sm transition hover:bg-ink-800 sm:ml-auto sm:w-auto sm:min-w-[260px]">
-                                            View inspection detail <ChevronRight className="h-4 w-4" />
-                                        </Link>
-                                    </div>
-                                )}
-
-                                {actionsRow(inspectionActions?.(i), 'mt-4')}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </SectionCard>

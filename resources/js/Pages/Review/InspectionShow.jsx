@@ -59,7 +59,11 @@ function Actions({ i, can_verify, can_approve }) {
 
 // The page content, shared with the inspector's inspection page.
 // backHref: where "back" goes; caseHref: link of an NC / CC (null = the user has no case page, shown as text)
-export function InspectionDetail({ inspection: i, backHref = null, caseHref = (type, id) => `/review/cases/${type}/${id}`, progressCase, children }) {
+export function InspectionDetail({ inspection: i, backHref = null, caseHref = (type, id) => `/review/cases/${type}/${id}`, children }) {
+    const caseType = { nonconformance: 'nc', clientcomplaint: 'cc' }[i.evaluation];
+    const linkedCase = caseType ? i[caseType] : null;
+    const caseLabel = caseType === 'nc' ? 'Non-Conformance' : 'Client Complaint';
+
     return (
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
@@ -80,7 +84,26 @@ export function InspectionDetail({ inspection: i, backHref = null, caseHref = (t
                     </div>
                 </div>
 
-                <ReviewProgress kind={progressCase ? 'case' : 'visit'} record={progressCase} status={i.status} />
+                <ReviewProgress kind={linkedCase ? 'case' : 'visit'} record={linkedCase} status={i.status} />
+
+                {caseType && (
+                    <SectionCard title="Linked case">
+                        {linkedCase && caseHref && (
+                            <p className="mb-3 text-sm text-gray-600">
+                                This finding is verified and approved on its {caseLabel} case. Open the case to review details, verify or approve.
+                            </p>
+                        )}
+                        {linkedCase && caseHref ? (
+                            <Link href={caseHref(caseType, linkedCase.id)} className="inline-flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2.5 text-sm font-bold text-brand-400">
+                                View {caseLabel}{linkedCase.series_code ? ` · ${linkedCase.series_code}` : ''}
+                            </Link>
+                        ) : linkedCase ? (
+                            <p className="text-sm font-semibold text-gray-700">{caseLabel} {linkedCase.series_code}</p>
+                        ) : (
+                            <p className="text-sm text-gray-600">This finding has no linked {caseLabel} case.</p>
+                        )}
+                    </SectionCard>
+                )}
 
                 <SectionCard title="Details" icon={FolderKanban}>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -116,19 +139,6 @@ export function InspectionDetail({ inspection: i, backHref = null, caseHref = (t
                     </SectionCard>
                 )}
 
-                {(i.nc || i.cc) && (
-                    <SectionCard title="Linked case">
-                        <div className="flex flex-wrap gap-3">
-                            {i.nc && (caseHref
-                                ? <Link href={caseHref('nc', i.nc.id)} className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">Non-conformance {i.nc.series_code} · {i.nc.status}</Link>
-                                : <span className="rounded-xl bg-red-50 px-4 py-2.5 text-sm font-bold text-red-700">Non-conformance {i.nc.series_code} · {i.nc.status}</span>)}
-                            {i.cc && (caseHref
-                                ? <Link href={caseHref('cc', i.cc.id)} className="rounded-xl bg-purple-50 px-4 py-2.5 text-sm font-bold text-purple-700">Client complaint {i.cc.series_code} · {i.cc.status}</Link>
-                                : <span className="rounded-xl bg-purple-50 px-4 py-2.5 text-sm font-bold text-purple-700">Client complaint {i.cc.series_code} · {i.cc.status}</span>)}
-                        </div>
-                    </SectionCard>
-                )}
-
                 {children}
             </div>
     );
@@ -139,7 +149,10 @@ export default function InspectionShow({ inspection: i, can_verify, can_approve 
         <ReviewLayout title="Inspection">
             <Head title={`Inspection ${i.series_code || ''}`.trim()} />
             <InspectionDetail inspection={i}>
-                <Actions i={i} can_verify={can_verify} can_approve={can_approve} />
+                {/* NC / CC findings are verified and approved on their linked case, not here */}
+                {!['nonconformance', 'clientcomplaint'].includes(i.evaluation) && (
+                    <Actions i={i} can_verify={can_verify} can_approve={can_approve} />
+                )}
             </InspectionDetail>
         </ReviewLayout>
     );

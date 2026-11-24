@@ -14,7 +14,6 @@ export default function ShowInspection({ inspection, user, can_edit = false }) {
             <Head title={`Inspection ${inspection.series_code || ''}`.trim()} />
             <InspectionDetail
                 inspection={inspection}
-                progressCase={inspection.nc ?? inspection.cc}
                 backHref={inspection.visit_key ? `/inspector/visits/${inspection.visit_key}` : '/inspector/inspections'}
                 caseHref={(type, id) => `/inspector/cases/${type}/${id}`}
             />

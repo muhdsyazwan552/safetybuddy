@@ -58,6 +58,8 @@ class VisitFeed
             'verifier' => optional($i->verifier)->name,
             'approver' => optional($i->approver)->name,
             'review_comment' => $i->review_comment,
+            'nc_id' => $i->non_conformance?->id,
+            'cc_id' => $i->client_complaint?->id,
             'photos' => collect($photos)->map(fn ($p) => self::url($p))->values(),
         ];
     }
@@ -86,6 +88,8 @@ class VisitFeed
                 'inspections.subconCompany:id,name',
                 'inspections.verifier:id,name',
                 'inspections.approver:id,name',
+                'inspections.non_conformance:id,inspection_id',
+                'inspections.client_complaint:id,inspection_id',
             ])
             ->whereHas('project', fn ($q) => $q->where('company_id', $companyId))
             ->when($projectIds, fn ($q) => $q->whereIn('project_id', $projectIds))
@@ -132,7 +136,7 @@ class VisitFeed
             $byKey[$k] ??= $visits->count() - 1;
         }
 
-        $loose = Inspection::with(['project:id,name,company_id', 'inspector:id,name', 'topic:id,name', 'subconCompany:id,name', 'verifier:id,name', 'approver:id,name'])
+        $loose = Inspection::with(['project:id,name,company_id', 'inspector:id,name', 'topic:id,name', 'subconCompany:id,name', 'verifier:id,name', 'approver:id,name', 'non_conformance:id,inspection_id', 'client_complaint:id,inspection_id'])
             ->whereNull('toolbox_talk_id')
             ->where('company_id', $companyId)
             ->when($projectIds, fn ($q) => $q->whereIn('project_id', $projectIds))

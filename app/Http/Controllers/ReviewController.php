@@ -7,9 +7,11 @@ use App\Models\CompanyStaff;
 use App\Models\Inspection;
 use App\Models\PerformanceSetting;
 use App\Support\CaseFeed;
+use App\Support\InspectionApproval;
 use App\Support\Spgpnc;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /**
@@ -533,6 +535,9 @@ class ReviewController extends Controller
     public function visitVerify(int $id)
     {
         $staffId = CompanyStaff::where('user_id', Auth::id())->value('id');
+        InspectionApproval::assertCasesClosed(
+            Inspection::where('toolbox_talk_id', $this->visitTalk($id)->id)->where('status', Inspection::STATUS_PENDING)->get()
+        );
         $c = ['status' => \App\Models\Inspection::STATUS_VERIFIED, 'verified_by' => $staffId, 'verified_at' => now(), 'review_comment' => null];
         $this->stepVisit($id, \App\Models\Inspection::STATUS_PENDING, $c, $c);
 
@@ -543,8 +548,25 @@ class ReviewController extends Controller
     {
         abort_unless((int) Auth::user()->role_id === 3, 403, 'Only a Manager can approve.');
         $staffId = CompanyStaff::where('user_id', Auth::id())->value('id');
-        $c = ['status' => \App\Models\Inspection::STATUS_APPROVED, 'approved_by' => $staffId, 'approved_at' => now()];
-        $this->stepVisit($id, \App\Models\Inspection::STATUS_VERIFIED, $c, $c);
+        $talk = $this->visitTalk($id);
+
+        DB::transaction(function () use ($talk, $staffId) {
+            $currentTalk = $talk->newQuery()->lockForUpdate()->findOrFail($talk->id);
+            $approvedAt = now();
+
+            foreach (Inspection::where('toolbox_talk_id', $currentTalk->id)
+                ->where('status', Inspection::STATUS_VERIFIED)->orderBy('id')->lockForUpdate()->get() as $inspection) {
+                InspectionApproval::approve($inspection, $staffId, $approvedAt);
+            }
+
+            if ($currentTalk->status === Inspection::STATUS_VERIFIED) {
+                $currentTalk->update([
+                    'status' => Inspection::STATUS_APPROVED,
+                    'approved_by' => $staffId,
+                    'approved_at' => $approvedAt,
+                ]);
+            }
+        });
 
         return back()->with('success', 'Toolbox talk & Inspection approved.');
     }
@@ -815,7 +837,11 @@ class ReviewController extends Controller
     public function closeCase(Request $request, string $type, int $id)
     {
         $case = $this->findCase($type, $id);
-        abort_unless($case->subcon_response, 422, 'The subcontractor has not replied yet.');
+        if ($case->inspection->status !== Inspection::STATUS_APPROVED || !$case->subcon_response || $case->return_reason) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'comment' => 'The case needs a submitted corrective action and an approved inspection before it can be closed.',
+            ]);
+        }
         $data = $request->validate(['comment' => 'nullable|string|max:1000']);
 
         $case->update([
@@ -836,10 +862,11 @@ class ReviewController extends Controller
         abort_if($case->status === 'closed', 422, 'This case is already closed.');
         $data = $request->validate(['reason' => 'required|string|max:1000']);
 
-        $case->update([
+        $updated = $case->newQuery()->whereKey($case->id)->where('status', '!=', 'closed')->update([
             'return_reason' => $data['reason'],
             'review_by' => CompanyStaff::where('user_id', Auth::id())->value('id'),
         ]);
+        abort_unless($updated, 422, 'This case is already closed.');
 
         return back()->with('success', 'Case returned to the subcontractor leader.');
     }

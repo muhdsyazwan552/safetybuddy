@@ -129,7 +129,7 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                                     finding
                                     visit={toCard(i)}
                                     editable={me !== null && Number(i.inspection_by) === Number(me)}
-                                    detailHref={`/inspector/inspections/${i.id}`}
+                                    detailHref={i.case ? `/inspector/cases/${i.case.type}/${i.case.id}` : `/inspector/inspections/${i.id}`}
                                     open={openKey === i.id}
                                     onToggle={() => setOpenKey((k) => (k === i.id ? null : i.id))}
                                 />

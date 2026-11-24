@@ -14,6 +14,7 @@ export function CaseActions({ item }) {
     if (item.state === 'open' || item.state === 'returned') {
         return <p className="text-xs font-semibold text-amber-600">Waiting for the subcontractor leader to reply.</p>;
     }
+    const inspectionApproved = item.inspection?.approval === 'approved';
 
     const post = (action, data) => {
         setBusy(true);
@@ -30,18 +31,21 @@ export function CaseActions({ item }) {
             <input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="Comment (required to return, optional to close)"
+                placeholder={inspectionApproved ? 'Comment (required to return, optional to close)' : 'Reason for returning the corrective action'}
                 className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
             />
             {error && <p className="text-xs font-medium text-red-500">{error}</p>}
             <div className="flex flex-wrap gap-2">
-                <button disabled={busy} onClick={() => post('close', { comment: text })} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Approve &amp; close
-                </button>
+                {inspectionApproved && (
+                    <button disabled={busy} onClick={() => post('close', { comment: text })} className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+                        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Close case
+                    </button>
+                )}
                 <button disabled={busy || !text.trim()} onClick={() => post('return', { reason: text })} className="rounded-xl border border-red-300 bg-white px-4 py-2 text-sm font-bold text-red-600 disabled:opacity-40">
                     Return to subcon
                 </button>
             </div>
+            {!inspectionApproved && <p className="text-xs text-gray-600">The case closes when the inspection is approved.</p>}
         </div>
     );
 }

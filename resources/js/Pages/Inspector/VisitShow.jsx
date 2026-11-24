@@ -35,6 +35,7 @@ export default function VisitShow({ visit, me = null, user }) {
                 visit={visit}
                 backHref="/inspector/visits"
                 inspectionHref={(i) => `/inspector/inspections/${i.id}`}
+                caseHref={(type, id) => `/inspector/cases/${type}/${id}`}
                 toolboxHref={(x) => `/inspector/toolbox-talks/${x.id}`}
                 talkActions={(t) => actions(t, '/inspector/toolbox-talks', 'toolbox talk', 'The toolbox talk record will be removed. Its inspections stay.')}
                 inspectionActions={(i) => actions(i, '/inspector/inspections', 'inspection', 'The inspection and its non-conformance / client complaint record will be removed.')}

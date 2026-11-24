@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\UploadedAssets;
+use App\Support\InspectionApproval;
 use App\Models\Inspection;
 use App\Models\Company;
 use App\Models\CompanyStaff;
@@ -15,6 +16,7 @@ use App\Models\NoConformance;
 use App\Models\ClientComplaint;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Redirect;
@@ -443,6 +445,7 @@ class InspectionController extends Controller
     {
         $staff = $this->reviewer(self::VERIFIER_ROLES, $inspection);
         abort_unless($inspection->status === Inspection::STATUS_PENDING, 422, 'Inspection is not awaiting verification.');
+        InspectionApproval::assertCasesClosed([$inspection]);
 
         $inspection->update([
             'status' => Inspection::STATUS_VERIFIED,
@@ -458,13 +461,12 @@ class InspectionController extends Controller
     public function approve(Inspection $inspection)
     {
         $staff = $this->reviewer(self::APPROVER_ROLES, $inspection);
-        abort_unless($inspection->status === Inspection::STATUS_VERIFIED, 422, 'Inspection must be verified first.');
 
-        $inspection->update([
-            'status' => Inspection::STATUS_APPROVED,
-            'approved_by' => $staff?->id,
-            'approved_at' => now(),
-        ]);
+        DB::transaction(function () use ($inspection, $staff) {
+            $current = Inspection::query()->lockForUpdate()->findOrFail($inspection->id);
+            abort_unless($current->status === Inspection::STATUS_VERIFIED, 422, 'Inspection must be verified first.');
+            InspectionApproval::approve($current, $staff?->id, now());
+        });
 
         return back()->with('success', 'Inspection approved.');
     }

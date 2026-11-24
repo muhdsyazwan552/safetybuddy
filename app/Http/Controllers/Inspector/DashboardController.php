@@ -281,6 +281,8 @@ class DashboardController extends Controller
         $inspections->getCollection()->each(function ($i) {
             $c = $i->non_conformance ?: $i->client_complaint;
             $i->setAttribute('case', $c ? [
+                'id' => $c->id,
+                'type' => $i->non_conformance ? 'nc' : 'cc',
                 'code' => $c->code,
                 'state' => $c->status === 'closed' ? 'closed' : ($c->return_reason ? 'returned' : ($c->subcon_response ? 'responded' : 'open')),
                 'subcon_response' => $c->subcon_response,
@@ -784,6 +786,20 @@ class DashboardController extends Controller
             'client_complaint',
         ])->whereIn('project_id', $assignedProjectIds)
           ->findOrFail($id);
+
+        if (request()->query('view') !== 'inspection') {
+            [$type, $case] = match ($inspection->evaluation) {
+                'nonconformance' => ['nc', $inspection->non_conformance],
+                'clientcomplaint' => ['cc', $inspection->client_complaint],
+                default => [null, null],
+            };
+            if ($case) {
+                return redirect()->route('inspector.cases.show', [
+                    'type' => $type,
+                    'id' => $case->id,
+                ]);
+            }
+        }
 
         // Debug: Log the data to verify
         \Log::info('Inspection ID: ' . $inspection->id);

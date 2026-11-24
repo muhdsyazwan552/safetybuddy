@@ -41,7 +41,7 @@ export default function CaseShow({ item, inspector_view = false, user }) {
     const response = item.return_reason || (closed ? item.comment : null);
     const Layout = inspector_view ? InspectorLayout : ReviewLayout;
     const prefix = inspector_view ? '/inspector' : '/review';
-    const inspectionHref = `${prefix}/inspections/${i.id}`;
+    const inspectionHref = `${prefix}/inspections/${i.id}${inspector_view ? '?view=inspection' : ''}`;
 
     return (
         <Layout user={user} title={isNc ? 'Non-conformance' : 'Client complaint'}>
