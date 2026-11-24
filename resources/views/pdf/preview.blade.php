@@ -36,7 +36,7 @@
         </div>
         <div class="bar">
             <a class="btn" href="{{ $pdfUrl }}" download>Save PDF</a>
-            <button id="close-report" class="ghost hide-sm" type="button">Close</button>
+            <button id="close-report" class="ghost" type="button" aria-label="Close report">✕</button>
         </div>
     </header>
 
@@ -59,8 +59,11 @@
         var step = 0, doc = null, pages = [], token = 0, timer = null;
 
         document.getElementById('close-report').addEventListener('click', function () {
+            // a tab opened from the app can close itself; otherwise go back, or to the home page
             window.close();
-            if (history.length > 1) history.back();
+            setTimeout(function () {
+                if (history.length > 1) history.back(); else location.href = '/';
+            }, 150);
         });
 
         function fail(msg) {
