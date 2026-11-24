@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Building2, CreditCard, HardHat, UsersRound } from 'lucide-react';
@@ -40,7 +41,7 @@ export default function CompanyDetails({ title, company, admins = [], subscripti
   };
 
   return <><Head title={title} /><SystemAdminLayout title={title} description="Company profile, subscriptions, slots, employees, contractors, and linked companies.">
-    <Link href={company.is_training_provider ? '/admin/training-providers' : '/admin/companies'} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink-900"><ArrowLeft size={17} /> {company.is_training_provider ? 'Training Providers' : 'All companies'}</Link>
+    <BackLink href={company.is_training_provider ? '/admin/training-providers' : '/admin/companies'} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink-900"><ArrowLeft size={17} /> Back</BackLink>
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><div className="flex flex-wrap items-center gap-4">{company.logo_url ? <img src={company.logo_url} alt="" className="h-16 w-16 rounded-2xl border border-slate-200 object-contain" /> : <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-ink-50 text-ink-500"><Building2 size={28} /></span>}<div className="min-w-0 flex-1"><h2 className="text-xl font-bold text-ink-900">{company.name}</h2><p className="mt-1 text-sm text-ink-500">{company.code || `Company #${company.id}`} · {company.account_type}</p></div><StatusBadge status={company.status} /></div></div>
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white p-1"><div role="tablist" aria-label="Company details" className="flex min-w-max gap-1">{availableTabs.map(tab => <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} onClick={() => selectTab(tab.id)} className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition ${activeTab === tab.id ? 'bg-brand-50 text-brand-900' : 'text-ink-500 hover:bg-slate-50 hover:text-ink-800'}`}>{tab.label}</button>)}</div></div>
 

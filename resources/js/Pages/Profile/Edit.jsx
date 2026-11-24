@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
@@ -459,7 +460,7 @@ export default function Edit({ account = {}, company = null, accountType = null,
                 <main className="min-w-0">
                     <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                         <div><h1 className="text-3xl font-bold tracking-tight text-ink-950">{section.title}</h1><p className="mt-1 text-sm text-gray-600">{section.description}</p></div>
-                        <Link href={dashboard} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition hover:border-brand-400 hover:bg-brand-50"><ArrowLeft className="h-4 w-4" />Back to dashboard</Link>
+                        <BackLink href={dashboard} className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-semibold text-ink-900 shadow-sm transition hover:border-brand-400 hover:bg-brand-50"><ArrowLeft className="h-4 w-4" />Back</BackLink>
                     </div>
                 {mustVerifyEmail && !account.email_verified && (
                     <div className="mb-5 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 sm:flex-row sm:items-center sm:justify-between">

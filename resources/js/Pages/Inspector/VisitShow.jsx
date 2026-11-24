@@ -34,7 +34,6 @@ export default function VisitShow({ visit, me = null, user }) {
             <VisitDetail
                 visit={visit}
                 backHref="/inspector/visits"
-                backLabel="Back to toolbox talk & inspection"
                 inspectionHref={(i) => `/inspector/inspections/${i.id}`}
                 toolboxHref={(x) => `/inspector/toolbox-talks/${x.id}`}
                 talkActions={(t) => actions(t, '/inspector/toolbox-talks', 'toolbox talk', 'The toolbox talk record will be removed. Its inspections stay.')}

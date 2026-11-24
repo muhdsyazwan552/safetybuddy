@@ -32,6 +32,7 @@ class ClientComplaint extends Model
         'review_by', // FK to staff
         'comment',
         'subcon_response',
+        'response_photo',
         'responded_at',
         'responded_by',
         'return_reason',

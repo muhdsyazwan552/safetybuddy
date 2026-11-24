@@ -1,3 +1,4 @@
+import { AttachmentLink } from '@/Components/shared/ImageViewer';
 // resources/js/Pages/SubconPublic/Components/MachineryPanel.jsx
 // Machinery records (leader adds / edits). Matches the "1 machinery record" mock-up.
 import React, { useState } from 'react';
@@ -152,9 +153,9 @@ export default function MachineryPanel({ machinery = [], staffs = [], isLeader, 
                                 <p className="mt-1 flex flex-wrap items-center gap-x-2 text-[15px] text-gray-600">
                                     <span>CF:{' '}
                                         {m.cf_attached ? (
-                                            <a href={m.cf_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-semibold text-gray-800 underline decoration-gray-300 underline-offset-2">
+                                            <AttachmentLink href={m.cf_url} label="Certificate" className="inline-flex items-center gap-1 font-semibold text-gray-800 underline decoration-gray-300 underline-offset-2">
                                                 <Paperclip className="h-3.5 w-3.5" /> Attached
-                                            </a>
+                                            </AttachmentLink>
                                         ) : (
                                             <span className="inline-flex items-center gap-1 font-bold text-red-500"><AlertCircle className="h-3.5 w-3.5" /> Missing</span>
                                         )}

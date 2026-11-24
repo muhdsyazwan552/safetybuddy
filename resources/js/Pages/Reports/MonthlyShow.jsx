@@ -1,5 +1,6 @@
+import BackLink from '@/Components/shared/BackLink';
 import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import ReportShell from '@/Components/reports/ReportShell';
 import MonthlyReportView from '@/Components/reports/MonthlyReportView';
@@ -16,7 +17,7 @@ export default function MonthlyShow({ portal, report }) {
         <ReportShell portal={portal} title="Monthly report">
             <Head title={`Monthly report ${report.report_no}`} />
             <div className="mb-4 flex items-center justify-between">
-                <Link href={back} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500"><ArrowLeft className="h-4 w-4" /> Back to reports</Link>
+                <BackLink href={back} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500"><ArrowLeft className="h-4 w-4" /> Back</BackLink>
                 <PdfButton href={`/pdf/monthly/${report.id}`} className="ml-auto mr-2" />
             </div>
             <LockNotice status={report.status} kind="monthly report" />

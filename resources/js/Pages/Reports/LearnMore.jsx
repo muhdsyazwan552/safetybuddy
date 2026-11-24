@@ -1,5 +1,6 @@
+import BackLink from '@/Components/shared/BackLink';
 import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import ReportShell from '@/Components/reports/ReportShell';
 import { Panel, RankStrip, rm } from '@/Components/reports/parts';
@@ -20,7 +21,7 @@ export default function LearnMore({ portal, settings: s, links }) {
     return (
         <ReportShell portal={portal} title="Learn more">
             <Head title="SPGPNC & BSPR" />
-            <Link href={back} className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-gray-500"><ArrowLeft className="h-4 w-4" /> Back to reports</Link>
+            <BackLink href={back} className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-gray-500"><ArrowLeft className="h-4 w-4" /> Back</BackLink>
 
             <div className="space-y-4">
                 <div>

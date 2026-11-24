@@ -1,3 +1,5 @@
+import { AttachmentLink } from '@/Components/shared/ImageViewer';
+import ImageViewer from '@/Components/shared/ImageViewer';
 // Everything about one subcontractor company - staff, daily attendance, NC / CC,
 // Safety Passport and machinery. Shared by the admin, review and inspector portals;
 // the data comes from App\Support\SubconDetail.
@@ -200,9 +202,9 @@ export const CasesTab = ({ cases }) => {
                   {i.photos?.length > 0 && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       {i.photos.map(p => (
-                        <a key={p} href={storageUrl(p)} target="_blank" rel="noreferrer">
+                        <ImageViewer key={p} src={storageUrl(p)} label="Inspection photo">
                           <img src={storageUrl(p)} alt="" className="h-16 w-16 rounded border object-cover" />
-                        </a>
+                        </ImageViewer>
                       ))}
                     </div>
                   )}
@@ -291,7 +293,7 @@ export const MachineryTab = ({ machinery }) => {
               <td className="px-6 py-3 text-sm text-gray-600">{m.operator_name || '-'}</td>
               <td className="whitespace-nowrap px-6 py-3 text-sm"><ExpiryBadge date={m.cf_expiry} /></td>
               <td className="px-6 py-3 text-sm">
-                {m.cf_url ? <a href={m.cf_url} target="_blank" rel="noreferrer" className={tableViewActionClass} title="View certificate" aria-label={`View certificate for ${m.name}`}><TableViewIcon /></a> : <span className="text-red-600">Not attached</span>}
+                {m.cf_url ? <AttachmentLink href={m.cf_url} label="Certificate" className={tableViewActionClass} title="View certificate" aria-label={`View certificate for ${m.name}`}><TableViewIcon /></AttachmentLink> : <span className="text-red-600">Not attached</span>}
               </td>
             </tr>
           ))}
@@ -350,9 +352,9 @@ export const StaffTab = ({ staff = [] }) => {
               {s.certifications?.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-1.5 border-t border-gray-100 pt-3">
                   {s.certifications.map(c => (
-                    <a key={c.id} href={c.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-50">
+                    <AttachmentLink key={c.id} href={c.file_url} label={c.title || "Certificate"} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs text-blue-700 hover:bg-blue-50">
                       {c.title} <ExpiryBadge date={c.expiry_date} />
-                    </a>
+                    </AttachmentLink>
                   ))}
                 </div>
               )}

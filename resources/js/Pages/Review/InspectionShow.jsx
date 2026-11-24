@@ -1,3 +1,5 @@
+import ImageViewer from '@/Components/shared/ImageViewer';
+import BackLink from '@/Components/shared/BackLink';
 import React, { useState } from 'react';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { Head, Link, router } from '@inertiajs/react';
@@ -61,9 +63,9 @@ export function InspectionDetail({ inspection: i, backHref = null, caseHref = (t
     return (
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
-                    <Link href={backHref || `/review/visits/${i.visit_key || `insp-${i.id}`}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
-                        <ArrowLeft className="h-4 w-4" /> Back to toolbox talk & inspection
-                    </Link>
+                    <BackLink href={backHref || `/review/visits/${i.visit_key || `insp-${i.id}`}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                        <ArrowLeft className="h-4 w-4" /> Back
+                    </BackLink>
                 </div>
 
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
@@ -106,9 +108,9 @@ export function InspectionDetail({ inspection: i, backHref = null, caseHref = (t
                     <SectionCard title={`Evidence photos (${i.photos.length})`}>
                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                             {i.photos.map((p) => (
-                                <a key={p} href={p} target="_blank" rel="noreferrer" className="aspect-square overflow-hidden rounded-2xl border border-gray-200">
+                                <ImageViewer key={p} src={p} label="Inspection photo" className="aspect-square overflow-hidden rounded-2xl border border-gray-200">
                                     <img src={p} alt="" className="h-full w-full object-cover" />
-                                </a>
+                                </ImageViewer>
                             ))}
                         </div>
                     </SectionCard>

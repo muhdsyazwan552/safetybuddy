@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import React, { useState } from 'react';
 import { Head, Link } from '@inertiajs/react';
 import {
@@ -18,7 +19,7 @@ const CASE_STATE = {
 
 // The project page content, shared with the inspector's project page.
 // hrefs: where a visit / case / subcontractor opens; null = that record has no page for this user
-export function ProjectDetail({ project, stats = {}, evaluation = {}, team = [], subcons = [], visits = [], cases = [], backHref = '/review/projects', backLabel = 'Projects', myRole = null, heroExtra = null, hrefs = {} }) {
+export function ProjectDetail({ project, stats = {}, evaluation = {}, team = [], subcons = [], visits = [], cases = [], backHref = '/review/projects', myRole = null, heroExtra = null, hrefs = {} }) {
     const visitHref = hrefs.visit || ((v) => `/review/visits/${v.key}`);
     const caseHref = hrefs.case === undefined ? ((c) => `/review/cases/${c.type}/${c.id}`) : hrefs.case;
     const subconHref = hrefs.subcon === undefined ? ((c) => `/review/subcons/${c.id}`) : hrefs.subcon;
@@ -56,9 +57,9 @@ export function ProjectDetail({ project, stats = {}, evaluation = {}, team = [],
 
     return (
             <div className="mx-auto max-w-5xl space-y-4 px-4 pb-10 pt-5 sm:px-6">
-                <Link href={backHref} className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-800">
-                    <ChevronLeft className="h-4 w-4" /> {backLabel}
-                </Link>
+                <BackLink href={backHref} className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-800">
+                    <ChevronLeft className="h-4 w-4" /> Back
+                </BackLink>
 
                 {/* Hero */}
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">

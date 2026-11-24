@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Head, useForm, router, Link } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
+import BackLink from '@/Components/shared/BackLink';
 import DateInput from '@/Components/shared/DateInput';
 import { showAlert } from '@/Helpers/alert'; // Import Sweet Alert helper
 
@@ -300,6 +302,9 @@ export default function ExecutorProjectDetails({
 
             <div className="py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <BackLink href="/manage-project" className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-800">
+                        <ArrowLeft className="h-4 w-4" /> Back
+                    </BackLink>
 
                     {/* Remove the old success/error message divs - they are replaced by Sweet Alert */}
 

@@ -1,3 +1,4 @@
+import { AttachmentLink } from '@/Components/shared/ImageViewer';
 // resources/js/Pages/SubconPublic/Components/CertificationsSection.jsx
 // Certification records of one staff member. Anyone can upload, only the leader can remove.
 import React, { useRef } from 'react';
@@ -59,7 +60,7 @@ export default function CertificationsSection({ staff, publicToken, leaderKey, i
                             <li key={c.id} className="flex items-center gap-3 rounded-2xl border border-gray-100 bg-white p-3">
                                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-900"><FileText className="h-5 w-5" /></span>
                                 <div className="min-w-0 flex-1">
-                                    <a href={c.file_url} target="_blank" rel="noreferrer" className="block truncate text-sm font-bold text-gray-900 hover:underline">{c.title}</a>
+                                    <AttachmentLink href={c.file_url} label={c.title || "Certificate"} className="block truncate text-sm font-bold text-gray-900 hover:underline">{c.title}</AttachmentLink>
                                     <p className="text-[11px] text-gray-500">
                                         {c.expiry_date ? `Expires ${formatDate(c.expiry_date)}` : 'No expiry date'}
                                         {ex && <span className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-extrabold ${ex.cls}`}>{ex.text}</span>}

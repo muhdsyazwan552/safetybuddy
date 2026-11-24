@@ -3,7 +3,7 @@
 @if($companyLogo)
     <img class="brand-logo" src="{{ $companyLogo }}" alt="">
 @endif
-{{ $company }}
+<span class="company-name">{{ $company }}</span>
 @endsection
 @section('heading', 'DAILY REPORT')
 @section('body')

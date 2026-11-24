@@ -1,4 +1,5 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import BackLink from '@/Components/shared/BackLink';
+import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import SystemAdminLayout from '@/Layouts/SystemAdminLayout';
 import DateInput from '@/Components/shared/DateInput';
@@ -27,7 +28,7 @@ export default function SubscriptionCreate({ title, companies, packages, subscri
   const submit = event => { event.preventDefault(); form.post(route('system.admin.subscriptions.store')); };
 
   return <><Head title={title} /><SystemAdminLayout title={title} description="Create a new access period and optionally record a verified payment." width="max-w-5xl">
-    <Link href="/admin/subscriptions" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink-900"><ArrowLeft size={17} /> Subscriptions</Link>
+    <BackLink href="/admin/subscriptions" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink-900"><ArrowLeft size={17} /> Back</BackLink>
     {renew && <div className="rounded-2xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">Renewing <strong>{renew.company_name}</strong> · {renew.module_name}. Dates begin after the previous period when it is still current.</div>}
     <form onSubmit={submit} className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_290px]">
       <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><div><h2 className="text-lg font-bold text-ink-900">Subscription details</h2><p className="mt-1 text-sm text-ink-500">Each save creates a separate history record.</p></div>

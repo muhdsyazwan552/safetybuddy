@@ -45,7 +45,7 @@ const TOP_LEVEL = ['/inspector/dashboard', '/inspector/visits', '/inspector/insp
 
 const TABS = [
     { name: 'Home', href: '/inspector/dashboard', icon: LayoutDashboard },
-    { name: 'Toolbox talk & Inspection', short: 'TT / IP', href: '/inspector/visits', icon: ClipboardList },
+    { name: 'Toolbox talk & Inspection', short: 'Insp', href: '/inspector/visits', icon: ClipboardList },
     null, // centre button: new toolbox talk & inspection
     { name: 'Incidents', href: '/inspector/incidents', icon: Siren },
 ];

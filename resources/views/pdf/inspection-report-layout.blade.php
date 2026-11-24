@@ -8,7 +8,8 @@
     body { font-family: DejaVu Sans, sans-serif; font-size: 9pt; color: #1e293b; }
     .report-header { background: #171b24; color: #fff; border-bottom: 3pt solid #facc15; margin: -15mm -14mm 0; padding: 15pt 14mm; }
     .report-header .brand-logo { max-width: 22pt; max-height: 20pt; padding: 2pt; margin-right: 6pt; background: #fff; vertical-align: middle; }
-    h1 { font-size: 13pt; margin: 2pt 0 0; }
+    h1 { font-size: 12pt; margin: 2pt 0 0; }
+    .report-header .company-name { font-size: 15pt; }
     h2 { font-size: 10.5pt; margin: 22pt 0 9pt; padding-left: 7pt; border-left: 3pt solid #eab308; page-break-after: avoid; }
     table { border-collapse: collapse; width: 100%; table-layout: fixed; }
     td, th { padding: 3pt 7pt; vertical-align: top; overflow-wrap: break-word; }

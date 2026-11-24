@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import { useState } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { FiMail, FiLock, FiArrowLeft } from 'react-icons/fi';
@@ -74,12 +75,12 @@ const Login = () => {
 
       {/* Login Form Side */}
       <div className="relative w-full lg:w-1/2 flex items-center justify-center p-8 pt-20 lg:pt-8 bg-white">
-        <Link
+        <BackLink
           href="/"
           className="absolute left-4 top-4 sm:left-6 sm:top-6 inline-flex items-center gap-2 rounded-full border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 transition hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
         >
-          <FiArrowLeft className="h-4 w-4" /> Back to home
-        </Link>
+          <FiArrowLeft className="h-4 w-4" /> Back
+        </BackLink>
 
         <div className="w-full max-w-md">
           <Head title="Login" />

@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import { useState } from 'react';
 import axios from 'axios';
 import { Head, Link } from '@inertiajs/react';
@@ -59,7 +60,7 @@ export default function Register() {
 
     <main className="flex min-h-screen flex-col px-6 py-6 sm:px-10 lg:px-12 lg:py-10 xl:px-20">
       <div className="flex items-center justify-between">
-        <Link href="/" className="inline-flex items-center gap-2 text-sm font-medium text-ink-500 transition hover:text-ink-950"><ArrowLeft className="h-4 w-4" /> Back to home</Link>
+        <BackLink href="/" className="inline-flex items-center gap-2 text-sm font-medium text-ink-500 transition hover:text-ink-950"><ArrowLeft className="h-4 w-4" /> Back</BackLink>
         <Link href="/" className="lg:hidden" aria-label="Safety Buddy home"><img src="/images/sbc-logo.png" alt="" className="h-10 w-10 rounded-full" /></Link>
       </div>
 

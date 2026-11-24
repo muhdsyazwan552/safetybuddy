@@ -64,6 +64,7 @@ class CaseFeed
             'date_close' => optional($case->date_close)->format('Y-m-d'),
             'comment' => $case->comment,
             'subcon_response' => $case->subcon_response,
+            'response_photo' => UploadedAssets::url($case->response_photo),
             'responded_at' => optional($case->responded_at)->toDateTimeString(),
             'responded_by' => $case->responded_by,
             'return_reason' => $case->return_reason,

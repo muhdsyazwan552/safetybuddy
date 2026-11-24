@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import React, { useEffect, useRef, useState } from "react";
 import { Head, Link, router } from "@inertiajs/react";
 import TableToolbar, { ToolbarSelect } from "@/Components/shared/TableToolbar";
@@ -87,13 +88,13 @@ export default function PaymentHistory({
                         <h1 className="text-3xl font-black tracking-tight text-ink-950">
                             Payment history
                         </h1>
-                        <Link
+                        <BackLink
                             href="/profile#membership"
                             className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-ink-900 shadow-sm transition hover:border-brand-400 hover:bg-brand-50"
                         >
                             <ArrowLeft className="h-4 w-4" />
-                            Back to membership
-                        </Link>
+                            Back
+                        </BackLink>
                     </div>
                     <p className="mt-2 text-sm text-gray-500">
                         Package payments, extra slots, and Training Provider

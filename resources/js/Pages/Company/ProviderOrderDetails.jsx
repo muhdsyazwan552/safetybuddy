@@ -1,5 +1,6 @@
+import BackLink from '@/Components/shared/BackLink';
 import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { ArrowLeft, Clock3, FileText, MessageCircle } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
 
@@ -30,7 +31,7 @@ export default function ProviderOrderDetails({ order }) {
   return <AppLayout title={`Order ${order.batch_ref}`}>
     <Head title={`Order ${order.batch_ref}`}/>
     <div className="w-full max-w-5xl space-y-6">
-      <Link href="/training-provider/packages" className="inline-flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900"><ArrowLeft className="h-4 w-4"/>Back to Purchase</Link>
+      <BackLink href="/training-provider/packages" className="inline-flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900"><ArrowLeft className="h-4 w-4"/>Back</BackLink>
 
       <section className="overflow-hidden rounded-2xl border border-brand-300 bg-white shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand-200 bg-brand-50 px-5 py-4">

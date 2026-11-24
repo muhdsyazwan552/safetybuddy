@@ -11,6 +11,7 @@ const RANK = {
 
 const pct = (v) => (v === null || v === undefined ? '–' : `${Math.round(Number(v))}%`);
 const score = (v) => (v === null || v === undefined ? 'Incomplete' : `${Number(v).toFixed(2)}%`);
+const ringgit = (value) => `RM${Number(value).toLocaleString('en-MY')}`;
 
 const COLS = [
     ['sp', 'SP'], ['g', 'G'], ['p', 'P'], ['n', 'N'], ['c', 'C'],
@@ -23,7 +24,7 @@ const shift = (iso, days) => {
 };
 
 export default function PerformancePanel({ performance }) {
-    const { daily = [], monthly = null } = performance;
+    const { daily = [], monthly = null, settings } = performance;
     const today = toISO(new Date());
     const [date, setDate] = useState(today);
     const rows = daily.filter((d) => d.date === date);
@@ -31,14 +32,14 @@ export default function PerformancePanel({ performance }) {
 
     return (
         <div className="space-y-4">
-            <section aria-label="Daily BSPR report" className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            <section aria-label="BSPR Status" className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
                     <div className="flex items-center gap-3">
                         <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ink-900 text-brand-400">
                             <Trophy aria-hidden="true" className="h-5 w-5" />
                         </span>
                         <div>
-                            <h3 className="text-base font-bold text-gray-900">Daily BSPR</h3>
+                            <h3 className="text-base font-bold text-gray-900">BSPR Status</h3>
                             <p className="text-xs text-gray-600">Best Safety Practices Rank</p>
                         </div>
                     </div>
@@ -110,17 +111,26 @@ export default function PerformancePanel({ performance }) {
                         </PopoverButton>
                         <PopoverPanel anchor={{ to: 'bottom end', gap: '8px', padding: '12px' }} className="z-50 max-h-[60vh] w-[min(28rem,calc(100vw-1.5rem))] overflow-y-auto rounded-2xl border border-gray-200 bg-white p-4 text-gray-700 shadow-xl">
                             <h4 className="mb-3 text-sm font-bold text-gray-900">Score, rank and penalty formulas</h4>
+                            <p className="mb-3 text-sm text-gray-600">
+                                The Company Admin sets these thresholds and penalties in Compliance &amp; Penalty Settings.
+                                Existing reports use the settings saved with each report.
+                            </p>
                             <ul className="space-y-2 text-sm leading-relaxed">
-                                <li><b>SP</b> = (Sampled &minus; Not registered) &divide; Sampled</li>
-                                <li><b>G</b> = GOOD &divide; Total findings</li>
-                                <li><b>P</b> = 100% &minus; (POOR &divide; Total findings)</li>
-                                <li><b>N</b> = 100% &minus; (Nonconformance &divide; Total findings)</li>
-                                <li><b>C</b> = 100% &minus; (Client complaint &divide; Total findings)</li>
+                                <li><b>SP</b> = Compliant sampled workers &divide; Sampled workers &times; 100</li>
+                                <li><b>G</b> = GOOD &divide; Total findings &times; 100</li>
+                                <li><b>P</b> = 100 &minus; (POOR &divide; Total findings &times; 100)</li>
+                                <li><b>N</b> = 100 &minus; (Nonconformance &divide; Total findings &times; 100)</li>
+                                <li><b>C</b> = 100 &minus; (Client complaint &divide; Total findings &times; 100)</li>
                                 <li><b>SPGPNC Score</b> = average of SP, G, P, N and C. It shows &ldquo;Incomplete&rdquo; if there is no Safety Passport sample or no finding that day.</li>
-                                <li><b>BSPR</b>: Gold = 90% or more &middot; Silver = 60% or more &middot; Bronze = below 60%</li>
                                 <li>
-                                    <b>Total Penalty</b> = RM300 each for SP below 100%, G below 80% and P below 80%,
-                                    + RM100 for every nonconformance + RM500 for every client complaint
+                                    <b>BSPR</b>{' '}{settings.bspr_on
+                                        ? <>Gold at {settings.gold_min}% or higher &middot; Silver from {settings.silver_min}% up to Gold &middot; Bronze below {settings.silver_min}%</>
+                                        : 'ranking is disabled.'}
+                                </li>
+                                <li>
+                                    <b>Total Penalty</b>{' '}{settings.penalties_on
+                                        ? <>= {ringgit(settings.sp_penalty)} for SP below {settings.sp_benchmark}% + {ringgit(settings.g_penalty)} for G below {settings.g_benchmark}% + {ringgit(settings.p_penalty)} for P below {settings.p_benchmark}% + {ringgit(settings.nc_penalty)} per nonconformance + {ringgit(settings.cc_penalty)} per client complaint</>
+                                        : 'is disabled.'}
                                 </li>
                             </ul>
                         </PopoverPanel>

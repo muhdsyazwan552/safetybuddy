@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { ArrowLeft, Building2, CreditCard, KeyRound } from 'lucide-react';
 import SystemAdminLayout, { AdminStatCard } from '@/Layouts/SystemAdminLayout';
@@ -21,7 +22,7 @@ export default function TrainingProviderOrderDetails({ title, order }) {
   };
 
   return <><Head title={title} /><SystemAdminLayout title={title} description="Review a Training Provider package purchase and the linked companies that activated its codes.">
-    <Link href={route('system.admin.training-providers.orders')} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink-900"><ArrowLeft size={17} /> Activation code orders</Link>
+    <BackLink href={route('system.admin.training-providers.orders')} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink-900"><ArrowLeft size={17} /> Back</BackLink>
     {flash.success && <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-800">{flash.success}</div>}
     {Object.entries(errors).map(([key, value]) => <p key={key} className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{value}</p>)}
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4 border-b border-slate-100 pb-5"><div><p className="text-xs font-bold uppercase tracking-wider text-brand-700">Activation code order</p><h2 className="mt-1 text-xl font-bold text-ink-900">{order.batch_ref}</h2><p className="mt-1 text-sm text-ink-500">Placed {order.created_at || 'date unknown'}</p></div><StatusBadge status={order.status} /></div><dl className="mt-5 grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4"><Detail label="Training Provider"><Link href={`/admin/training-providers/${order.provider_id}/companies`} className="inline-flex items-center gap-1 hover:underline"><Building2 size={14} /> {order.provider || `Company #${order.provider_id}`}</Link></Detail><Detail label="Provider code">{order.provider_code}</Detail><Detail label="Reference code">{order.provider_reference_code}</Detail><Detail label="Provider contact">{order.provider_email}{order.provider_contact ? ` · ${order.provider_contact}` : ''}</Detail><Detail label="Package">{order.package}</Detail><Detail label="Package code">{order.package_code}</Detail><Detail label="Quantity">{order.quantity} activation codes</Detail><Detail label="Unit price">{money(order.unit_price)}</Detail><Detail label="Order total">{money(order.total)}</Detail><Detail label="Payment confirmed">{order.paid_at}</Detail></dl></section>

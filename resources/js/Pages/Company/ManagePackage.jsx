@@ -1,5 +1,6 @@
+import BackLink from '@/Components/shared/BackLink';
 import React, { useState } from 'react';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, useForm, usePage } from '@inertiajs/react';
 import { ArrowLeft, FileText, MessageCircle } from 'lucide-react';
 import OrderReview from '@/Components/OrderReview';
 import AccountPageLayout from '@/Layouts/AccountPageLayout';
@@ -96,7 +97,7 @@ export default function ManagePackage({ active, seats = [], history = [] }) {
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-3xl font-black tracking-tight text-ink-950">Manage Slot</h1>
-        <Link href="/profile#membership" className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-ink-900 shadow-sm transition hover:border-brand-400 hover:bg-brand-50"><ArrowLeft className="h-4 w-4" />Back to membership</Link>
+        <BackLink href="/profile#membership" className="inline-flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-bold text-ink-900 shadow-sm transition hover:border-brand-400 hover:bg-brand-50"><ArrowLeft className="h-4 w-4" />Back</BackLink>
       </div>
 
       {active ? <div id="membership" className="grid scroll-mt-6 gap-5 md:grid-cols-2">{seats.map(seat => <SeatCard key={seat.type} seat={seat}/>)}</div>

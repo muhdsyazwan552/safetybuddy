@@ -1,6 +1,8 @@
+import ImageViewer from '@/Components/shared/ImageViewer';
+import BackLink from '@/Components/shared/BackLink';
 import React from 'react';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import HeroMeta, { HeroStatus } from '@/Components/shared/HeroMeta';
 import { ArrowLeft, FolderKanban, Users, ListChecks, Calculator, Image as ImageIcon } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
@@ -19,9 +21,9 @@ export function ToolboxDetail({ talk: t, backHref = null, children }) {
     return (
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
-                    <Link href={backHref || `/review/visits/talk-${t.id}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
-                        <ArrowLeft className="h-4 w-4" /> Back to toolbox talk & inspection
-                    </Link>
+                    <BackLink href={backHref || `/review/visits/talk-${t.id}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                        <ArrowLeft className="h-4 w-4" /> Back
+                    </BackLink>
                 </div>
 
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
@@ -48,7 +50,7 @@ export function ToolboxDetail({ talk: t, backHref = null, children }) {
                                 {t.conducted ? 'Conducted' : 'Not conducted'}
                             </span>
                         </InfoRow>
-                        <InfoRow label="Attendees">{t.attended} present</InfoRow>
+                        <InfoRow label="Attendees / SP SAMPLING">{t.attended?.toString()}</InfoRow>
                         {t.conducted && <InfoRow label="Categories">{t.categories.length ? t.categories.join(', ') : '-'}</InfoRow>}
                         <InfoRow label="Verified by">{t.verifier ? `${t.verifier} · ${t.verified_at || ''}` : '-'}</InfoRow>
                         <InfoRow label="Approved by">{t.approver ? `${t.approver} · ${t.approved_at || ''}` : '-'}</InfoRow>
@@ -120,10 +122,10 @@ export function ToolboxDetail({ talk: t, backHref = null, children }) {
                     <SectionCard title="Photos" icon={ImageIcon}>
                         <div className="grid grid-cols-2 gap-3">
                             {[['Group photo', t.img_group], ['Attendance sheet', t.img_attendance]].map(([label, src]) => src && (
-                                <a key={label} href={src} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-2xl border border-gray-200">
+                                <ImageViewer key={label} src={src} label={label} className="block overflow-hidden rounded-2xl border border-gray-200">
                                     <img src={src} alt={label} className="aspect-video w-full object-cover" />
-                                    <p className="bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">{label}</p>
-                                </a>
+                                    <span className="block bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">{label}</span>
+                                </ImageViewer>
                             ))}
                         </div>
                     </SectionCard>

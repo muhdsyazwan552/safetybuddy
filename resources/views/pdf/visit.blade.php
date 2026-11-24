@@ -1,5 +1,7 @@
 @extends('pdf.inspection-report-layout')
-@section('brand', 'SAFETY BUDDY - CMERI')
+@section('brand')
+<span class="company-name">{{ $company }}</span>
+@endsection
 @section('heading', 'TOOLBOX TALK, SP SAMPLING & INSPECTION REPORT')
 @section('body')
 @php

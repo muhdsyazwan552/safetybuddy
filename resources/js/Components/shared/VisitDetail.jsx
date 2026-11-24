@@ -1,3 +1,5 @@
+import ImageViewer from '@/Components/shared/ImageViewer';
+import BackLink from '@/Components/shared/BackLink';
 // Site visit detail: toolbox talk first, then the inspections. Shared by the admin and the review portal.
 import React from 'react';
 import SeriesCode from './SeriesCode';
@@ -26,14 +28,14 @@ const actionsRow = (buttons, extra = '') => (buttons
     ? <div className={`${extra} flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-4`}>{buttons}</div>
     : null);
 
-export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspectionHref, toolboxHref, talkActions, inspectionActions, children }) {
+export default function VisitDetail({ visit, backHref, inspectionHref, toolboxHref, talkActions, inspectionActions, children }) {
     const t = visit.talk;
 
     return (
         <div className="mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
-            <Link href={backHref} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-800">
-                <ArrowLeft className="h-4 w-4" /> {backLabel}
-            </Link>
+            <BackLink href={backHref} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-800">
+                <ArrowLeft className="h-4 w-4" /> Back
+            </BackLink>
 
             {/* hero */}
             <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg sm:p-7">
@@ -73,8 +75,8 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                                     {t.conducted ? 'Conducted' : 'Not conducted'}
                                 </span>
                             </InfoRow>
-                            <InfoRow label="Attendees">
-                                <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-gray-400" />{t.attended} present</span>
+                            <InfoRow label="Attendees / SP SAMPLING">
+                                <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-gray-400" />{t.attended}</span>
                             </InfoRow>
                             {t.conducted && <InfoRow label="Categories">{t.categories.length ? t.categories.join(', ') : '-'}</InfoRow>}
                         </div>
@@ -99,10 +101,10 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                         {(t.img_group || t.img_attendance) && (
                             <div className="grid grid-cols-2 gap-3">
                                 {[['Group photo', t.img_group], ['Attendance sheet', t.img_attendance]].map(([label, src]) => src && (
-                                    <a key={label} href={src} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-2xl border border-gray-200">
+                                    <ImageViewer key={label} src={src} label={label} className="block overflow-hidden rounded-2xl border border-gray-200">
                                         <img src={src} alt={label} className="aspect-video w-full object-cover" />
-                                        <p className="bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">{label}</p>
-                                    </a>
+                                        <span className="block bg-gray-50 px-3 py-1.5 text-xs font-semibold text-gray-600">{label}</span>
+                                    </ImageViewer>
                                 ))}
                             </div>
                         )}
@@ -151,9 +153,9 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                                 {i.photos?.length > 0 && (
                                     <div className="mt-3 flex gap-2 overflow-x-auto">
                                         {i.photos.map((p) => (
-                                            <a key={p} href={p} target="_blank" rel="noreferrer" className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-200">
+                                            <ImageViewer key={p} src={p} label="Inspection photo" className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-200">
                                                 <img src={p} alt="" className="h-full w-full object-cover" />
-                                            </a>
+                                            </ImageViewer>
                                         ))}
                                     </div>
                                 )}

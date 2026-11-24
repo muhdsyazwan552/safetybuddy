@@ -11,7 +11,7 @@ import {
 
 const TABS = [
     { name: 'Home', href: '/review/dashboard', icon: LayoutDashboard },
-    { name: 'Toolbox talk & Inspection', short: 'TT / IP', href: '/review/visits', icon: ClipboardCheck },
+    { name: 'Toolbox talk & Inspection', short: 'Insp', href: '/review/visits', icon: ClipboardCheck },
     { name: 'NC / CC', href: '/review/cases', icon: AlertTriangle },
     { name: 'Incidents', href: '/review/incidents', icon: Siren },
 ];

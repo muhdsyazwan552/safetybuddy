@@ -1,6 +1,8 @@
+import ImageViewer from '@/Components/shared/ImageViewer';
+import BackLink from '@/Components/shared/BackLink';
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Check, ChevronRight, ClipboardCheck, CalendarDays, Link2, MessageSquareReply, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ChevronRight, ClipboardCheck, Link2, MessageSquareReply } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import HeroMeta, { HeroStatus } from '@/Components/shared/HeroMeta';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
@@ -31,57 +33,20 @@ function Comment({ name, role, when, text, tone }) {
         </li>
     );
 }
-// One step of the timeline, drawn like the review progress indicator: green tick when done, blue number when it is the current step, red when returned
-function Step({ index, done, active, bad, last, label, when, note }) {
-    return (
-        <li className="relative flex gap-3 pb-5 last:pb-0">
-            {!last && <span className={`absolute left-4 top-8 -ml-px h-[calc(100%-2rem)] w-0.5 ${done ? 'bg-emerald-500' : 'bg-gray-200'}`} aria-hidden="true" />}
-            <span className={`relative z-10 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-extrabold ${
-                bad ? 'border-red-500 bg-red-500 text-white' : done ? 'border-emerald-600 bg-emerald-600 text-white' : active ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-200 bg-white text-gray-400'
-            }`}>
-                {bad ? <RotateCcw className="h-4 w-4" /> : done ? <Check className="h-4 w-4" /> : index}
-            </span>
-            <div className="min-w-0 pt-1">
-                <p className={`text-sm font-bold ${bad ? 'text-red-700' : done ? 'text-emerald-700' : active ? 'text-blue-700' : 'text-gray-400'}`}>{label}</p>
-                {when && <p className="text-xs text-gray-500">{when}</p>}
-                {note && <p className="mt-0.5 whitespace-pre-wrap text-xs text-gray-600">{note}</p>}
-            </div>
-        </li>
-    );
-}
-
 export default function CaseShow({ item }) {
     const isNc = item.type === 'nc';
     const i = item.inspection || {};
     const closed = item.state === 'closed';
-
-    const steps = [
-        { done: true, label: 'Case opened', when: fmtDate(item.date_open), note: `By inspector ${i.inspector || '-'}` },
-        {
-            done: !!item.subcon_response,
-            label: 'Subcontractor replied',
-            when: item.responded_at ? fmtDate(item.responded_at) : 'Waiting for the leader',
-            note: item.subcon_response,
-        },
-        ...(item.return_reason ? [{ done: true, bad: true, label: 'Returned to the subcontractor', when: item.reviewer ? `By ${item.reviewer}` : '', note: item.return_reason }] : []),
-        {
-            done: closed,
-            label: 'Approved and closed',
-            when: closed ? `${fmtDate(item.date_close)}${item.reviewer ? ` · ${item.reviewer}` : ''}` : 'Not closed yet',
-            note: closed ? item.comment : null,
-        },
-    ];
-    // the first step that is not finished is the current one
-    const firstOpen = steps.findIndex((s) => !s.done);
+    const response = item.return_reason || (closed ? item.comment : null);
 
     return (
         <ReviewLayout title={isNc ? 'Non-conformance' : 'Client complaint'}>
             <Head title={isNc ? 'Non-conformance' : 'Client complaint'} />
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
-                    <Link href="/review/cases" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
-                        <ArrowLeft className="h-4 w-4" /> Back to cases
-                    </Link>
+                    <BackLink href="/review/cases" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                        <ArrowLeft className="h-4 w-4" /> Back
+                    </BackLink>
                     <PdfButton href={`/pdf/case/${item.type}/${item.id}`} />
                 </div>
 
@@ -128,16 +93,15 @@ export default function CaseShow({ item }) {
                     {i.photos?.length > 0 && (
                         <div className="mt-4 flex gap-2 overflow-x-auto">
                             {i.photos.map((p) => (
-                                <a key={p} href={photoUrl(p)} target="_blank" rel="noreferrer" className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-200">
+                                <ImageViewer key={p} src={photoUrl(p)} label="Inspection photo" className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-200">
                                     <img src={photoUrl(p)} alt="" className="h-full w-full object-cover" />
-                                </a>
+                                </ImageViewer>
                             ))}
                         </div>
                     )}
                 </SectionCard>
 
-                {(item.subcon_response || item.state !== 'closed') && (
-                    <SectionCard title={item.subcon_response ? 'Subcontractor reply' : 'Review'} icon={item.subcon_response ? MessageSquareReply : undefined}>
+                <SectionCard title="Action from subcontractor" icon={MessageSquareReply}>
                         {item.subcon_response && (
                             <ul className="space-y-4">
                                 <Comment
@@ -146,31 +110,36 @@ export default function CaseShow({ item }) {
                                     when={item.responded_at ? fmtDate(item.responded_at, SENT_AT) : null}
                                     text={item.subcon_response}
                                 />
-                                {item.return_reason && (
-                                    <Comment
-                                        name={item.reviewer || 'Reviewer'}
-                                        role="Returned by reviewer"
-                                        text={item.return_reason}
-                                        tone="red"
-                                    />
-                                )}
                             </ul>
                         )}
-                        {item.state !== 'closed' && (
-                            <div className={item.subcon_response ? 'mt-5 border-t border-gray-100 pt-4' : ''}>
-                                <CaseActions item={item} />
-                            </div>
+                        {item.response_photo && (
+                            <ImageViewer src={item.response_photo} label="Corrective action photo" className="mt-4 block w-fit">
+                                <img src={item.response_photo} alt="Corrective action photo" className="max-h-48 rounded-xl border border-gray-200 object-contain" />
+                            </ImageViewer>
                         )}
-                    </SectionCard>
-                )}
-                <SectionCard title="Timeline" icon={CalendarDays}>
-                    <ol>
-                        {steps.map((s, n) => (
-                            <Step key={s.label} index={n + 1} last={n === steps.length - 1} active={!s.done && !s.bad && n === firstOpen} {...s} />
-                        ))}
-                    </ol>
+                        {!item.subcon_response && <p className="text-sm text-gray-500">No action submitted yet.</p>}
                 </SectionCard>
 
+                <SectionCard title="Response from Supervisor and Manager" icon={MessageSquareReply}>
+                    <ul className="space-y-4">
+                        {(item.verifier || item.verified_at) && (
+                            <Comment name={item.verifier || 'Supervisor'} role="Supervisor verification" when={fmtDate(item.verified_at, SENT_AT)} text="Verified the linked inspection." />
+                        )}
+                        {(item.approver || item.approved_at) && (
+                            <Comment name={item.approver || 'Manager'} role="Manager approval" when={fmtDate(item.approved_at, SENT_AT)} text="Approved the linked inspection." />
+                        )}
+                        {response && (
+                            <Comment
+                                name={item.reviewer || item.reviewer_role}
+                                role={item.return_reason ? `${item.reviewer_role} · Returned for action` : item.reviewer_role}
+                                when={closed && item.date_close ? fmtDate(item.date_close) : null}
+                                text={response}
+                                tone={item.return_reason ? 'red' : undefined}
+                            />
+                        )}
+                    </ul>
+                    {!closed && <div className="mt-4"><CaseActions item={item} /></div>}
+                </SectionCard>
                 <SectionCard title="Related records" icon={Link2}>
                     <ul className="divide-y divide-gray-100">
                         <li className="flex items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">

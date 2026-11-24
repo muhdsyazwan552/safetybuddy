@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import SystemAdminLayout from '@/Layouts/SystemAdminLayout';
@@ -11,7 +12,7 @@ export default function UserCreate({ title, roles, companies }) {
   const submit = (event) => { event.preventDefault(); form.post(route('system.admin.users.store')); };
 
   return <><Head title={title} /><SystemAdminLayout title={title} description="Add a user account, choose the role and link it to a company." width="max-w-4xl">
-    <Link href={route('system.admin.users.index')} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink-900"><ArrowLeft size={17} /> Users</Link>
+    <BackLink href={route('system.admin.users.index')} className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink-900"><ArrowLeft size={17} /> Back</BackLink>
     <form onSubmit={submit} className="space-y-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
       <div>
         <h2 className="text-lg font-bold text-ink-900">Account details</h2>

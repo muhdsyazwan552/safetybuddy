@@ -138,18 +138,43 @@ class SubconPortalController extends Controller
     public function respondCase(Request $request, string $token, string $type, int $id): RedirectResponse
     {
         $company = $this->leaderCompany($request, $token);
-        $data = $request->validate(['response' => 'required|string|min:5|max:2000']);
-
         $case = \App\Support\CaseFeed::model($type)::with('inspection')->findOrFail($id);
         abort_unless((int) optional($case->inspection)->subcon_company_id === (int) $company->id, 404);
         abort_if($case->status === 'closed', 422, 'This case is already closed.');
 
-        $case->update([
-            'subcon_response' => $data['response'],
-            'responded_at' => now(),
-            'responded_by' => $company->name . ' (Leader)',
-            'return_reason' => null,
+        $data = $request->validate([
+            'response' => 'required|string|min:5|max:2000',
+            'photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
         ]);
+
+        $previousPhoto = UploadedAssets::cleanupOnFailure(function ($upload) use ($case, $data, $company) {
+            $photo = $upload($data['photo'], 'case-responses');
+
+            return DB::transaction(function () use ($case, $data, $company, $photo) {
+                $current = $case->newQuery()->lockForUpdate()->findOrFail($case->id);
+                abort_if($current->status === 'closed', 422, 'This case is already closed.');
+                if ($current->subcon_response && !$current->return_reason) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'response' => 'This case already has a reply awaiting review.',
+                    ]);
+                }
+
+                $previousPhoto = $current->response_photo;
+                $current->update([
+                    'subcon_response' => $data['response'],
+                    'response_photo' => $photo,
+                    'responded_at' => now(),
+                    'responded_by' => $company->name . ' (Leader)',
+                    'return_reason' => null,
+                ]);
+
+                return $previousPhoto;
+            });
+        });
+
+        if ($previousPhoto) {
+            rescue(fn () => UploadedAssets::delete($previousPhoto));
+        }
 
         return back()->with('success', 'Your response was sent for review.');
     }

@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import SystemAdminLayout from '@/Layouts/SystemAdminLayout';
@@ -14,7 +15,7 @@ export default function PlanCreate({ title }) {
   const submit = event => { event.preventDefault(); form.post(route('system.admin.plans.store')); };
 
   return <><Head title={title} /><SystemAdminLayout title={title} description="Set pricing, included seats, and report limits for a new plan." width="max-w-4xl">
-    <Link href="/admin/packages" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink-900"><ArrowLeft size={17} /> Packages and plans</Link>
+    <BackLink href="/admin/packages" className="inline-flex items-center gap-2 text-sm font-semibold text-ink-600 hover:text-ink-900"><ArrowLeft size={17} /> Back</BackLink>
     <form onSubmit={submit} className="space-y-7 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
       <div><h2 className="text-lg font-bold text-ink-900">Plan details</h2><p className="mt-1 text-sm text-ink-500">The plan is added as an active Standard plan. Its code stays fixed after creation.</p><div className="mt-5 grid gap-5 sm:grid-cols-2"><Field label="Plan code"><input className={input} value={form.data.code} onChange={e => form.setData('code', e.target.value.toUpperCase())} maxLength={50} placeholder="E.g. STARTER_PLUS" required /></Field><Field label="Plan name"><input className={input} value={form.data.name} onChange={e => form.setData('name', e.target.value)} maxLength={100} required /></Field><Field label="Yearly price (RM)"><input type="number" min="0" step="1" className={input} value={form.data.price_yearly} onChange={e => form.setData('price_yearly', e.target.value)} required /></Field><Field label="Training Provider price (RM)"><input type="number" min="0" step="1" className={input} value={form.data.provider_price_yearly} onChange={e => form.setData('provider_price_yearly', e.target.value)} placeholder="Use yearly price" /></Field></div></div>
       <div className="border-t border-slate-100 pt-6"><h2 className="font-bold text-ink-900">Included seats</h2><div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[['manager_limit', 'Managers'], ['supervisor_limit', 'Supervisors'], ['inspector_limit', 'Inspectors'], ['contractor_limit', 'Contractors']].map(([key, label]) => <Field key={key} label={label}><input type="number" min="0" max="65535" className={input} value={form.data[key]} onChange={e => form.setData(key, e.target.value)} required /></Field>)}</div></div>

@@ -8,32 +8,54 @@ export function caseState(record) {
     return record?.subcon_response ? 'responded' : 'open';
 }
 
+function caseProgress(record, inspectionStatus) {
+    const state = caseState(record);
+    const returned = state === 'returned';
+    const submitted = state === 'responded' || state === 'closed';
+    const approval = inspectionStatus ?? record?.inspection?.approval ?? record?.inspection?.status;
+    const verified = submitted && ['verified', 'approved'].includes(approval);
+    const approved = submitted && approval === 'approved';
+
+    return {
+        steps: [
+            { label: 'Action', who: 'Waiting action', done: submitted, active: !submitted, returned },
+            { label: 'Submitted', who: 'Done action', done: submitted },
+            { label: verified ? 'Verified' : 'Verify', who: 'Supervisor', done: verified, active: submitted && !verified },
+            { label: approved ? 'Approved' : 'Approve', who: 'Manager', done: approved, active: verified && !approved },
+        ],
+        detail: returned ? 'Returned to subcontractor for corrective action'
+            : !submitted ? 'Awaiting subcontractor action'
+                : !verified ? 'Action submitted. Awaiting supervisor verification.'
+                    : !approved ? 'Verified by supervisor. Awaiting manager approval.'
+                        : state === 'closed' ? 'Approved and closed' : 'Approved by manager',
+    };
+}
+
 export default function ReviewProgress({ kind, status, record, className = '' }) {
     const caseWorkflow = kind === 'case';
     const visitWorkflow = kind === 'visit';
-    const state = caseWorkflow ? caseState(record) : (status || (visitWorkflow ? 'pending_verification' : 'open')).toLowerCase().replace(/\s+/g, '');
+    const state = (status || (visitWorkflow ? 'pending_verification' : 'open')).toLowerCase().replace(/\s+/g, '');
     const approved = visitWorkflow ? state === 'approved' : state === 'closed';
-    const reviewed = caseWorkflow ? approved : visitWorkflow ? ['verified', 'approved'].includes(state) : ['inprogress', 'closed'].includes(state);
-    const returned = (caseWorkflow && state === 'returned') || (visitWorkflow && state === 'rejected');
-    const steps = [
-        { label: 'Submitted', who: caseWorkflow || visitWorkflow ? 'Inspector' : 'Reporter', done: true },
-        { label: returned ? 'Returned' : 'Review', who: caseWorkflow ? 'Subcontractor and reviewer' : 'Supervisor', done: reviewed },
-        { label: 'Approved', who: caseWorkflow ? 'Reviewer' : 'Manager', done: approved },
-    ];
-    const detail = caseWorkflow
-        ? { open: 'Awaiting subcontractor reply', responded: 'Reply received; awaiting review', returned: 'Returned for another reply', closed: 'Approved and closed' }[state]
-        : visitWorkflow
-            ? { pending_verification: 'Awaiting supervisor review', verified: 'Reviewed by supervisor; awaiting manager approval', rejected: 'Returned to inspector for correction', approved: 'Approved by manager' }[state]
-            : { open: 'Awaiting supervisor review', inprogress: 'Reviewed by supervisor; awaiting manager approval', closed: 'Approved by manager' }[state];
+    const reviewed = visitWorkflow ? ['verified', 'approved'].includes(state) : ['inprogress', 'closed'].includes(state);
+    const returned = visitWorkflow && state === 'rejected';
+    const { steps, detail } = caseWorkflow ? caseProgress(record, status) : {
+        steps: [
+            { label: 'Submitted', who: visitWorkflow ? 'Inspector' : 'Reporter', done: true },
+            { label: returned ? 'Returned' : reviewed ? 'Verified' : 'Verify', who: 'Supervisor', done: reviewed, active: !reviewed, returned },
+            { label: 'Approved', who: 'Manager', done: approved, active: reviewed && !approved },
+        ],
+        detail: visitWorkflow
+            ? { pending_verification: 'Awaiting supervisor verification', verified: 'Verified by supervisor. Awaiting manager approval.', rejected: 'Returned to inspector for correction', approved: 'Approved by manager' }[state]
+            : { open: 'Awaiting supervisor verification', inprogress: 'Verified by supervisor. Awaiting manager approval.', closed: 'Approved by manager' }[state],
+    };
 
     return (
         <section className={`rounded-2xl border border-gray-200 bg-white p-4 ${className}`} aria-label="Review progress">
             <p className="text-xs font-extrabold uppercase tracking-wider text-gray-500">Review progress</p>
             <p className="mt-1 text-sm font-semibold text-gray-700">{detail || 'Awaiting review'}</p>
-            <ol className="mt-4 grid grid-cols-3 gap-2">
+            <ol className={`mt-4 grid gap-2 ${caseWorkflow ? 'grid-cols-4' : 'grid-cols-3'}`}>
                 {steps.map((step, index) => {
-                    const active = index === 1 ? !reviewed : index === 2 && reviewed && !approved;
-                    const isReturned = returned && index === 1;
+                    const { active, returned: isReturned } = step;
                     return (
                         <li key={index} aria-current={active ? 'step' : undefined} className="relative flex flex-col items-center text-center">
                             {index > 0 && <span className={`absolute right-1/2 top-4 h-0.5 w-full ${step.done ? 'bg-emerald-500' : 'bg-gray-200'}`} aria-hidden="true" />}
@@ -52,7 +74,7 @@ export default function ReviewProgress({ kind, status, record, className = '' })
     );
 }
 
-/** Compact Submitted -> Review (supervisor) -> Approved (manager) indicator for one inspection / talk in a list. */
+/** Compact submission, verification and approval indicator for an inspection or toolbox talk. */
 export function ReviewSteps({ status, className = '' }) {
     const state = (status || 'pending_verification').toLowerCase();
     const returned = state === 'rejected';
@@ -60,7 +82,7 @@ export function ReviewSteps({ status, className = '' }) {
     const approved = state === 'approved';
     const steps = [
         { label: 'Submit', done: true },
-        { label: returned ? 'Returned' : 'Review', done: reviewed, bad: returned, active: !reviewed && !returned },
+        { label: returned ? 'Returned' : reviewed ? 'Verified' : 'Verify', done: reviewed, bad: returned, active: !reviewed && !returned },
         { label: 'Approve', done: approved, active: reviewed && !approved },
     ];
 

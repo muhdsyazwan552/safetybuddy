@@ -1,3 +1,4 @@
+import { AttachmentLink } from '@/Components/shared/ImageViewer';
 import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { CheckCircle2, Clock, Loader2, ShieldCheck, ChevronDown, Mail, Phone, Building2, BriefcaseBusiness, FileText, Check } from 'lucide-react';
@@ -129,13 +130,13 @@ export default function StaffApprovalShow({ staff: s, topics = [], myRole = 'sup
                         <ul className="space-y-2">
                             {s.certifications.map((c) => (
                                 <li key={c.id}>
-                                    <a href={c.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 rounded-2xl border border-gray-100 p-3 hover:bg-gray-50">
+                                    <AttachmentLink href={c.file_url} label={c.title || "Certificate"} className="flex items-center gap-3 rounded-2xl border border-gray-100 p-3 hover:bg-gray-50">
                                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-100 text-brand-900"><FileText className="h-5 w-5" /></span>
                                         <span className="min-w-0 flex-1">
                                             <span className="block truncate text-sm font-bold text-gray-900">{c.title}</span>
                                             <span className="text-[11px] text-gray-500">{c.expiry_date ? `Expires ${c.expiry_date}` : 'No expiry date'}</span>
                                         </span>
-                                    </a>
+                                    </AttachmentLink>
                                 </li>
                             ))}
                         </ul>

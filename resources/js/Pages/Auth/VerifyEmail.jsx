@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, MailCheck } from 'lucide-react';
 import NetBackground from '@/Components/shared/NetBackground';
@@ -21,7 +22,7 @@ export default function VerifyEmail({ email = '', status = null, deliveryFailed 
     </aside>
 
     <main className="flex min-h-screen flex-col px-6 py-6 sm:px-10 lg:px-12 lg:py-10 xl:px-20">
-      <Link href="/login" className="inline-flex items-center gap-2 self-start text-sm font-medium text-ink-500 hover:text-ink-950"><ArrowLeft className="h-4 w-4" /> Back to login</Link>
+      <BackLink href="/login" className="inline-flex items-center gap-2 self-start text-sm font-medium text-ink-500 hover:text-ink-950"><ArrowLeft className="h-4 w-4" /> Back</BackLink>
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center py-12">
         <span className="mb-7 flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-100 text-brand-900"><MailCheck className="h-8 w-8" /></span>
         <h2 className="text-3xl font-bold tracking-tight">Check your inbox</h2>

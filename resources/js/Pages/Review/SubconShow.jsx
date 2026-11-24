@@ -1,5 +1,6 @@
+import BackLink from '@/Components/shared/BackLink';
 import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import { ChevronLeft, Phone, Mail, MapPin } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import SubconDetail from '@/Components/shared/SubconDetail';
@@ -10,9 +11,8 @@ export default function SubconShow({ company, staff, machinery, cases, attendanc
             <Head title={`Subcon: ${company.name}`} />
 
             <div className="mx-auto max-w-5xl space-y-4 px-4 pb-10 pt-5 sm:px-6">
-                <Link href="/review/subcons" className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-800">
-                    <ChevronLeft className="h-4 w-4" /> Subcontractors
-                </Link>
+                <BackLink href="/review/subcons" className="inline-flex items-center gap-1 text-sm font-semibold text-gray-500 hover:text-gray-800">
+                    <ChevronLeft className="h-4 w-4" /> Back</BackLink>
 
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">
                     <div className="flex items-center gap-4">

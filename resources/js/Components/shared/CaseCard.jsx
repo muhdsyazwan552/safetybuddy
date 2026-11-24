@@ -1,3 +1,4 @@
+import ImageViewer from '@/Components/shared/ImageViewer';
 // Shared card for a Non-conformance / Client complaint case.
 // Used by the subcontractor leader page and the Supervisor / Manager review portal.
 import React from 'react';
@@ -15,7 +16,16 @@ const fmt = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit'
 const photoUrl = (p) => (p?.startsWith('http') || p?.startsWith('/') ? p : `/storage/${p}`);
 
 // label : value rows with the values lined up in one column
-function Row({ label, children }) {
+function Row({ label, children, stacked = false }) {
+    if (stacked) {
+        return (
+            <div className="min-w-0">
+                <dt className="mb-1 text-xs font-semibold text-gray-500">{label}</dt>
+                <dd className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-800">{children}</dd>
+            </div>
+        );
+    }
+
     return (
         <>
             <dt className="text-gray-500">{label} :</dt>
@@ -47,7 +57,7 @@ export default function CaseCard({ item, children, showReply = true, collapsible
                 <div className="min-w-0 text-left">
                     <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">{isNc ? 'Non-conformance' : 'Client complaint'}</p>
                     <p className="font-mono text-[11px] font-bold tracking-wide text-brand-800">{item.series_code || `#${item.id}`}</p>
-                    <p className="mt-0.5 truncate text-[15px] font-bold text-gray-900">{i.topic || 'Inspection'}</p>
+                    <p className="mt-0.5 break-words text-[15px] font-bold text-gray-900">{i.topic || 'Inspection'}</p>
                 </div>
             </div>
 
@@ -55,6 +65,7 @@ export default function CaseCard({ item, children, showReply = true, collapsible
                 <Row label="Date">{fmt(i.inspection_date)}</Row>
                 <Row label="Project">{i.project || '-'}</Row>
                 {i.subcon && <Row label="Subcontractor">{i.subcon}</Row>}
+                {!collapsible && i.inspector && <Row label="Inspector">{i.inspector}</Row>}
                 <Row label="Approval status"><span className={`${statusClass} ${approvalColor}`}>{approval.label}</span></Row>
                 <Row label="Case status"><span className={`${statusClass} ${closed ? 'text-emerald-700' : 'text-amber-700'}`}>{closed ? 'Closed' : 'Open'}</span></Row>
             </dl>
@@ -73,30 +84,38 @@ export default function CaseCard({ item, children, showReply = true, collapsible
 
             {full && (
                 <div className={`space-y-3 border-t p-5 text-xs ${tone.line}`}>
-                    <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-1.5">
+                    <dl className="space-y-4">
 
-                        <Row label="Location">{i.location || '-'}</Row>
-                        {i.description && <Row label="Inspector's finding"><span className="whitespace-pre-wrap font-normal text-gray-700">{i.description}</span></Row>}
+                        <Row label="Location" stacked>{i.location || '-'}</Row>
+                        {i.description && <Row label="Inspector's finding" stacked>{i.description}</Row>}
                         {showReply && item.subcon_response && (
-                            <Row label={`Subcontractor reply${item.responded_by ? ` (${item.responded_by})` : ''}${item.responded_at ? ` · ${fmt(item.responded_at)}` : ''}`}>
-                                <span className="whitespace-pre-wrap font-normal text-gray-700">{item.subcon_response}</span>
+                            <Row label={`Subcontractor reply${item.responded_by ? ` · ${item.responded_by}` : ''}${item.responded_at ? ` · ${fmt(item.responded_at)}` : ''}`} stacked>
+                                {item.subcon_response}
+                                {item.response_photo && (
+                                    <ImageViewer src={item.response_photo} label="Corrective action photo" className="mt-2 block w-fit">
+                                        <img src={item.response_photo} alt="Corrective action photo" className="max-h-48 rounded-xl border border-gray-200 object-contain" />
+                                    </ImageViewer>
+                                )}
                             </Row>
                         )}
                         {item.return_reason && (
-                            <Row label="Returned by reviewer"><span className="whitespace-pre-wrap font-normal text-red-700">{item.return_reason}</span></Row>
+                            <Row label="Returned by reviewer" stacked><span className="text-red-700">{item.return_reason}</span></Row>
                         )}
                         {closed && (
-                            <Row label="Closed on"><span className="text-emerald-700">{fmt(item.date_close)}{item.comment ? ` - ${item.comment}` : ''}</span></Row>
+                            <Row label="Closed on" stacked><span className="text-emerald-700">{fmt(item.date_close)}{item.comment ? ` - ${item.comment}` : ''}</span></Row>
                         )}
                     </dl>
 
                     {i.photos?.length > 0 && (
-                        <div className="flex gap-2 overflow-x-auto">
-                            {i.photos.map((p) => (
-                                <a key={p} href={photoUrl(p)} target="_blank" rel="noreferrer" className="h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-gray-200">
-                                    <img src={photoUrl(p)} alt="" className="h-full w-full object-cover" />
-                                </a>
-                            ))}
+                        <div>
+                            <p className="mb-2 text-xs font-semibold text-gray-500">Inspection photos</p>
+                            <div className="flex flex-wrap gap-2">
+                                {i.photos.filter(Boolean).map((p, index) => (
+                                    <ImageViewer key={p} src={photoUrl(p)} label={`Inspection photo ${index + 1}`} className="h-20 w-20 overflow-hidden rounded-xl border border-gray-200">
+                                        <img src={photoUrl(p)} alt={`Inspection photo ${index + 1}`} className="h-full w-full object-cover" />
+                                    </ImageViewer>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>

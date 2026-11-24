@@ -1,9 +1,12 @@
+import { AttachmentLink } from '@/Components/shared/ImageViewer';
 import React, { useState } from 'react';
 import { Head, useForm, usePage, router } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
 import dayjs from 'dayjs';
 import { showAlert } from '@/Helpers/alert';
 import ShareSubconLink from '@/Components/shared/ShareSubconLink';
+import BackLink from '@/Components/shared/BackLink';
 import { SubconSummary, SubconTabs, SubconPanels, ExpiryBadge, subconCounts } from '@/Components/shared/SubconDetail';
 
 const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], attendance = [], induction = { topics: [], total: 0, done: 0, complete: false } }) => {
@@ -100,6 +103,9 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
         <Head title={title} />
 
         <div className="p-6">
+          <BackLink href="/executor-project" className="mb-4 inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-800">
+            <ArrowLeft className="h-4 w-4" /> Back
+          </BackLink>
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-2xl font-bold text-gray-800">Company Details</h1>
             <div className="space-x-3">
@@ -313,10 +319,10 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
                           {member.certifications?.length ? (
                             <div className="flex flex-col gap-1">
                               {member.certifications.map(c => (
-                                <a key={c.id} href={c.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
+                                <AttachmentLink key={c.id} href={c.file_url} label={c.title || "Certificate"} className="inline-flex items-center gap-1.5 text-blue-600 hover:underline">
                                   {c.title}
                                   <ExpiryBadge date={c.expiry_date} />
-                                </a>
+                                </AttachmentLink>
                               ))}
                             </div>
                           ) : <span className="text-gray-400">-</span>}

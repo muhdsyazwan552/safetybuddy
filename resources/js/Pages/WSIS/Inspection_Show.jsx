@@ -1,15 +1,17 @@
+import ImageViewer from '@/Components/shared/ImageViewer';
+import BackLink from '@/Components/shared/BackLink';
 import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import axios from 'axios';
 import {
     ArrowLeft, MapPin, CalendarDays, Building2, UserRound, Tag, FolderKanban, Image as ImageIcon,
-    AlertTriangle, MessageSquareWarning, CheckCircle2, RotateCcw, Loader2, X, ChevronRight, ClipboardList,
+    AlertTriangle, MessageSquareWarning, CheckCircle2, RotateCcw, Loader2, ChevronRight, ClipboardList,
 } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { EVAL, EvalBadge, StatusBadge, SectionCard, InfoRow, fmtDate, storageUrl } from '@/Components/inspector/kit';
 
-function StatusPanel({ record, type, reviewer }) {
+function StatusPanel({ record, type, reviewer, inspectionStatus }) {
     const [comment, setComment] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
@@ -39,7 +41,7 @@ function StatusPanel({ record, type, reviewer }) {
             icon={isNc ? AlertTriangle : MessageSquareWarning}
             tone={open && isNc ? 'danger' : 'default'}
         >
-            <ReviewProgress kind="case" record={record} className="mb-4" />
+            <ReviewProgress kind="case" record={record} status={inspectionStatus} className="mb-4" />
             <div className="flex flex-wrap items-center gap-3">
                 <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase ${open ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
                     {open ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -143,7 +145,6 @@ function ReviewPanel({ inspection, can }) {
 }
 
 export default function Inspection_Show({ inspection, photos = [], ncReviewer, ccReviewer, related = [], can = {} }) {
-    const [lightbox, setLightbox] = useState(null);
     const [expanded, setExpanded] = useState(false);
 
     const ev = EVAL[inspection.evaluation];
@@ -155,22 +156,13 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
         <AppLayout title="Inspection Details">
             <Head title={`Inspection #${inspection.id}`} />
 
-            {lightbox && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4" onClick={() => setLightbox(null)}>
-                    <button className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white" aria-label="Close">
-                        <X className="h-6 w-6" />
-                    </button>
-                    <img src={lightbox} alt="Inspection" className="max-h-full max-w-full rounded-2xl object-contain" />
-                </div>
-            )}
-
             <div className="mx-auto max-w-6xl space-y-5 pb-8">
                 {/* top bar */}
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Link href="/inspection" className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+                    <BackLink href="/inspection" className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
                         <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white"><ArrowLeft className="h-4 w-4" /></span>
-                        Back to inspections
-                    </Link>
+                        Back
+                    </BackLink>
                 </div>
 
                 {/* hero */}
@@ -232,13 +224,14 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
                             <SectionCard title={`Photos (${urls.length})`} icon={ImageIcon}>
                                 <div className={`grid gap-3 ${urls.length === 1 ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3'}`}>
                                     {urls.map((src, i) => (
-                                        <button
+                                        <ImageViewer
                                             key={src + i}
-                                            onClick={() => setLightbox(src)}
+                                            src={src}
+                                            label={`Photo ${i + 1}`}
                                             className={`overflow-hidden rounded-2xl bg-gray-100 transition hover:opacity-90 ${urls.length === 1 ? 'aspect-video' : 'aspect-square'}`}
                                         >
                                             <img src={src} alt={`Photo ${i + 1}`} className="h-full w-full object-cover" />
-                                        </button>
+                                        </ImageViewer>
                                     ))}
                                 </div>
                             </SectionCard>
@@ -247,8 +240,8 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
 
                     {/* side column */}
                     <div className="space-y-5">
-                        {inspection.non_conformance && <StatusPanel record={inspection.non_conformance} type="nc" reviewer={ncReviewer} />}
-                        {inspection.client_complaint && <StatusPanel record={inspection.client_complaint} type="cc" reviewer={ccReviewer} />}
+                        {inspection.non_conformance && <StatusPanel record={inspection.non_conformance} type="nc" reviewer={ncReviewer} inspectionStatus={inspection.status} />}
+                        {inspection.client_complaint && <StatusPanel record={inspection.client_complaint} type="cc" reviewer={ccReviewer} inspectionStatus={inspection.status} />}
 
                         {!inspection.non_conformance && !inspection.client_complaint && (
                             <SectionCard title="Follow-up" icon={CheckCircle2}>

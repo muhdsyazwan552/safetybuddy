@@ -12,7 +12,6 @@ export default function Visit_Show({ visit }) {
             <VisitDetail
                 visit={visit}
                 backHref="/inspection"
-                backLabel="Back to toolbox talk & inspection"
                 inspectionHref={(i) => `/inspections/${i.id}`}
                 talkActions={(t) => (
                     <EditDeleteIcons editHref={t.status !== 'approved' ? `/site-visits/toolbox-talks/${t.id}/edit` : null} deleteUrl={`/site-visits/toolbox-talks/${t.id}`}

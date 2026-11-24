@@ -4,6 +4,7 @@
 namespace App\Http\Controllers;
 
 use App\Support\UploadedAssets;
+use App\Models\PerformanceSetting;
 use App\Models\SubconCompany;
 use App\Models\SubconStaff;
 use App\Models\SubconMachinery;
@@ -104,6 +105,7 @@ class SubconPublicController extends Controller
                 ->where('status', 'approved')->orderByDesc('period')->first();
 
             $performance = [
+                'settings' => PerformanceSetting::forCompany($company->company_id)->snapshot(),
                 'daily' => $daily->map(fn ($d) => [
                     'id' => $d->id, 'date' => $d->report_date->format('Y-m-d'), 'project' => $names[$d->project_id] ?? '-',
                     'spgpnc' => $d->spgpnc, 'rank' => $d->rank, 'penalty' => (float) $d->penalty_total, 'status' => $d->status,

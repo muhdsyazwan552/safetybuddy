@@ -11,7 +11,6 @@ export default function VisitShow({ visit, can_verify, can_approve }) {
             <VisitDetail
                 visit={visit}
                 backHref="/review/visits"
-                backLabel="Back to toolbox talk & inspection"
                 inspectionHref={(i) => `/review/inspections/${i.id}`}
                 toolboxHref={(t) => `/review/toolbox/${t.id}`}
             >

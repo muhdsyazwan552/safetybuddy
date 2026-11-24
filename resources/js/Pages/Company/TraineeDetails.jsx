@@ -1,3 +1,4 @@
+import BackLink from '@/Components/shared/BackLink';
 import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
@@ -26,7 +27,7 @@ export default function TraineeDetails({ trainee, subscriptions = [], codes = []
   return <AppLayout title={trainee.company_name}>
     <Head title={trainee.company_name}/>
     <div className="w-full space-y-6">
-      <Link href="/training-provider/trainees" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 transition hover:text-gray-900"><ArrowLeft className="h-4 w-4"/>Back to trainees</Link>
+      <BackLink href="/training-provider/trainees" className="inline-flex items-center gap-2 text-sm font-semibold text-gray-600 transition hover:text-gray-900"><ArrowLeft className="h-4 w-4"/>Back</BackLink>
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>

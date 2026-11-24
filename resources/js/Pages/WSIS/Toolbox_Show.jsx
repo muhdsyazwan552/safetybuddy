@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import ImageViewer from '@/Components/shared/ImageViewer';
+import BackLink from '@/Components/shared/BackLink';
+import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import {
     ArrowLeft, CalendarDays, Users, UserRound, CheckCircle2, XCircle, ListChecks, FolderKanban,
-    ClipboardList, ChevronRight, Image as ImageIcon, X,
+    ClipboardList, ChevronRight, Image as ImageIcon,
 } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
@@ -10,7 +12,6 @@ import { spPercent } from '@/Components/shared/SpSampling';
 import { EvalBadge, StatusBadge, SectionCard, InfoRow, fmtDate, storageUrl } from '@/Components/inspector/kit';
 
 export default function ToolboxShow({ talk }) {
-    const [lightbox, setLightbox] = useState(null);
 
     // sampled workers per subcontractor (the not-registered count is only stored as a total)
     const groups = Object.values(
@@ -31,21 +32,12 @@ export default function ToolboxShow({ talk }) {
         <AppLayout title="Toolbox Talk Details">
             <Head title={talk.code || `Toolbox talk #${talk.id}`} />
 
-            {lightbox && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4" onClick={() => setLightbox(null)}>
-                    <button className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white" aria-label="Close">
-                        <X className="h-6 w-6" />
-                    </button>
-                    <img src={lightbox} alt="Preview" className="max-h-full max-w-full rounded-2xl object-contain" />
-                </div>
-            )}
-
             <div className="mx-auto max-w-6xl space-y-5 pb-8">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                    <Link href="/inspection#toolbox" className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
+                    <BackLink href="/inspection#toolbox" className="inline-flex items-center gap-2 text-sm font-bold text-gray-600 hover:text-gray-900">
                         <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white"><ArrowLeft className="h-4 w-4" /></span>
-                        Back to toolbox talks
-                    </Link>
+                        Back
+                    </BackLink>
                 </div>
 
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg sm:p-7">
@@ -76,7 +68,7 @@ export default function ToolboxShow({ talk }) {
                                 <InfoRow label="Project">{talk.project}</InfoRow>
                                 <InfoRow label="Inspection by">{talk.by}</InfoRow>
                                 <InfoRow label="Date">{fmtDate(talk.date, { day: 'numeric', month: 'long', year: 'numeric' })}</InfoRow>
-                                <InfoRow label="Total attended">{talk.attended}</InfoRow>
+                                <InfoRow label="Attendees / SP SAMPLING">{talk.attended?.toString()}</InfoRow>
                             </div>
                         </SectionCard>
 
@@ -136,9 +128,9 @@ export default function ToolboxShow({ talk }) {
                                 <div className="grid grid-cols-2 gap-3">
                                     {photos.map((p) => (
                                         <div key={p.src}>
-                                            <button onClick={() => setLightbox(p.src)} className="aspect-square w-full overflow-hidden rounded-2xl bg-gray-100 transition active:scale-[0.98]">
+                                            <ImageViewer src={p.src} label={p.label} className="aspect-square w-full overflow-hidden rounded-2xl bg-gray-100 transition active:scale-[0.98]">
                                                 <img src={p.src} alt={p.label} className="h-full w-full object-cover" />
-                                            </button>
+                                            </ImageViewer>
                                             <p className="mt-2 text-center text-[10px] font-bold uppercase tracking-wider text-gray-400">{p.label}</p>
                                         </div>
                                     ))}

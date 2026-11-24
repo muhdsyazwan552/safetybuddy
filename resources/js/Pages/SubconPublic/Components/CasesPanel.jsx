@@ -1,53 +1,65 @@
 // NC / CC cases raised against the company - the leader gives the reason / corrective action.
 import React, { useState } from 'react';
-import { router } from '@inertiajs/react';
-import { Loader2, Send, ShieldCheck, AlertTriangle, MessageSquareWarning, ExternalLink } from 'lucide-react';
-import { CASE_STATE } from '@/Components/shared/CaseCard';
+import { Link, useForm } from '@inertiajs/react';
+import { ChevronRight, Loader2, Send, ShieldCheck, AlertTriangle, MessageSquareWarning } from 'lucide-react';
 
 export function ReplyBox({ item, publicToken, leaderKey }) {
-    const [text, setText] = useState(item.subcon_response || '');
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState('');
+    const { data, setData, post, processing, errors } = useForm({
+        response: item.subcon_response || '',
+        photo: null,
+        leader_key: leaderKey,
+    });
 
-    if (item.state === 'closed') return null;
-    if (item.state === 'responded') {
-        return <p className="text-xs font-semibold text-blue-600">Your reply is with the Supervisor / Manager for review.</p>;
-    }
+    if (!['open', 'returned'].includes(item.state)) return null;
 
-    const send = () => {
-        setBusy(true);
-        setError('');
-        router.post(
-            `/subcon/${publicToken}/cases/${item.type}/${item.id}/respond`,
-            { response: text, leader_key: leaderKey },
-            {
-                preserveScroll: true,
-                onError: (e) => setError(e.response || 'Could not send your reply.'),
-                onFinish: () => setBusy(false),
-            },
-        );
+    const send = (event) => {
+        event.preventDefault();
+        post(`/subcon/${publicToken}/cases/${item.type}/${item.id}/respond`, { preserveScroll: true });
     };
 
     return (
-        <div className="space-y-2">
-            <textarea
-                rows={3}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder="Explain the reason and the corrective action taken..."
-                className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20"
-            />
-            {error && <p className="text-xs font-medium text-red-500">{error}</p>}
+        <form onSubmit={send} className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+            <h2 className="text-base font-bold text-gray-900">Corrective action reply</h2>
+            <div>
+                <label htmlFor="case-response" className="mb-1.5 block text-sm font-semibold">Action taken *</label>
+                <textarea
+                    id="case-response"
+                    rows={4}
+                    required
+                    minLength={5}
+                    maxLength={2000}
+                    value={data.response}
+                    onChange={(e) => setData('response', e.target.value)}
+                    placeholder="Describe what you did to resolve the finding."
+                    aria-invalid={!!errors.response}
+                    className="block w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm"
+                />
+                {errors.response && <p role="alert" className="mt-1 text-sm text-red-700">{errors.response}</p>}
+            </div>
+            <div>
+                <label htmlFor="case-photo" className="mb-1.5 block text-sm font-semibold">Evidence photo *</label>
+                <input
+                    id="case-photo"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    required
+                    aria-describedby="case-photo-help"
+                    aria-invalid={!!errors.photo}
+                    onChange={(e) => setData('photo', e.target.files[0] ?? null)}
+                    className="block w-full rounded-xl border border-gray-300 p-2 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-gray-100 file:px-3 file:py-2 file:font-semibold"
+                />
+                <p id="case-photo-help" className="mt-1 text-xs text-gray-600">JPG, PNG or WebP, up to 5 MB.</p>
+                {errors.photo && <p role="alert" className="mt-1 text-sm text-red-700">{errors.photo}</p>}
+            </div>
             <button
-                type="button"
-                disabled={busy || text.trim().length < 5}
-                onClick={send}
-                className="inline-flex items-center gap-2 rounded-2xl bg-ink-900 px-5 py-3 text-sm font-bold text-brand-400 disabled:opacity-40"
+                type="submit"
+                disabled={processing || data.response.trim().length < 5 || !data.photo}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-ink-900 px-5 py-3 text-sm font-bold text-brand-400 disabled:opacity-40 sm:w-auto"
             >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                {item.state === 'returned' ? 'Send new reply' : 'Send reply'}
+                {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                {processing ? 'Submitting…' : item.state === 'returned' ? 'Resubmit reply' : 'Submit reply'}
             </button>
-        </div>
+        </form>
     );
 }
 
@@ -83,14 +95,12 @@ export default function CasesPanel({ cases = [], isLeader, publicToken, leaderKe
             <ul className="divide-y divide-gray-100 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60">
                 {rows.map((c, n) => {
                     const isNc = c.type === 'nc';
-                    const st = CASE_STATE[c.state] || CASE_STATE.open;
+                    const closed = c.state === 'closed';
                     const i = c.inspection || {};
                     return (
                         <li key={c.key}>
-                            <a
+                            <Link
                                 href={`/subcon/${publicToken}/cases/${c.type}/${c.id}?leader_key=${encodeURIComponent(leaderKey)}`}
-                                target="_blank"
-                                rel="noreferrer"
                                 className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-gray-50"
                             >
                                 <span className="w-6 shrink-0 text-center text-xs font-extrabold text-gray-400">{start + n + 1}</span>
@@ -98,14 +108,13 @@ export default function CasesPanel({ cases = [], isLeader, publicToken, leaderKe
                                     {isNc ? <AlertTriangle className="h-5 w-5" /> : <MessageSquareWarning className="h-5 w-5" />}
                                 </span>
                                 <span className="min-w-0 flex-1">
-                                    <span className="block text-[11px] font-bold uppercase tracking-widest text-gray-400">{isNc ? 'NC' : 'CC'} #{c.id} · {i.inspection_date || '-'}</span>
+                                    <span className="block text-[11px] font-bold uppercase tracking-widest text-gray-500">{c.series_code || `${isNc ? 'NC' : 'CC'} #${c.id}`} · {i.inspection_date || '-'}</span>
+                                    <span className={`block text-xs font-semibold ${closed ? 'text-emerald-700' : 'text-amber-700'}`}>{closed ? 'Closed' : 'Open'}</span>
                                     <span className="block truncate text-[15px] font-bold text-gray-900">{i.topic || 'Inspection'}</span>
                                     <span className="block truncate text-xs text-gray-500">{[i.project, i.location].filter(Boolean).join(' · ')}</span>
                                 </span>
-                                <span className={`hidden shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide sm:inline-flex ${st.cls}`}>{st.label}</span>
-                                <ExternalLink className="h-4 w-4 shrink-0 text-gray-400" />
-                            </a>
-                            <span className={`mx-4 mb-3 -mt-1 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide sm:hidden ${st.cls}`}>{st.label}</span>
+                                <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />
+                            </Link>
                         </li>
                     );
                 })}

@@ -1,5 +1,7 @@
+import ImageViewer, { isImageUrl } from '@/Components/shared/ImageViewer';
+import BackLink from '@/Components/shared/BackLink';
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { ArrowLeft, FileText, Users, ShieldAlert, MessageSquare, Send, CheckCircle2, RotateCcw, Loader2 } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import { SectionCard, InfoRow } from '@/Components/inspector/kit';
@@ -86,14 +88,14 @@ function ResponsePanel({ i, can_review, can_approve, can_reopen }) {
 // The page content, shared with the inspector's read-only incident page
 export function IncidentDetail({ incident: i, canReview = false, canApprove = false, canReopen = false, backHref = '/review/incidents' }) {
     const tone = incidentTone(i.status);
-    const isImage = i.attachment && /\.(png|jpe?g|webp|gif)$/i.test(i.attachment);
+    const isImage = isImageUrl(i.attachment);
 
     return (
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
-                    <Link href={backHref} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
-                        <ArrowLeft className="h-4 w-4" /> Back to incidents
-                    </Link>
+                    <BackLink href={backHref} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                        <ArrowLeft className="h-4 w-4" /> Back
+                    </BackLink>
                     <PdfButton href={`/pdf/incident/${i.id}`} />
                 </div>
 
@@ -147,9 +149,9 @@ export function IncidentDetail({ incident: i, canReview = false, canApprove = fa
                 {i.attachment && (
                     <SectionCard title="Evidence" icon={ShieldAlert}>
                         {isImage ? (
-                            <a href={i.attachment} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-2xl border border-gray-200">
+                            <ImageViewer src={i.attachment} label="Evidence" className="block overflow-hidden rounded-2xl border border-gray-200">
                                 <img src={i.attachment} alt="Evidence" className="w-full object-cover" />
-                            </a>
+                            </ImageViewer>
                         ) : (
                             <a href={i.attachment} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-ink-900 px-4 py-2.5 text-sm font-bold text-brand-400">
                                 <FileText className="h-4 w-4" /> Open attachment
