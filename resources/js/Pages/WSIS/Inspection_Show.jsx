@@ -8,7 +8,6 @@ import {
 import AppLayout from '@/Pages/WSIS/Layout';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { EVAL, EvalBadge, StatusBadge, SectionCard, InfoRow, fmtDate, storageUrl } from '@/Components/inspector/kit';
-import PdfButton from '@/Components/shared/PdfButton';
 
 function StatusPanel({ record, type, reviewer }) {
     const [comment, setComment] = useState('');
@@ -172,7 +171,6 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
                         <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white"><ArrowLeft className="h-4 w-4" /></span>
                         Back to inspections
                     </Link>
-                    <PdfButton href={`/pdf/inspection/${inspection.id}`} className="ml-auto mr-2" />
                 </div>
 
                 {/* hero */}

@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Head, useForm, router } from '@inertiajs/react';
 import {
     Search, X, UserPlus, LayoutGrid, Rows3, Users, BadgeCheck, AlertTriangle, UserCheck, UserX, SlidersHorizontal,
-    Mail, Phone, MapPin, ShieldCheck, Eye, ArrowDownAZ, RotateCcw, Pencil, Info, Crown, Tractor, ClipboardCheck,
+    Mail, Phone, MapPin, Building2, ShieldCheck, ArrowDownAZ, RotateCcw, Pencil, Info, Tractor, ClipboardCheck,
 } from 'lucide-react';
 import { showAlert } from '@/Helpers/alert';
 import Toast from '@/Components/Toast';
@@ -14,6 +14,8 @@ import InductionPanel from './Components/InductionPanel';
 import MachineryPanel from './Components/MachineryPanel';
 import CasesPanel from './Components/CasesPanel';
 import AttendancePanel from './Components/AttendancePanel';
+import StaffSelfService from './Components/StaffSelfService';
+import PerformancePanel from './Components/PerformancePanel';
 import { completeness, isNewThisWeek, isActiveStatus, isPendingStatus } from './Components/staffUtils';
 
 const SORTS = [
@@ -56,6 +58,12 @@ export default function CompanyDetails({
     const isLeader = access_level === 'full';
     const canEdit = isLeader;
     const canDelete = isLeader;
+    const companyActive = isActiveStatus(company.status);
+    const companyContacts = [
+        { label: 'Email', value: company.email, Icon: Mail },
+        { label: 'Phone', value: company.contact, Icon: Phone },
+        { label: 'Address', value: company.address, Icon: MapPin },
+    ].filter(({ value }) => value);
 
     // ---- UI state
     // the leader's daily jobs come first: reply to open cases, otherwise tick attendance
@@ -274,42 +282,45 @@ export default function CompanyDetails({
             <div className="min-h-screen bg-gray-100 pb-28">
                 {/* Top bar */}
                 <header className="sticky top-0 z-40 bg-ink-900 text-white shadow-md">
-                    <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
-                        <img src="/images/sbc-logo.png" alt="Safety Buddy" className="h-10 w-10 shrink-0 rounded-full ring-2 ring-brand-500" />
-                        <div className="min-w-0 flex-1 leading-tight">
-                            <p className="truncate text-[15px] font-extrabold">{company.name}</p>
-                            {company.code && <p className="truncate text-[11px] font-semibold text-brand-400">{company.code}</p>}
-                            <p className="mt-0.5 flex items-center gap-1.5 text-[11px] font-semibold text-brand-400">
-                                {isLeader ? <Crown className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                                {isLeader ? 'Team leader' : 'Staff (view & register)'}
-                            </p>
-                        </div>
-                        <span className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-extrabold uppercase ${isActiveStatus(company.status) ? 'bg-emerald-500 text-white' : 'bg-amber-400 text-ink-900'}`}>
-                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
-                            {isActiveStatus(company.status) ? 'Active' : 'Inactive'}
-                        </span>
+                    <div className="mx-auto max-w-7xl px-4 py-1 sm:px-6 lg:px-8">
+                        <img src="/images/sbc-header.png" alt="Safety Buddy - CMERI" className="h-14 w-auto max-w-full object-contain" />
                     </div>
                 </header>
 
                 <main className="mx-auto max-w-7xl space-y-4 px-4 py-4 sm:px-6 lg:px-8">
-                    {/* Company contact - collapsed to keep the page short */}
-                    {(company.email || company.contact || company.address) && (
-                        <details className="group rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm shadow-sm">
-                            <summary className="flex cursor-pointer list-none items-center justify-between font-bold text-gray-700">
-                                Company details
-                                <span className="text-xs font-semibold text-gray-400 group-open:hidden">Show</span>
-                                <span className="hidden text-xs font-semibold text-gray-400 group-open:inline">Hide</span>
-                            </summary>
-                            <div className="mt-3 space-y-2 text-gray-600">
-                                {company.email && <p className="flex items-center gap-2"><Mail className="h-4 w-4 text-gray-400" />{company.email}</p>}
-                                {company.contact && <p className="flex items-center gap-2"><Phone className="h-4 w-4 text-gray-400" />{company.contact}</p>}
-                                {company.address && <p className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" />{company.address}</p>}
+                    <section aria-labelledby="company-details-heading" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
+                                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-ink-900 text-brand-400">
+                                    <Building2 aria-hidden="true" className="h-5 w-5" />
+                                </span>
+                                <div className="min-w-0">
+                                    <h2 id="company-details-heading" className="break-words text-base font-bold text-gray-900">{company.name}</h2>
+                                    {company.code && <p className="mt-0.5 break-words text-xs font-semibold text-gray-600">{company.code}</p>}
+                                </div>
                             </div>
-                        </details>
-                    )}
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ring-1 ring-inset ${companyActive ? 'bg-emerald-50 text-emerald-800 ring-emerald-200' : 'bg-amber-50 text-amber-900 ring-amber-200'}`}>
+                                <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+                                {companyActive ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                        {companyContacts.length > 0 && (
+                            <dl className="mt-4 grid grid-cols-1 gap-3 border-t border-gray-100 pt-4 sm:grid-cols-3">
+                                {companyContacts.map(({ label, value, Icon }) => (
+                                    <div key={label} className="flex min-w-0 items-start gap-3 rounded-xl bg-gray-50 p-3">
+                                        <Icon aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
+                                        <div className="min-w-0">
+                                            <dt className="text-xs font-semibold text-gray-500">{label}</dt>
+                                            <dd className="mt-1 break-words text-sm font-medium text-gray-900">{value}</dd>
+                                        </div>
+                                    </div>
+                                ))}
+                            </dl>
+                        )}
+                    </section>
 
                     {/* Inactive banner */}
-                    {!induction.complete && tab !== 'induction' && (
+                    {isLeader && !induction.complete && tab !== 'induction' && (
                         <button
                             type="button"
                             onClick={() => setTab('induction')}
@@ -323,36 +334,13 @@ export default function CompanyDetails({
                         </button>
                     )}
 
-                    {/* Latest performance (leader) */}
+                    {/* Daily BSPR table (leader) */}
                     {isLeader && performance && (performance.daily.length > 0 || performance.monthly) && (
-                        <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-                            <div className="flex items-center justify-between bg-ink-900 px-4 py-2.5 text-white">
-                                <h3 className="text-sm font-extrabold uppercase tracking-wide">Safety performance (SPGPNC)</h3>
-                                {performance.monthly && (
-                                    <span className="text-xs font-bold">
-                                        {performance.monthly.period}: {Number(performance.monthly.spgpnc ?? 0).toFixed(2)}% {performance.monthly.rank || ''}
-                                    </span>
-                                )}
-                            </div>
-                            <ul className="divide-y divide-gray-100">
-                                {performance.daily.map((d) => (
-                                    <li key={d.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-                                        <span className="min-w-0">
-                                            <span className="block font-bold text-gray-900">{d.date}</span>
-                                            <span className="block truncate text-xs text-gray-500">{d.project}</span>
-                                        </span>
-                                        <span className="flex items-center gap-3 text-right">
-                                            <span className="font-extrabold text-ink-900">{d.spgpnc !== null ? `${Number(d.spgpnc).toFixed(2)}%` : 'Incomplete'}</span>
-                                            {d.rank && <span className={`rounded-full px-2 py-0.5 text-[11px] font-extrabold text-white ${d.rank === 'GOLD' ? 'bg-amber-500' : d.rank === 'SILVER' ? 'bg-slate-400' : 'bg-orange-600'}`}>{d.rank}</span>}
-                                            <span className="text-xs font-semibold text-gray-600">RM{Number(d.penalty).toLocaleString()}</span>
-                                        </span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </section>
+                        <PerformancePanel performance={performance} />
                     )}
 
                     {/* Desktop tabs (phones use the bottom bar) */}
+                    {isLeader && (
                     <div className="hidden gap-2 overflow-x-auto rounded-2xl bg-gray-200/70 p-1 lg:flex">
                         {tabs.map(({ key, label, Icon, count, warn }) => (
                             <button
@@ -367,12 +355,20 @@ export default function CompanyDetails({
                             </button>
                         ))}
                     </div>
+                    )}
 
                     {/* What this screen is for, in one line */}
+                    {isLeader && (
                     <div>
                         <h2 className="text-lg font-extrabold text-gray-900">{TAB_HELP[tab]?.[0]}</h2>
                         <p className="text-sm text-gray-500">{TAB_HELP[tab]?.[1]}</p>
                     </div>
+                    )}
+
+                    {/* Staff link: register + check own record only */}
+                    {!isLeader && (
+                        <StaffSelfService topics={induction.topics || []} onRegister={openAdd} />
+                    )}
 
                     {tab === 'induction' && (
                         <InductionPanel
@@ -409,7 +405,7 @@ export default function CompanyDetails({
                         />
                     )}
 
-                    {tab === 'staff' && (
+                    {isLeader && tab === 'staff' && (
                     <>
                     {/* Quick filters */}
                     <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
@@ -463,12 +459,12 @@ export default function CompanyDetails({
                                     <select
                                         value=""
                                         onChange={(e) => {
-                                            if (e.target.value) window.open(`/subcon/${public_token}/staff-report?leader_key=${encodeURIComponent(leader_key)}&filter=${e.target.value}`, '_blank');
+                                            if (e.target.value) window.open(`/subcon/${public_token}/staff-report?leader_key=${encodeURIComponent(leader_key)}&filter=${e.target.value}&preview=1`, '_blank', 'noopener');
                                         }}
                                         className="rounded-2xl border border-gray-200 bg-white px-3 py-3 text-sm font-bold text-gray-700"
-                                        aria-label="Generate PDF report"
+                                        aria-label="Generate Report"
                                     >
-                                        <option value="">PDF report…</option>
+                                        <option value="">Generate Report…</option>
                                         <option value="all">All staff</option>
                                         <option value="active">Active staff only</option>
                                     </select>
@@ -570,7 +566,7 @@ export default function CompanyDetails({
                 </main>
 
                 {/* Floating register button – phones */}
-                {tab === 'staff' && (
+                {isLeader && tab === 'staff' && (
                 <button
                     onClick={openAdd}
                     className="fixed bottom-24 right-4 z-30 flex h-14 items-center gap-2 rounded-full bg-brand-500 px-5 text-sm font-extrabold text-ink-900 shadow-xl shadow-black/30 active:scale-95 transition sm:hidden"
@@ -580,7 +576,7 @@ export default function CompanyDetails({
                 )}
 
                 {/* Bottom navigation - phones & tablets */}
-                <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink-900 lg:hidden" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+                <nav className={`fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-ink-900 lg:hidden ${isLeader ? '' : 'hidden'}`} style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
                     <div className="mx-auto grid max-w-3xl" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
                         {tabs.map(({ key, short, Icon, count, warn }) => (
                             <button

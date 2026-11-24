@@ -59,7 +59,7 @@ class SubconPortalController extends Controller
         ]);
     }
 
-    /** Previous days of the company on a project: who was ticked present (leader only). */
+    /** Saved attendance for a project, optionally limited to one day (leader only). */
     public function attendanceHistory(Request $request, string $token)
     {
         $company = $this->company($token);
@@ -68,15 +68,18 @@ class SubconPortalController extends Controller
         $projectId = (int) $request->query('project_id');
         abort_unless(\App\Support\ManhourAttendance::isAssigned($projectId, $company->id), 404);
 
+        $date = $request->validate(['date' => 'sometimes|required|date_format:Y-m-d'])['date'] ?? null;
         $staff = DB::table('manhour_attendances as a')
             ->join('subcon_staff as s', 's.id', '=', 'a.subcon_staff_id')
             ->where('a.project_id', $projectId)->where('a.subcon_company_id', $company->id)
+            ->when($date, fn ($query) => $query->whereDate('a.work_date', $date))
             ->orderBy('s.name')
             ->get(['a.work_date', 's.id', 's.name', 's.role'])
             ->groupBy(fn ($r) => substr((string) $r->work_date, 0, 10));
 
         // older records that only have a headcount
         $days = DB::table('manhours')->where('project_id', $projectId)->where('subcon_company_id', $company->id)
+            ->when($date, fn ($query) => $query->whereDate('work_date', $date))
             ->orderByDesc('work_date')->limit(120)->get(['work_date', 'worker_count', 'working_hours'])
             ->map(function ($m) use ($staff) {
                 $date = substr((string) $m->work_date, 0, 10);
@@ -295,6 +298,10 @@ class SubconPortalController extends Controller
     public function staffReport(Request $request, string $token)
     {
         $company = $this->leaderCompany($request, $token);
+        if ($request->boolean('preview')) {
+            return response()->view('pdf.preview')->header('Cache-Control', 'private, no-store');
+        }
+
         $filter = $request->query('filter') === 'active' ? 'active' : 'all';
 
         $staff = SubconStaff::where('company_id', $company->id)

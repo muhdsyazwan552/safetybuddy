@@ -442,6 +442,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/settings', [ProfileController::class, 'edit'])->name('settings');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::patch('/settings/stay-signed-in', [ProfileController::class, 'updateStaySignedIn'])->name('settings.stay-signed-in');
 });
 
 // PDF reports (company admin 2, manager 3, supervisor 4, inspectors 7/8) - scoped to the user's company

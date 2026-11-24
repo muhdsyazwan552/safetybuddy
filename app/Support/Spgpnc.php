@@ -24,6 +24,20 @@ class Spgpnc
         'scoring_on' => true, 'bspr_on' => true, 'penalties_on' => true,
     ];
 
+    /** Dashboard indicator based on the share of inspections marked Good. */
+    public static function dashboardCompliance(int $total, int $good, array $settings): array
+    {
+        $rate = $total > 0 ? round($good / $total * 100) : null;
+        $tier = match (true) {
+            $rate === null, !$settings['scoring_on'], !$settings['bspr_on'] => null,
+            $rate >= $settings['gold_min'] => 'GOLD',
+            $rate >= $settings['silver_min'] => 'SILVER',
+            default => 'BRONZE',
+        };
+
+        return ['rate' => $rate, 'tier' => $tier];
+    }
+
     /**
      * @param  int|null  $sampled        workers sampled for the Safety Passport (null = not assessed)
      * @param  int|null  $notRegistered  workers without a valid Safety Passport

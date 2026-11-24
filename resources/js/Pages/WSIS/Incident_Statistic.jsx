@@ -1047,7 +1047,7 @@ const IncidentStatistic = ({ title, incidents: initialIncidents = [] }) => {
             </div>
 
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl flex items-center justify-end gap-3">
-              <PdfButton href={`/pdf/incident/${viewingIncident.id}`} label="Generate PDF report" />
+              <PdfButton href={`/pdf/incident/${viewingIncident.id}`} label="Generate Report" />
               <button
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium"
                 onClick={() => setViewingIncident(null)}

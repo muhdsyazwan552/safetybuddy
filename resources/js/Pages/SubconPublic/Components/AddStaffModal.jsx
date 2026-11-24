@@ -27,7 +27,7 @@ function Field({ label, icon: Icon, error, hint, children }) {
 }
 
 /** Topic content: bullets are grouped into one list, same item types as the Safety Passport panel. */
-function TopicContent({ items = [] }) {
+export function TopicContent({ items = [] }) {
     const out = [];
     let bullets = [];
     const flush = (k) => {
@@ -123,10 +123,10 @@ export default function AddStaffModal({ isOpen, onClose, onSubmit, data, setData
                 <div className="flex-1 space-y-4 overflow-y-auto p-5">
                     {onStepOne && (
                         <>
-                            <p className="text-sm text-gray-600">
-                                The worker must read every topic below, then tick to confirm they understand and agree. Open a topic to read it &mdash; the tick unlocks after you do.
+                            <p className="text-sm font-extrabold text-gray-900">
+                                Agreed {ticked.length}/{passportTopics.length}
+                                <span className="ml-2 text-xs font-semibold text-gray-400">Safety Passport topics / Topik Safety Passport</span>
                             </p>
-                            <p className="text-[11px] font-bold uppercase tracking-wider text-gray-500">Agreed {ticked.length}/{passportTopics.length}</p>
                             <ul className="space-y-2">
                                 {passportTopics.map((t, n) => {
                                     const open = openId === t.id;

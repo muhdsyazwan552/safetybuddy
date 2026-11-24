@@ -121,6 +121,10 @@ class ContentController extends Controller
     public function executorReport($id)
     {
         $company = \App\Support\SubconDetail::find($id, Auth::user()->company_id);
+        if (request()->boolean('preview')) {
+            return response()->view('pdf.preview')->header('Cache-Control', 'private, no-store');
+        }
+
         $detail = \App\Support\SubconDetail::for($company);
 
         $filename = 'executor-' . ($company->code ? str_replace('/', '-', $company->code) : $company->id) . '.pdf';

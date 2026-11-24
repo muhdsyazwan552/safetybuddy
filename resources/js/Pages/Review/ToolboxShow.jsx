@@ -5,7 +5,6 @@ import HeroMeta, { HeroStatus } from '@/Components/shared/HeroMeta';
 import { ArrowLeft, FolderKanban, Users, ListChecks, Calculator, Image as ImageIcon } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import { SectionCard, InfoRow, fmtDate } from '@/Components/inspector/kit';
-import PdfButton from '@/Components/shared/PdfButton';
 
 const pctOf = (sampled, notReg) => (sampled > 0 ? Math.round(((sampled - notReg) / sampled) * 10000) / 100 : null);
 
@@ -23,7 +22,6 @@ export function ToolboxDetail({ talk: t, backHref = null, children }) {
                     <Link href={backHref || `/review/visits/talk-${t.id}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
                         <ArrowLeft className="h-4 w-4" /> Back to toolbox talk & inspection
                     </Link>
-                    <PdfButton href={`/pdf/toolbox/${t.id}`} />
                 </div>
 
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">

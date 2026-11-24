@@ -7,13 +7,16 @@ use App\Models\ClientComplaint;
 use App\Models\CompanyStaff;
 use App\Models\Incident;
 use App\Models\Inspection;
+use App\Models\InspectionCategory;
 use App\Models\InspectionReport;
 use App\Models\MonthlyReport;
 use App\Models\NoConformance;
+use App\Models\PerformanceSetting;
 use App\Models\Project;
 use App\Models\ProjectAssign;
 use App\Models\ToolboxTalks;
 use App\Support\CaseFeed;
+use App\Support\Spgpnc;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +33,13 @@ use Illuminate\Support\Facades\DB;
 class PdfReportController extends Controller
 {
     private const MAX_PHOTOS = 6;
+    private const EVALUATION_LABELS = ['good' => 'GOOD', 'poor' => 'POOR', 'nonconformance' => 'NONCONFORMANCE', 'clientcomplaint' => 'CLIENT COMPLAINT'];
+
+    private function categoryTotals($categories, array $inspections)
+    {
+        return $categories->values()->mapWithKeys(fn ($name) => [$name => 0])
+            ->merge(collect($inspections)->countBy(fn ($row) => $row['category'] ?? 'Uncategorized'));
+    }
 
     private function user()
     {
@@ -142,10 +152,68 @@ class PdfReportController extends Controller
 
     private function render(string $view, array $data, string $filename)
     {
+        if (request()->boolean('preview')) {
+            return response()->view('pdf.preview')->header('Cache-Control', 'private, no-store');
+        }
+
         @ini_set('memory_limit', '512M');
         @set_time_limit(120);
 
-        return Pdf::loadView($view, $data)->setPaper('a4', 'portrait')->stream(str_replace(['/', '\\'], '-', $filename) . '.pdf');
+        $pdf = Pdf::loadView($view, $data)->setPaper('a4', 'portrait');
+        if (in_array($view, ['pdf.daily', 'pdf.visit'], true)) {
+            $pdf->render();
+            $this->addInspectionReportFooter($pdf->getDomPDF()->getCanvas(), $data);
+        }
+
+        return $pdf->stream(str_replace(['/', '\\'], '-', $filename) . '.pdf');
+    }
+
+    private function addInspectionReportFooter(\Dompdf\Canvas $canvas, array $data): void
+    {
+        $signatures = [
+            ['INSPECTOR', $data['inspectors'], 'Report generated on', $data['createdAt']],
+            ['SUPERVISOR', $data['supervisor']['name'], $data['supervisor']['at'] ? 'Checked and verified on' : 'Pending verification', $data['supervisor']['at']],
+            ['MANAGER', $data['manager']['name'], $data['manager']['at'] ? 'Approved on' : 'Pending approval', $data['manager']['at']],
+        ];
+
+        $canvas->page_script(function ($page, $total, $pageCanvas, $fonts) use ($signatures) {
+            $margin = 14 * 72 / 25.4;
+            $bottom = $pageCanvas->get_height();
+            $right = $pageCanvas->get_width() - $margin;
+            $regular = $fonts->getFont('DejaVu Sans', 'normal');
+            $bold = $fonts->getFont('DejaVu Sans', 'bold');
+            $ink = [0.12, 0.16, 0.23];
+            $muted = [0.28, 0.33, 0.41];
+            $label = (string) $page;
+            $pageCanvas->text($right - $fonts->getTextWidth($label, $regular, 8), $bottom - 24, $label, $regular, 8, $muted);
+
+            if ($page !== $total) {
+                return;
+            }
+
+            $top = $bottom - 77;
+            $columnWidth = ($right - $margin) / count($signatures);
+            $italic = $fonts->getFont('DejaVu Sans', 'italic');
+            $pageCanvas->rectangle($margin, $top, $right - $margin, 47, $ink, 0.6);
+            foreach ([14, 33] as $offset) {
+                $pageCanvas->line($margin, $top + $offset, $right, $top + $offset, $ink, 0.6);
+            }
+            foreach ($signatures as $column => [$role, $name, $caption, $date]) {
+                $left = $margin + $column * $columnWidth;
+                if ($column > 0) {
+                    $pageCanvas->line($left, $top, $left, $top + 47, $ink, 0.6);
+                }
+                $note = $date ? $caption . ' ' . explode(',', $date, 2)[0] : $caption;
+                foreach ([[$role, $bold, 9, 2], [$name ?: '—', $regular, 10, 17], [$note, $italic, 8, 35]] as [$text, $font, $size, $offset]) {
+                    $width = $fonts->getTextWidth($text, $font, $size);
+                    if ($width > $columnWidth - 12) {
+                        $size *= ($columnWidth - 12) / $width;
+                        $width = $fonts->getTextWidth($text, $font, $size);
+                    }
+                    $pageCanvas->text($left + ($columnWidth - $width) / 2, $top + $offset, $text, $font, $size, $ink);
+                }
+            }
+        });
     }
 
     private function ts($d, string $fmt = 'd M Y, H:i'): ?string
@@ -237,31 +305,54 @@ class PdfReportController extends Controller
         $statuses = $list->pluck('status')->when($t, fn ($c) => $c->push($t->status));
         abort_unless($statuses->isNotEmpty(), 404);
 
+        $categories = InspectionCategory::orderBy('sort_order')->orderBy('name')->pluck('name', 'id');
         $inspections = $list->map(fn ($i) => [
             'i' => $i,
-            'category' => $i->topic?->inspection_category_id ? \App\Models\InspectionCategory::where('id', $i->topic->inspection_category_id)->value('name') : null,
+            'category' => $categories->get($i->topic?->inspection_category_id ?? 0),
             'photos' => $this->photos($i->photo),
         ])->all();
 
         // signatures: the people who verified / approved the visit
-        $src = $t ?: $list->first();
-        $verifier = $t ? $this->staffName($t->verified_by) : optional($src->verifier)->name;
-        $approver = $t ? $this->staffName($t->approved_by) : optional($src->approver)->name;
-        $verifier ??= optional($list->first(fn ($x) => $x->verifier)?->verifier)->name;
-        $approver ??= optional($list->first(fn ($x) => $x->approver)?->approver)->name;
+        $talkVerifier = $t ? $this->staffName($t->verified_by) : null;
+        $talkApprover = $t ? $this->staffName($t->approved_by) : null;
+        $verifiedInspection = $list->first(fn ($inspection) => $inspection->verifier);
+        $approvedInspection = $list->first(fn ($inspection) => $inspection->approver);
 
         $ref = ($t ?: $one)->code ?: 'SV-' . strtoupper($m[1]) . '-' . str_pad($m[2], 5, '0', STR_PAD_LEFT);
+        $settings = PerformanceSetting::where('company_id', $this->companyId())->first()?->snapshot() ?? Spgpnc::DEFAULTS;
+        $evaluations = $list->countBy('evaluation');
+        $performance = Spgpnc::score($t?->sp_sampled, $t?->sp_not_registered, [
+            'good' => $evaluations->get('good', 0),
+            'poor' => $evaluations->get('poor', 0),
+            'nc' => $evaluations->get('nonconformance', 0),
+            'cc' => $evaluations->get('clientcomplaint', 0),
+        ], $settings);
 
         return $this->render('pdf.visit', [
             't' => $t,
             'project' => $project,
             'by' => $by,
+            'inspectors' => $by,
             'date' => $date,
             'inspections' => $inspections,
+            'categoryTotals' => $this->categoryTotals($categories, $inspections),
+            'evaluationLabels' => self::EVALUATION_LABELS,
+            'evaluations' => $evaluations,
+            'settings' => $settings,
+            'performance' => $performance,
+            'supervisorApproved' => $statuses->every(fn ($status) => in_array($status, [Inspection::STATUS_VERIFIED, Inspection::STATUS_APPROVED], true)),
+            'managerApproved' => $statuses->every(fn ($status) => $status === Inspection::STATUS_APPROVED),
             'imgGroup' => $t ? $this->image($t->img_group) : null,
             'imgAttendance' => $t ? $this->image($t->img_attendance) : null,
             'overallStatus' => $statuses->contains(Inspection::STATUS_REJECTED) ? Inspection::STATUS_REJECTED : ($statuses->every(fn ($s) => $s === Inspection::STATUS_APPROVED) ? Inspection::STATUS_APPROVED : ($statuses->contains(fn ($s) => !$s || $s === Inspection::STATUS_PENDING) ? Inspection::STATUS_PENDING : Inspection::STATUS_VERIFIED)),
-        ] + $this->meta('Toolbox talk & Inspection Report' . ($statuses->every(fn ($s) => $s === Inspection::STATUS_APPROVED) ? '' : ' (NOT APPROVED YET)'), $ref, $verifier, $this->ts(optional($src)->verified_at), $approver, $this->ts(optional($src)->approved_at)), $ref);
+        ] + $this->meta(
+            'Toolbox Talk, SP Sampling & Inspection Report' . ($statuses->every(fn ($s) => $s === Inspection::STATUS_APPROVED) ? '' : ' (NOT APPROVED YET)'),
+            $ref,
+            $talkVerifier ?? $verifiedInspection?->verifier?->name,
+            $this->ts($talkVerifier ? $t->verified_at : $verifiedInspection?->verified_at),
+            $talkApprover ?? $approvedInspection?->approver?->name,
+            $this->ts($talkApprover ? $t->approved_at : $approvedInspection?->approved_at)
+        ), $ref);
     }
 
     // ------------------------------------------------------------------ company manhour (by day, project, subcontractor)
@@ -435,15 +526,14 @@ class PdfReportController extends Controller
         $ref = $r->report_no ?: 'DR-' . str_pad($r->id, 5, '0', STR_PAD_LEFT);
 
         // every inspection and toolbox talk of that day (approved or not), with their photos
+        $categories = InspectionCategory::orderBy('sort_order')->orderBy('name')->pluck('name', 'id');
         $inspections = Inspection::with(['project', 'topic', 'subconCompany', 'inspector', 'non_conformance', 'client_complaint'])
             ->where('project_id', $r->project_id)->where('subcon_company_id', $r->subcon_company_id)
             ->whereDate('inspection_date', $r->report_date)
             ->orderBy('id')->get()
             ->map(fn ($i) => [
                 'i' => $i,
-                'category' => $i->topic?->inspection_category_id
-                    ? \App\Models\InspectionCategory::where('id', $i->topic->inspection_category_id)->value('name')
-                    : null,
+                'category' => $categories->get($i->topic?->inspection_category_id ?? 0),
                 'photos' => $this->photos($i->photo),
             ])->all();
 
@@ -457,7 +547,17 @@ class PdfReportController extends Controller
                 'imgAttendance' => $this->image($t->img_attendance),
             ])->all();
 
-        return $this->render('pdf.daily', ['r' => $row, 'inspections' => $inspections, 'talks' => $talks] + $this->meta(
+        return $this->render('pdf.daily', [
+            'r' => $row,
+            'inspections' => $inspections,
+            'talks' => $talks,
+            'inspectors' => collect($inspections)->map(fn ($finding) => $finding['i']->inspector?->name)->filter()->unique()->implode(', '),
+            'categoryTotals' => $this->categoryTotals($categories, $inspections),
+            'evaluationLabels' => self::EVALUATION_LABELS,
+            'evaluations' => collect($inspections)->countBy(fn ($finding) => $finding['i']->evaluation),
+            'settings' => $row['settings'],
+            'performance' => $row,
+        ] + $this->meta(
             'Daily Inspection Report', $ref,
             optional(optional($ver)->verifier)->name, $this->ts(optional($ver)->verified_at),
             $row['reviewed_by'] ?? optional(optional($apr)->approver)->name, $this->ts(optional($apr)->approved_at)
@@ -511,9 +611,40 @@ class PdfReportController extends Controller
             ]);
         $totalManhours = round($manhourDays->sum('manhours'), 2);
 
+        // Cumulative LTIFR from January of the report year up to this month:
+        // (total LTI cases to date x 1,000,000) / total man-hours worked to date
+        $yearStart = $periodStart->copy()->startOfYear();
+        $mhByMonth = \App\Models\Manhour::where('company_id', $this->companyId())
+            ->where('project_id', $m->project_id)
+            ->where('subcon_company_id', $m->subcon_company_id)
+            ->whereBetween('work_date', [$yearStart->toDateString(), $monthEnd->toDateString()])
+            ->get()->groupBy(fn ($d) => (int) $d->work_date->format('n'))
+            ->map(fn ($g) => round($g->sum(fn ($d) => $d->worker_count * (float) $d->working_hours), 2));
+        $ltiByMonth = Incident::where('company_id', $this->companyId())
+            ->where('project_id', $m->project_id)
+            ->where('subcon_company_id', $m->subcon_company_id)
+            ->whereBetween('incident_date', [$yearStart, $monthEnd])
+            ->get()->groupBy(fn ($i) => (int) $i->incident_date->format('n'))
+            ->map(fn ($g) => (int) $g->sum('lti_worker_count'));
+        $cumMh = 0;
+        $cumLti = 0;
+        $ltifrRows = [];
+        for ($mo = 1; $mo <= (int) $periodStart->format('n'); $mo++) {
+            $mh = (float) ($mhByMonth[$mo] ?? 0);
+            $lti = (int) ($ltiByMonth[$mo] ?? 0);
+            $cumMh += $mh;
+            $cumLti += $lti;
+            $ltifrRows[] = [
+                'month' => \Carbon\Carbon::create($periodStart->year, $mo, 1)->format('M'),
+                'manhours' => $mh, 'lti' => $lti, 'cum_manhours' => $cumMh, 'cum_lti' => $cumLti,
+                'ltifr' => $cumMh > 0 ? round($cumLti * 1000000 / $cumMh, 2) : null,
+            ];
+        }
+
         $company = \App\Models\Company::find($this->companyId());
 
         return $this->render('pdf.monthly', [
+            'ltifrRows' => $ltifrRows,
             'r' => $row,
             'inspectionSummary' => $inspectionSummary,
             'toolboxSummary' => $toolboxSummary,

@@ -46,10 +46,11 @@ class SubconPublicController extends Controller
             'items' => $t->items->map(fn ($i) => ['type' => $i->type, 'content' => $i->content])->values(),
         ])->values();
 
-        $staffs = SubconStaff::with('certifications')
+        // The staff link gets no staff data at all – the team and their details are leader-only.
+        $staffs = ($role !== 'leader' ? collect() : SubconStaff::with('certifications')
             ->where('company_id', $company->id)
             ->orderBy('id')
-            ->get()
+            ->get())
             ->map(function ($s) {
                 $row = $s->toArray();
                 $row['certifications'] = $s->certifications->map(fn ($c) => [
@@ -66,9 +67,9 @@ class SubconPublicController extends Controller
 
         $operators = $staffs->pluck('name', 'id');
 
-        $machinery = SubconMachinery::where('subcon_company_id', $company->id)
+        $machinery = ($role !== 'leader' ? collect() : SubconMachinery::where('subcon_company_id', $company->id)
             ->orderByDesc('id')
-            ->get()
+            ->get())
             ->map(fn ($m) => [
                 'id' => $m->id,
                 'name' => $m->name,
@@ -97,7 +98,7 @@ class SubconPublicController extends Controller
         if ($role === 'leader') {
             \App\Support\ReportBuilder::refreshDaily($company->company_id, $company->id);
             $daily = \App\Models\InspectionReport::where('subcon_company_id', $company->id)
-                ->orderByDesc('report_date')->limit(5)->get();
+                ->where('report_date', '>=', now()->subDays(120)->toDateString())->orderByDesc('report_date')->get();
             $names = \App\Models\Project::whereIn('id', $daily->pluck('project_id'))->pluck('name', 'id');
             $monthly = \App\Models\MonthlyReport::where('subcon_company_id', $company->id)
                 ->where('status', 'approved')->orderByDesc('period')->first();
@@ -106,6 +107,7 @@ class SubconPublicController extends Controller
                 'daily' => $daily->map(fn ($d) => [
                     'id' => $d->id, 'date' => $d->report_date->format('Y-m-d'), 'project' => $names[$d->project_id] ?? '-',
                     'spgpnc' => $d->spgpnc, 'rank' => $d->rank, 'penalty' => (float) $d->penalty_total, 'status' => $d->status,
+                    'sp' => $d->sp_score, 'g' => $d->g_score, 'p' => $d->p_score, 'n' => $d->n_score, 'c' => $d->c_score,
                     'penalty_status' => $d->penalty_status,
                 ])->values(),
                 'monthly' => $monthly ? [

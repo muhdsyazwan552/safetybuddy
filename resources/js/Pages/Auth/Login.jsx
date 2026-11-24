@@ -7,8 +7,7 @@ const Login = () => {
   const { flash = {} } = usePage().props;
   const [credentials, setCredentials] = useState({
     email: '',
-    password: '',
-    remember: false
+    password: ''
   });
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -19,8 +18,7 @@ const Login = () => {
     
     router.post('/login', {
       email: credentials.email,
-      password: credentials.password,
-      remember: credentials.remember ? 'on' : ''
+      password: credentials.password
     }, {
       onError: (errors) => {
         setErrors(errors);
@@ -155,21 +153,7 @@ const Login = () => {
               )}
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember"
-                  name="remember"
-                  type="checkbox"
-                  checked={credentials.remember}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember" className="ml-2 block text-sm text-gray-900">
-                  Remember me
-                </label>
-              </div>
-
+            <div className="flex items-center justify-end">
               <div className="text-sm">
                 <Link 
                   href="/forgot-password" 

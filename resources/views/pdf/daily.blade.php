@@ -1,36 +1,64 @@
-@extends('pdf.daily-layout')
+@extends('pdf.inspection-report-layout')
+@section('brand')
+@if($companyLogo)
+    <img class="brand-logo" src="{{ $companyLogo }}" alt="">
+@endif
+{{ $company }}
+@endsection
+@section('heading', 'DAILY REPORT')
 @section('body')
-<table class="overview">
-<tr><td class="label">Project</td><td>{{ $r['project'] }}</td><td class="label">Subcontractor</td><td>{{ $r['subcon'] }}</td></tr>
-<tr><td class="label">Date</td><td>{{ \Carbon\Carbon::parse($r['date'])->format('d M Y') }}</td><td class="label">Score</td><td>{{ $r['spgpnc'] !== null ? number_format((float) $r['spgpnc'], 2) . '%' : '-' }}@if(!empty($r['rank'])) ({{ $r['rank'] }})@endif</td></tr>
-<tr><td class="label">Report no.</td><td>{{ $r['report_no'] ?: $refNo }}</td><td class="label">Status</td><td>{{ $r['status'] === 'approved' ? 'COMPLETE' : 'NOT COMPLETE' }}</td></tr>
+@php
+    $pct = fn ($value) => $value === null ? '—' : number_format($value, 2) . '%';
+    $benchmarkStatus = ['meets' => 'Meets benchmark', 'below' => 'Below benchmark', 'na' => 'Not assessed'];
+@endphp
+<h2>Project Details</h2>
+<table class="details">
+    <tr><th>Project Name</th><td>{{ $r['project'] }}</td></tr>
+    <tr><th>Inspection Date</th><td>{{ \Carbon\Carbon::parse($r['date'])->format('d M Y') }}</td></tr>
+    <tr><th>Inspector</th><td>{{ $inspectors ?: '—' }}</td></tr>
+    <tr><th>Total Inspections</th><td>{{ count($inspections) }}</td></tr>
+    <tr><th>Subcontractor</th><td>{{ $r['subcon'] }}</td></tr>
+    <tr><th>Report Status</th><td>{{ $r['status'] === 'approved' ? 'Complete' : 'Not complete' }}</td></tr>
 </table>
-@include('pdf._score', ['plainText' => true])
-@if(!empty($r['follow_up']))
-<h2>Follow-up</h2>
-<table class="grid">@foreach($r['follow_up'] as $f)<tr><td>{{ $f }}</td></tr>@endforeach</table>
-@endif
 
-@if(count($talks))
-@foreach($talks as $n => $row)
-@php($t = $row['t'])
-@php($imgGroup = $row['imgGroup'])
-@php($imgAttendance = $row['imgAttendance'])
-<div class="record-heading">Toolbox talk {{ $n + 1 }} of {{ count($talks) }}@if($t->code) &middot; {{ $t->code }}@endif &middot; {{ $t->status === 'approved' ? 'APPROVED' : 'NOT APPROVED YET' }}</div>
-@include('pdf._toolbox_body', ['plainText' => true, 'hideVisitInspections' => true])
-@endforeach
-@endif
+<h2>Toolbox Talk &amp; SP Sampling</h2>
+@forelse($talks as $row)
+    @php
+        $talk = $row['t'];
+        $topics = $talk->categories->pluck('name')->merge($talk->topics->pluck('name'))->unique();
+    @endphp
+    @if(count($talks) > 1)
+        <h3 class="talk-label">Toolbox Talk {{ $loop->iteration }} · {{ $talk->code }}</h3>
+    @endif
+    <table class="details">
+        <tr><th>Toolbox Conducted By</th><td>{{ $talk->conducted === 'yes' ? ($talk->CompanyStaff?->name ?? '—') : 'Toolbox Not Conducted' }}</td></tr>
+    </table>
+    <table class="grid evidence">
+        <thead><tr><th class="center">Group Photo</th><th class="center">Attendance Sheet</th></tr></thead>
+        <tbody><tr>
+            <td>@if($row['imgGroup'])<img src="{{ $row['imgGroup'] }}" alt="Group photo">@else — @endif</td>
+            <td>@if($row['imgAttendance'])<img src="{{ $row['imgAttendance'] }}" alt="Attendance sheet">@else — @endif</td>
+        </tr></tbody>
+    </table>
+    <table class="details">
+        <tr><th>Topics</th><td>{{ $topics->implode(', ') ?: '—' }}</td></tr>
+        @forelse($talk->attendees as $attendee)
+            <tr><th>{{ $loop->first ? 'Attendees / SP Sampling' : '' }}</th><td>{{ $attendee->name }}</td></tr>
+        @empty
+            <tr><th>Attendees / SP Sampling</th><td>{{ $talk->total_attended ?? '—' }}</td></tr>
+        @endforelse
+    </table>
+@empty
+    <p>No toolbox talk recorded.</p>
+@endforelse
+<table class="details" style="margin-top:6pt">
+    <tr><th>SP Sampled</th><td>{{ $performance['sampled'] ?? '—' }}</td></tr>
+    <tr><th>Not Registered</th><td>{{ $performance['not_registered'] ?? '—' }}</td></tr>
+    <tr><th>SP Compliance</th><td>{{ $pct($performance['sp']) }}</td></tr>
+    <tr><th>Benchmark Setting</th><td>{{ $pct($settings['sp_benchmark']) }}</td></tr>
+    <tr><th>Status</th><td>{{ $benchmarkStatus[$performance['result']['sp']] ?? 'Not assessed' }}</td></tr>
+</table>
 
-@foreach($inspections as $n => $row)
-@php($i = $row['i'])
-@php($category = $row['category'])
-@php($photos = $row['photos'])
-<div class="record-heading">Inspection {{ $n + 1 }} of {{ count($inspections) }}@if($i->code) &middot; {{ $i->code }}@endif &middot; {{ $i->status === 'approved' ? 'APPROVED' : 'NOT APPROVED YET' }}</div>
-@include('pdf._inspection_body', ['plainText' => true])
-@endforeach
-
-@if(!count($talks) && !count($inspections))
-<div class="muted" style="margin-top:12px">No inspection or toolbox talk is recorded for this day.</div>
-@endif
-@include('pdf._daily-signatures')
+@include('pdf._report-findings')
+@include('pdf._report-performance', ['dailyReport' => true])
 @endsection

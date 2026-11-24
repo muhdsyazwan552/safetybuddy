@@ -143,6 +143,24 @@
 <tr><th colspan="2">Total</th><th class="n">{{ $manhourDays->sum('workers') }}</th><th></th><th class="n">{{ $fmt($totalManhours) }}</th></tr>
 @endif
 </tbody></table>
+
+<h2>Lost Time Injury (LTI) and Cumulative LTIFR</h2>
+<p class="muted">LTI data comes from the Incident module. Man-hours come from the daily attendance submitted through the Contractor Portal and are summarised by month, from January to {{ \Carbon\Carbon::createFromFormat('Y-m', $r['period'])->format('F Y') }}.</p>
+<table class="grid"><thead><tr><th>Month</th><th class="n">Manhours</th><th class="n">LTI (Lost Time Injury)</th><th class="n">Cumulative manhours</th><th class="n">Cumulative LTI</th><th class="n">Cumulative LTIFR</th></tr></thead><tbody>
+@foreach($ltifrRows as $row)
+<tr><td>{{ strtoupper($row['month']) }}</td><td class="n">{{ $fmt($row['manhours']) }}</td><td class="n">{{ $row['lti'] ?: '' }}</td><td class="n">{{ $fmt($row['cum_manhours']) }}</td><td class="n">{{ $row['cum_lti'] }}</td><td class="n">{{ $row['ltifr'] !== null ? number_format($row['ltifr'], 2) : '-' }}</td></tr>
+@endforeach
+@php $last = end($ltifrRows); @endphp
+<tr><th>Overall</th><th class="n">{{ $fmt($last['cum_manhours']) }}</th><th class="n">{{ $last['cum_lti'] }}</th><th></th><th></th><th class="n">{{ $last['ltifr'] !== null ? number_format($last['ltifr'], 2) : '-' }}</th></tr>
+</tbody></table>
+<div class="box" style="page-break-inside:avoid">
+<b>Formula</b><br>
+Cumulative LTIFR = (Total LTI cases to date &times; 1,000,000) &divide; Total manhours worked to date<br>
+@if($last['ltifr'] !== null)
+{{ strtoupper($last['month']) }}: ({{ $last['cum_lti'] }} &times; 1,000,000) &divide; {{ $fmt($last['cum_manhours']) }} = <b>{{ number_format($last['ltifr'], 2) }}</b><br>
+@endif
+<span class="muted">Cumulative LTIFR shows the number of lost time injuries per 1,000,000 hours worked from the start of the reporting period (January) to the month shown. A month without man-hours recorded shows &ldquo;-&rdquo; until man-hours exist.</span>
+</div>
 </div>
 @if($r['review_comment'])<h2>Review comment</h2><div class="box">{{ $r['review_comment'] }}</div>@endif
 @include('pdf._daily-signatures')

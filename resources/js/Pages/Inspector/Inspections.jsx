@@ -1,17 +1,42 @@
 // resources/js/Pages/Inspector/Inspections.jsx
 import React, { useState } from 'react';
-import { ReviewSteps } from '@/Components/shared/ReviewProgress';
-import SeriesCode from '@/Components/shared/SeriesCode';
-import { Head, Link, router } from '@inertiajs/react';
-import { Plus, MapPin, CalendarDays, Building2, ChevronRight, Pencil, Trash2, Eye } from 'lucide-react';
+import VisitCard from '@/Components/shared/VisitCard';
+import { Head, router } from '@inertiajs/react';
+import { SlidersHorizontal } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import DateInput from '@/Components/shared/DateInput';
 import {
-    EVAL, EVAL_ORDER, EvalBadge, StatusBadge, ListHeader, Sheet, EmptyState, Pager, Field,
+    EVAL, EVAL_ORDER, Sheet, EmptyState, Pager, Field,
     inputClass, fmtDate, primaryBtn, ghostBtn,
 } from '@/Components/inspector/kit';
 
-export default function Inspections({ inspections, projects = [], subconCompanies = [], evaluations = [], filters = {}, user }) {
+// this page only lists findings: Non-Conformance and Client Complaint
+const FINDING_ORDER = ['nonconformance', 'clientcomplaint'];
+
+// shape one NC / CC record like a visit so the shared card can show it
+const toCard = (i) => ({
+    key: `insp-${i.id}`,
+    project: i.project?.name,
+    date: i.inspection_date ? String(i.inspection_date).slice(0, 10) : null,
+    by: i.inspector?.name,
+    status: i.status,
+    talk: null,
+    inspections: [{
+        id: i.id,
+        series_code: i.code,
+        topic: i.topic?.name || i.topic?.title,
+        location: i.location,
+        subcon: i.subcon_company?.name,
+        status: i.status,
+        evaluation: i.evaluation,
+        description: i.description,
+        review_comment: i.review_comment,
+        case: i.case,
+    }],
+});
+
+export default function Inspections({ inspections, projects = [], subconCompanies = [], evaluations = [], filters = {}, me = null, user }) {
+    const [openKey, setOpenKey] = useState(null); // one card open at a time
     const [sheet, setSheet] = useState(false);
     const [values, setValues] = useState(filters || {});
     const [toDelete, setToDelete] = useState(null);
@@ -47,34 +72,19 @@ export default function Inspections({ inspections, projects = [], subconCompanie
 
     return (
         <InspectorLayout user={user}>
-            <Head title="Inspections" />
+            <Head title="NC / CC" />
 
             <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:px-8">
-                <ListHeader
-                    title="Inspections"
-                    subtitle="Site inspection records"
-                    count={inspections?.total}
-                    onFilter={() => { setValues(filters || {}); setSheet(true); }}
-                    filterCount={activeCount}
-                    action={
-                        <Link
-                            href="/inspector/inspections/create"
-                            className="sb-create"
-                        >
-                            <Plus className="h-4 w-4" strokeWidth={3} /> New
-                        </Link>
-                    }
-                />
-
-                {/* Evaluation quick filter chips */}
-                <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1 sb-scroll sm:mx-0 sm:px-0">
+                {/* Evaluation quick filter chips + the filter button */}
+                <div className="mb-4 flex items-center gap-2">
+                <div className="-ml-4 flex min-w-0 flex-1 gap-2 overflow-x-auto pl-4 pb-1 sb-scroll sm:ml-0 sm:pl-0">
                     <button
                         onClick={() => { setValues({ ...filters, evaluation: '' }); go(Object.fromEntries(Object.entries({ ...filters, evaluation: '' }).filter(([, v]) => v))); }}
                         className={`shrink-0 rounded-full border px-4 py-2 text-xs font-bold transition ${!filters?.evaluation ? 'border-ink-900 bg-ink-900 text-brand-400' : 'border-gray-200 bg-white text-gray-600'}`}
                     >
                         All
                     </button>
-                    {EVAL_ORDER.map((k) => (
+                    {FINDING_ORDER.map((k) => (
                         <button
                             key={k}
                             onClick={() => quickEval(k)}
@@ -85,91 +95,45 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                         </button>
                     ))}
                 </div>
+                    <button
+                        onClick={() => { setValues(filters || {}); setSheet(true); }}
+                        className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 shadow-sm active:scale-95 transition"
+                        aria-label="Filters"
+                    >
+                        <SlidersHorizontal className="h-5 w-5" />
+                        {activeCount > 0 && (
+                            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-brand-500 text-[10px] font-bold text-ink-900">
+                                {activeCount}
+                            </span>
+                        )}
+                    </button>
+                </div>
 
                 {rows.length === 0 ? (
                     <EmptyState
-                        title="No inspections found"
-                        hint={activeCount ? 'Try clearing the filters.' : 'Tap + to record your first inspection.'}
+                        title="No NC / CC found"
+                        hint={activeCount ? 'Try clearing the filters.' : 'No non-conformance or client complaint has been recorded yet.'}
                         action={
                             activeCount
                                 ? <button onClick={resetFilters} className="rounded-2xl bg-ink-900 px-5 py-2.5 text-sm font-bold text-brand-400">Clear filters</button>
-                                : <Link href="/inspector/inspections/create" className="rounded-2xl bg-brand-500 px-5 py-2.5 text-sm font-extrabold text-ink-900">New inspection</Link>
+                                : null
                         }
                     />
                 ) : (
                     <>
-                        {/* Phone / tablet: card list */}
-                        <div className="space-y-3 md:hidden">
+                        {/* Same card as the Toolbox talk & Inspection list: tap to open, then "View full details" */}
+                        <div className="mx-auto max-w-2xl space-y-3">
                             {rows.map((i) => (
-                                <Link
+                                <VisitCard
                                     key={i.id}
-                                    href={`/inspector/inspections/${i.id}`}
-                                    className="relative block overflow-hidden rounded-3xl border border-gray-100 bg-white p-4 pl-5 shadow-sm active:scale-[0.985] transition"
-                                >
-                                    <span className="absolute inset-y-0 left-0 w-1.5" style={{ background: EVAL[i.evaluation]?.color || '#9ca3af' }} />
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="min-w-0">
-                                            <SeriesCode code={i.code} className="block" />
-                                            <p className="truncate text-[15px] font-bold text-gray-900">{i.project?.name || '-'}</p>
-                                            <p className="mt-0.5 truncate text-xs text-gray-500">{i.topic?.name || i.topic?.title || '-'}</p>
-                                        </div>
-                                        <div className="flex shrink-0 flex-col items-end gap-1.5">
-                                            <EvalBadge value={i.evaluation} />
-                                            <StatusBadge value={i.status} />
-                                        </div>
-                                    </div>
-                                    <div className="mt-3 border-t border-gray-100 pt-2.5"><ReviewSteps status={i.status} /></div>
-
-                                    <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-gray-600">
-                                        <span className="flex items-center gap-1.5 truncate"><Building2 className="h-3.5 w-3.5 shrink-0 text-gray-400" />{i.subcon_company?.name || '-'}</span>
-                                        <span className="flex items-center gap-1.5 truncate"><CalendarDays className="h-3.5 w-3.5 shrink-0 text-gray-400" />{fmtDate(i.inspection_date)}</span>
-                                        <span className="col-span-2 flex items-center gap-1.5 truncate"><MapPin className="h-3.5 w-3.5 shrink-0 text-gray-400" />{i.location || '-'}</span>
-                                    </div>
-
-                                    <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-3">
-                                        <span className="text-[11px] text-gray-400">By {i.inspector?.name || '-'}</span>
-                                        <ChevronRight className="h-4 w-4 text-gray-300" />
-                                    </div>
-                                </Link>
+                                    finding
+                                    visit={toCard(i)}
+                                    editable={me !== null && Number(i.inspection_by) === Number(me)}
+                                    detailHref={`/inspector/inspections/${i.id}`}
+                                    open={openKey === i.id}
+                                    onToggle={() => setOpenKey((k) => (k === i.id ? null : i.id))}
+                                />
                             ))}
-                        </div>
-
-                        {/* Desktop: table */}
-                        <div className="hidden overflow-x-auto rounded-3xl border border-gray-200 bg-white shadow-md shadow-gray-200/60 md:block">
-                            <table className="min-w-full divide-y divide-gray-100 text-sm">
-                                <thead className="bg-gray-50 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                                    <tr>
-                                        <th className="w-12 px-5 py-3">#</th>
-                                        <th className="px-5 py-3">Project</th>
-                                        <th className="px-5 py-3">Subcon</th>
-                                        <th className="px-5 py-3">Topic</th>
-                                        <th className="px-5 py-3">Evaluation</th>
-                                        <th className="px-5 py-3">Status</th>
-                                        <th className="px-5 py-3">Date</th>
-                                        <th className="px-5 py-3">Location</th>
-                                        <th className="px-5 py-3 text-right">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {rows.map((i, idx) => (
-                                        <tr key={i.id} className="hover:bg-gray-50">
-                                            <td className="px-5 py-3.5 text-gray-400">{(inspections.from ?? 1) + idx}</td>
-                                            <td className="px-5 py-3.5 font-semibold text-gray-900"><SeriesCode code={i.code} className="block" />{i.project?.name || '-'}</td>
-                                            <td className="px-5 py-3.5 text-gray-600">{i.subcon_company?.name || '-'}</td>
-                                            <td className="px-5 py-3.5 text-gray-600">{i.topic?.name || i.topic?.title || '-'}</td>
-                                            <td className="px-5 py-3.5"><EvalBadge value={i.evaluation} /></td>
-                                            <td className="px-5 py-3.5"><StatusBadge value={i.status} /></td>
-                                            <td className="whitespace-nowrap px-5 py-3.5 text-gray-600">{fmtDate(i.inspection_date)}</td>
-                                            <td className="px-5 py-3.5 text-gray-600">{i.location || '-'}</td>
-                                            <td className="px-5 py-3.5">
-                                                <div className="flex justify-end gap-1.5">
-                                                    <Link href={`/inspector/inspections/${i.id}`} className="flex h-9 w-9 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-100" title="View"><Eye className="h-4 w-4" /></Link>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
                         </div>
 
                         <Pager data={inspections} />
@@ -181,7 +145,7 @@ export default function Inspections({ inspections, projects = [], subconCompanie
             <Sheet
                 open={sheet}
                 onClose={() => setSheet(false)}
-                title="Filter inspections"
+                title="Filter NC / CC"
                 footer={
                     <div className="flex gap-3">
                         <button onClick={resetFilters} className={ghostBtn}>Reset</button>
@@ -192,8 +156,8 @@ export default function Inspections({ inspections, projects = [], subconCompanie
                 <div className="space-y-4 py-1">
                     <Field label="Evaluation">
                         <select className={inputClass} value={values.evaluation || ''} onChange={(e) => setValues({ ...values, evaluation: e.target.value })}>
-                            <option value="">All evaluations</option>
-                            {(evaluations.length ? evaluations : EVAL_ORDER).map((ev) => <option key={ev} value={ev}>{EVAL[ev]?.label || ev}</option>)}
+                            <option value="">NC and CC</option>
+                            {(evaluations.length ? evaluations : FINDING_ORDER).map((ev) => <option key={ev} value={ev}>{EVAL[ev]?.label || ev}</option>)}
                         </select>
                     </Field>
                     <Field label="Project site">
@@ -223,7 +187,7 @@ export default function Inspections({ inspections, projects = [], subconCompanie
             <Sheet
                 open={!!toDelete}
                 onClose={() => setToDelete(null)}
-                title="Delete inspection?"
+                title="Delete this record?"
                 footer={
                     <div className="flex gap-3">
                         <button onClick={() => setToDelete(null)} className={ghostBtn}>Cancel</button>

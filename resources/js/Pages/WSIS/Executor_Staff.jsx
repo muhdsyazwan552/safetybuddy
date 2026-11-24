@@ -104,12 +104,12 @@ const ExecutorStaff = ({ title, company, staff, machinery = [], cases = [], atte
             <h1 className="text-2xl font-bold text-gray-800">Company Details</h1>
             <div className="space-x-3">
               <a
-                href={`/executors/${company.id}/report`}
+                href={`/executors/${company.id}/report?preview=1`}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-block px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900"
               >
-                Generate PDF
+                Generate Report
               </a>
               <button
                 onClick={() => {

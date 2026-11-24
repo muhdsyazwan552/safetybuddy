@@ -21,6 +21,44 @@ function Row({ label, children }) {
     );
 }
 
+const CASE_STATE = {
+    open: { label: 'Waiting for reply', cls: 'border-amber-200 bg-amber-50 text-amber-700' },
+    responded: { label: 'Replied', cls: 'border-blue-200 bg-blue-50 text-blue-700' },
+    returned: { label: 'Reply returned', cls: 'border-red-200 bg-red-50 text-red-700' },
+    closed: { label: 'Closed', cls: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
+};
+
+// the conversation on an NC / CC: contractor reply, then the Supervisor / Manager's answer
+function Replies({ c }) {
+    const bubble = 'rounded-xl px-3 py-2 text-xs';
+    return (
+        <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
+            <p className="text-[11px] font-extrabold uppercase tracking-wide text-gray-500">Replies</p>
+            {!c.subcon_response && !c.return_reason && !c.comment && (
+                <p className="text-xs text-gray-400">No reply from the contractor yet.</p>
+            )}
+            {c.subcon_response && (
+                <div className={`${bubble} bg-gray-50 text-gray-700`}>
+                    <p className="font-bold text-gray-900">Contractor{c.responded_by ? ` · ${c.responded_by}` : ''}{c.responded_at ? <span className="font-normal text-gray-400"> · {c.responded_at}</span> : null}</p>
+                    <p className="mt-1 whitespace-pre-wrap">{c.subcon_response}</p>
+                </div>
+            )}
+            {c.return_reason && (
+                <div className={`${bubble} bg-red-50 text-red-700`}>
+                    <p className="font-bold">Supervisor / Manager · returned the reply</p>
+                    <p className="mt-1 whitespace-pre-wrap">{c.return_reason}</p>
+                </div>
+            )}
+            {c.state === 'closed' && (
+                <div className={`${bubble} bg-emerald-50 text-emerald-800`}>
+                    <p className="font-bold">Supervisor / Manager · closed{c.date_close ? <span className="font-normal"> · {c.date_close}</span> : null}</p>
+                    {c.comment && <p className="mt-1 whitespace-pre-wrap">{c.comment}</p>}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function StatusText({ value }) {
     const s = REVIEW_STATUS[value || 'pending_verification'];
     return <span className={`font-extrabold uppercase tracking-wide ${textColor(s.badge)}`}>{s.label}</span>;
@@ -33,7 +71,8 @@ function EvalText({ value }) {
 
 // href: tapping the card opens that page instead of expanding it in place
 // open / onToggle: let the parent control it (e.g. only one card of a list open at a time)
-export default function VisitCard({ visit, children, editable = false, defaultOpen = false, detailHref = null, href = null, open: openProp, onToggle }) {
+// finding: the card is one NC / CC record (no toolbox row, shows its evaluation instead)
+export default function VisitCard({ visit, children, editable = false, defaultOpen = false, detailHref = null, href = null, finding = false, open: openProp, onToggle }) {
     const [openState, setOpenState] = useState(defaultOpen);
     const controlled = openProp !== undefined;
     const open = controlled ? openProp : openState;
@@ -53,11 +92,29 @@ export default function VisitCard({ visit, children, editable = false, defaultOp
                             <dd className="font-semibold text-gray-700">{fmt(visit.date)}</dd>
                             <dt className="text-gray-500">Inspector :</dt>
                             <dd className="min-w-0 truncate font-semibold text-gray-700">{visit.by || '-'}</dd>
+                            {finding && visit.inspections[0]?.topic && (
+                                <>
+                                    <dt className="text-gray-500">Topic :</dt>
+                                    <dd className="min-w-0 truncate font-semibold text-gray-700">{visit.inspections[0].topic}</dd>
+                                </>
+                            )}
                         </dl>
                     </div>
                     <StatusBadge value={visit.status} className="shrink-0" />
                 </div>
 
+                {finding ? (
+                    <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold">
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-1 uppercase tracking-wide ${EVAL[visit.inspections[0]?.evaluation]?.badge || 'border-gray-200 bg-gray-100 text-gray-600'}`}>
+                            {EVAL[visit.inspections[0]?.evaluation]?.label || '-'}
+                        </span>
+                        {visit.inspections[0]?.case && (
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-1 ${CASE_STATE[visit.inspections[0].case.state]?.cls || ''}`}>
+                                {CASE_STATE[visit.inspections[0].case.state]?.label}
+                            </span>
+                        )}
+                    </div>
+                ) : (
                 <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold">
                     {t ? (
                         <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 ${t.conducted ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
@@ -72,6 +129,7 @@ export default function VisitCard({ visit, children, editable = false, defaultOp
                         <ClipboardCheck className="h-3.5 w-3.5" /> {visit.inspections.length} inspection{visit.inspections.length === 1 ? '' : 's'}
                     </span>
                 </div>
+                )}
 
                 {rejected.length > 0 && (
                     <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700">Returned: {rejected[0].review_comment}</p>
@@ -116,7 +174,7 @@ export default function VisitCard({ visit, children, editable = false, defaultOp
 
                     {visit.inspections.length > 0 && (
                         <section className="space-y-2">
-                            <p className="flex items-center gap-2 px-1 text-sm font-extrabold text-gray-900"><ClipboardCheck className="h-4 w-4" /> Inspections</p>
+                            <p className="flex items-center gap-2 px-1 text-sm font-extrabold text-gray-900"><ClipboardCheck className="h-4 w-4" /> {finding ? 'NC / CC' : 'Inspections'}</p>
                             {visit.inspections.map((i) => (
                                 <div key={i.id} className="rounded-2xl border border-gray-100 bg-white p-3.5">
                                     <div className="flex items-start justify-between gap-2">
@@ -132,6 +190,7 @@ export default function VisitCard({ visit, children, editable = false, defaultOp
                                         <Row label="Evaluation"><EvalText value={i.evaluation} /></Row>
                                         {i.description && <Row label="Comment"><span className="whitespace-pre-wrap text-gray-700">{i.description}</span></Row>}
                                     </dl>
+                                    {finding && i.case && <Replies c={i.case} />}
                                 </div>
                             ))}
                         </section>

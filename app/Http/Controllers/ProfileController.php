@@ -7,7 +7,9 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Redirect;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,6 +30,7 @@ class ProfileController extends Controller
             'title' => 'Settings',
             'mustVerifyEmail' => $user instanceof MustVerifyEmail && $user->email_verification_required,
             'status' => session('status'),
+            'staySignedIn' => (bool) ($user->stay_signed_in ?? true),
             'company' => $isCompanyAdmin ? $user->company->only([
                 'id', 'code', 'name', 'registration_no', 'email', 'contact', 'address', 'city', 'postcode', 'state', 'status',
             ]) + ['logo_url' => $user->company->logo_url] : null,
@@ -73,6 +76,28 @@ class ProfileController extends Controller
         $request->user()->fill($request->validated())->save();
 
         return Redirect::route('profile.edit')->with('success', 'Profile updated');
+    }
+
+    /**
+     * Turn "stay signed in on this device" on or off (every role).
+     */
+    public function updateStaySignedIn(Request $request): RedirectResponse
+    {
+        $enabled = $request->validate(['stay_signed_in' => 'required|boolean'])['stay_signed_in'];
+        $user = $request->user();
+
+        $user->forceFill(['stay_signed_in' => $enabled])->save();
+
+        if ($enabled) {
+            // issue a fresh remember cookie for this device right away
+            Auth::guard('web')->login($user, true);
+        } else {
+            // invalidate every remember cookie and drop this device's one
+            $user->forceFill(['remember_token' => Str::random(60)])->save();
+            Cookie::queue(Cookie::forget(Auth::guard('web')->getRecallerName()));
+        }
+
+        return Redirect::back()->with('success', $enabled ? 'You will stay signed in' : 'Stay signed in turned off');
     }
 
     /**

@@ -38,7 +38,6 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'email' => 'required|email',
             'password' => 'required',
-            'remember' => 'nullable|string'
         ], [
             'email.required' => 'Please enter your email address.',
             'email.email' => 'Please enter a valid email address.',
@@ -47,12 +46,15 @@ class AuthController extends Controller
 
         Log::debug('Validated credentials', ['email' => $credentials['email']]);
 
+        // Stay signed in is on for everyone unless the user turned it off in Settings
+        $remember = User::where('email', $credentials['email'])->value('stay_signed_in') ?? true;
+
         // Attempt to authenticate
         if (Auth::attempt([
             'email' => $credentials['email'],
             'password' => $credentials['password'],
             'deactivated_at' => null, // deactivated employees can never sign in again
-        ], $request->remember === 'on')) {
+        ], (bool) $remember)) {
 
             Log::debug('Authentication successful', ['user_id' => Auth::id()]);
             $request->session()->regenerate();

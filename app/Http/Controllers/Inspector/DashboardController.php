@@ -114,15 +114,9 @@ class DashboardController extends Controller
         $startOfWeek = now()->startOfWeek();
         $totalEvaluated = $inspectionsQuery()->count();
         $goodCount = $inspectionsQuery()->where('evaluation', 'good')->count();
-        $complianceRate = $totalEvaluated > 0 ? round(($goodCount / $totalEvaluated) * 100) : null;
         $performanceSettings = PerformanceSetting::where('company_id', $user->company_id)->first()?->snapshot()
             ?? Spgpnc::DEFAULTS;
-        $complianceTier = match (true) {
-            $complianceRate === null, !$performanceSettings['scoring_on'], !$performanceSettings['bspr_on'] => null,
-            $complianceRate >= $performanceSettings['gold_min'] => 'GOLD',
-            $complianceRate >= $performanceSettings['silver_min'] => 'SILVER',
-            default => 'BRONZE',
-        };
+        $compliance = Spgpnc::dashboardCompliance($totalEvaluated, $goodCount, $performanceSettings);
 
         $openNc = NoConformance::where('status', 'open')
             ->whereHas('inspection', fn ($q) => $q->whereIn('project_id', $assignedProjectIds))
@@ -137,8 +131,8 @@ class DashboardController extends Controller
             'last_week_inspections' => $inspectionsQuery()
                 ->whereBetween('inspection_date', [$startOfWeek->copy()->subWeek(), $startOfWeek])
                 ->count(),
-            'compliance_rate' => $complianceRate,
-            'compliance_tier' => $complianceTier,
+            'compliance_rate' => $compliance['rate'],
+            'compliance_tier' => $compliance['tier'],
             'open_nc' => $openNc,
             'open_cc' => $openCc,
             'toolbox_this_month' => ToolboxTalks::whereIn('project_id', $assignedProjectIds)
@@ -258,12 +252,12 @@ class DashboardController extends Controller
             ->where('entity_id', $staff->id)
             ->pluck('project_id');
 
-        $query = Inspection::with(['project', 'subconCompany', 'topic', 'inspector'])
+        $query = Inspection::with(['project', 'subconCompany', 'topic', 'inspector', 'non_conformance', 'client_complaint'])
             ->whereIn('project_id', $assignedProjectIds);
 
-        if ($request->evaluation) {
-            $query->where('evaluation', $request->evaluation);
-        }
+        // This list is only for findings: Non-Conformance (NC) and Client Complaint (CC)
+        $findingTypes = ['nonconformance', 'clientcomplaint'];
+        $query->whereIn('evaluation', in_array($request->evaluation, $findingTypes, true) ? [$request->evaluation] : $findingTypes);
 
         if ($request->project_id) {
             $query->where('project_id', $request->project_id);
@@ -283,9 +277,24 @@ class DashboardController extends Controller
 
         $inspections = $query->orderBy('inspection_date', 'desc')->paginate(7);
 
+        // the contractor's reply and the Supervisor / Manager's answer to it, shown on each card
+        $inspections->getCollection()->each(function ($i) {
+            $c = $i->non_conformance ?: $i->client_complaint;
+            $i->setAttribute('case', $c ? [
+                'code' => $c->code,
+                'state' => $c->status === 'closed' ? 'closed' : ($c->return_reason ? 'returned' : ($c->subcon_response ? 'responded' : 'open')),
+                'subcon_response' => $c->subcon_response,
+                'responded_by' => $c->responded_by,
+                'responded_at' => optional($c->responded_at)->format('d M Y, H:i'),
+                'return_reason' => $c->return_reason,
+                'comment' => $c->comment,
+                'date_close' => optional($c->date_close)->format('d M Y'),
+            ] : null);
+        });
+
         $projects = Project::whereIn('id', $assignedProjectIds)->select('id', 'name')->get();
         $subconCompanies = SubconCompany::where('status', 'active')->get();
-        $evaluations = Inspection::$evaluationOptions;
+        $evaluations = $findingTypes;
 
         return Inertia::render('Inspector/Inspections', [
             'inspections' => $inspections,
@@ -293,6 +302,7 @@ class DashboardController extends Controller
             'subconCompanies' => $subconCompanies,
             'evaluations' => $evaluations,
             'filters' => $request->only(['evaluation', 'project_id', 'subcon_company_id', 'start_date', 'end_date']),
+            'me' => $staff->id,
             'user' => $user,
         ]);
     }

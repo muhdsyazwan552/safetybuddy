@@ -53,7 +53,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
             <ReviewProgress kind="visit" status={visit.status} />
 
             {/^(talk|insp)-[0-9]+$/.test(visit.key) && (
-                <div className="flex justify-end"><PdfButton href={`/pdf/visit/${visit.key}`} label="Full toolbox talk & inspection PDF" /></div>
+                <div className="flex justify-end"><PdfButton href={`/pdf/visit/${visit.key}`} label="Generate Report" /></div>
             )}
 
             {children}
@@ -64,10 +64,7 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                     <p className="text-sm text-gray-500">No toolbox talk was recorded for this visit.</p>
                 ) : (
                     <div className="space-y-5">
-                        <div className="flex items-start justify-between gap-3">
-                            <SeriesCode code={t.series_code} className="text-xs" />
-                            {t.id && <PdfButton href={`/pdf/toolbox/${t.id}`} />}
-                        </div>
+                        <SeriesCode code={t.series_code} className="block text-xs" />
 
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                             <InfoRow label="Status"><StatusText value={t.status} /></InfoRow>
@@ -135,12 +132,9 @@ export default function VisitDetail({ visit, backHref, backLabel = 'Back', inspe
                     <div className="space-y-3">
                         {visit.inspections.map((i) => (
                             <div key={i.id} className="rounded-2xl border border-gray-100 p-4">
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <SeriesCode code={i.series_code} className="block" />
-                                        <p className="text-[15px] font-bold text-gray-900">{i.topic || '-'}</p>
-                                    </div>
-                                    <PdfButton href={`/pdf/inspection/${i.id}`} className="shrink-0" />
+                                <div>
+                                    <SeriesCode code={i.series_code} className="block" />
+                                    <p className="text-[15px] font-bold text-gray-900">{i.topic || '-'}</p>
                                 </div>
                                 <div className="mt-4 grid grid-cols-2 gap-4">
                                     <InfoRow label="Location">{i.location || '-'}</InfoRow>

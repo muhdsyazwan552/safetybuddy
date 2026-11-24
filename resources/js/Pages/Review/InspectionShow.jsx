@@ -5,7 +5,6 @@ import HeroMeta, { HeroEval, HeroStatus } from '@/Components/shared/HeroMeta';
 import { ArrowLeft, FolderKanban, CheckCircle2, Loader2 } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 import { SectionCard, InfoRow, fmtDate } from '@/Components/inspector/kit';
-import PdfButton from '@/Components/shared/PdfButton';
 
 function Actions({ i, can_verify, can_approve }) {
     const [busy, setBusy] = useState(false);
@@ -65,7 +64,6 @@ export function InspectionDetail({ inspection: i, backHref = null, caseHref = (t
                     <Link href={backHref || `/review/visits/${i.visit_key || `insp-${i.id}`}`} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
                         <ArrowLeft className="h-4 w-4" /> Back to toolbox talk & inspection
                     </Link>
-                    <PdfButton href={`/pdf/inspection/${i.id}`} />
                 </div>
 
                 <div className="rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg">

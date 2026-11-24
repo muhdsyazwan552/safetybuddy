@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Head, Link, useForm, usePage } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
     User, Mail, Phone, ShieldCheck, KeyRound, Eye, EyeOff, Building2,
     LogOut, Loader2, Check, Save, AlertCircle, MapPin, Hash, PackageCheck, ChevronRight, ArrowLeft, Upload,
@@ -304,8 +304,46 @@ function PasswordForm() {
     );
 }
 
+/** "Stay signed in" switch: on by default for every role, saved straight away. */
+function StaySignedInCard({ enabled }) {
+    const [on, setOn] = useState(Boolean(enabled));
+    const [saving, setSaving] = useState(false);
+
+    const toggle = () => {
+        const next = !on;
+        setOn(next);
+        router.patch('/settings/stay-signed-in', { stay_signed_in: next }, {
+            preserveScroll: true,
+            onStart: () => setSaving(true),
+            onError: () => setOn(!next),
+            onFinish: () => setSaving(false),
+        });
+    };
+
+    return (
+        <Card icon={ShieldCheck} title="Stay signed in" hint="Skip the login page when you open Safety Buddy on this device">
+            <div className="flex items-center justify-between gap-4">
+                <p className="text-sm text-gray-600">
+                    {on ? 'You stay signed in until you log out. Turn this off on a shared device.' : 'You will need to log in again after your session ends.'}
+                </p>
+                <button
+                    type="button"
+                    role="switch"
+                    aria-checked={on}
+                    aria-label="Stay signed in"
+                    onClick={toggle}
+                    disabled={saving}
+                    className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition disabled:opacity-60 ${on ? 'bg-brand-500' : 'bg-gray-300'}`}
+                >
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition ${on ? 'translate-x-6' : 'translate-x-1'}`} />
+                </button>
+            </div>
+        </Card>
+    );
+}
+
 /** Supervisor / Manager / Inspector: a simple one-column profile inside their own portal, same as the inspector app. */
-function PortalProfile({ user, account, mustVerifyEmail, status }) {
+function PortalProfile({ user, account, mustVerifyEmail, status, staySignedIn }) {
     const roleId = Number(user.role_id);
     const Layout = [3, 4].includes(roleId) ? ReviewLayout : InspectorLayout;
     const layoutProps = [3, 4].includes(roleId) ? { title: 'My profile' } : { user };
@@ -336,6 +374,7 @@ function PortalProfile({ user, account, mustVerifyEmail, status }) {
                 {status === 'verification-link-sent' && <p className="text-sm font-semibold text-emerald-600">A new verification link has been sent to your email.</p>}
                 <ProfileForm user={user} />
                 <PasswordForm />
+                <StaySignedInCard enabled={staySignedIn} />
                 <button onClick={() => confirmLogout()} className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-5 py-3 text-sm font-extrabold text-red-600 active:scale-[0.99]">
                     <LogOut className="h-4 w-4" /> Log out
                 </button>
@@ -344,12 +383,12 @@ function PortalProfile({ user, account, mustVerifyEmail, status }) {
     );
 }
 
-export default function Edit({ account = {}, company = null, accountType = null, subscription = null, mustVerifyEmail, status }) {
+export default function Edit({ account = {}, company = null, accountType = null, subscription = null, mustVerifyEmail, status, staySignedIn = true }) {
     const { auth } = usePage().props;
     const user = auth.user;
     const roleId = Number(user.role_id);
     if ([3, 4, 7, 8].includes(roleId)) {
-        return <PortalProfile user={user} account={account} mustVerifyEmail={mustVerifyEmail} status={status} />;
+        return <PortalProfile user={user} account={account} mustVerifyEmail={mustVerifyEmail} status={status} staySignedIn={staySignedIn} />;
     }
     const dashboard = [3, 4].includes(roleId) ? '/review/dashboard' : [7, 8].includes(roleId) ? '/inspector/dashboard' : '/dashboard';
     const tabs = [
@@ -446,6 +485,7 @@ export default function Edit({ account = {}, company = null, accountType = null,
                         </div>}
                         <div id="panel-security" role="tabpanel" aria-labelledby="tab-security" hidden={activeTab !== 'security'} className="max-w-4xl space-y-5">
                             <PasswordForm />
+                            <StaySignedInCard enabled={staySignedIn} />
                             <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                                 <div>
                                     <h2 className="text-sm font-extrabold text-gray-900">Sign out</h2>

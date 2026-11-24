@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Support\UploadedAssets;
 use App\Models\CompanyStaff;
 use App\Models\Inspection;
+use App\Models\PerformanceSetting;
 use App\Support\CaseFeed;
+use App\Support\Spgpnc;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -167,8 +169,13 @@ class ReviewController extends Controller
             'status' => $v['status'], 'inspections' => count($v['inspections']),
             'toolbox' => $v['talk'] ? ($v['talk']['conducted'] ? 'conducted' : 'not conducted') : null,
         ];
+        $inspectionTotals = Inspection::where('company_id', $companyId)
+            ->selectRaw('evaluation, COUNT(*) as total')
+            ->groupBy('evaluation')->pluck('total', 'evaluation');
+        $settings = PerformanceSetting::where('company_id', $companyId)->first()?->snapshot() ?? Spgpnc::DEFAULTS;
 
         return Inertia::render('Review/Dashboard', [
+            'compliance' => Spgpnc::dashboardCompliance($inspectionTotals->sum(), $inspectionTotals->get('good', 0), $settings),
             'counts' => [
                 'visits_verify' => $toVerify->count(),
                 'visits_approve' => $toApprove->count(),

@@ -1,6 +1,7 @@
-import React, { useEffect, useId, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Head, Link } from '@inertiajs/react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion } from 'framer-motion';
+import DashboardHero from '@/Components/shared/DashboardHero';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import {
     ClipboardCheck,
@@ -19,7 +20,6 @@ import {
     MapPin,
     ShieldCheck,
     CheckCircle2,
-    Award,
 } from 'lucide-react';
 
 const EVAL = {
@@ -34,75 +34,6 @@ const fade = {
     hidden: { opacity: 0, y: 14 },
     show: (i = 0) => ({ opacity: 1, y: 0, transition: { delay: i * 0.05, type: 'spring', stiffness: 260, damping: 24 } }),
 };
-
-function greeting(d) {
-    const h = d.getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 17) return 'Good afternoon';
-    if (h < 21) return 'Good evening';
-    return 'Good night';
-}
-
-const COMPLIANCE_TIERS = {
-    GOLD: { label: 'Gold', light: '#fef08a', dark: '#eab308' },
-    SILVER: { label: 'Silver', light: '#f8fafc', dark: '#94a3b8' },
-    BRONZE: { label: 'Bronze', light: '#fed7aa', dark: '#c77c45' },
-    UNRANKED: { label: 'Unranked', light: '#cbd5e1', dark: '#64748b' },
-};
-
-function ComplianceRing({ value, tier }) {
-    const gradientId = useId();
-    const reduceMotion = useReducedMotion();
-    const { label, light, dark } = COMPLIANCE_TIERS[tier] ?? COMPLIANCE_TIERS.UNRANKED;
-    const progress = Math.min(100, Math.max(0, value ?? 0));
-    const displayValue = value == null ? '—' : `${value}%`;
-
-    return (
-        <div
-            className="flex shrink-0 flex-col items-center gap-1 rounded-2xl border border-white/15 px-2 py-2 sm:px-3"
-            style={{ background: `linear-gradient(155deg, ${light}18, #0f172a66 75%)` }}
-            title="Dashboard compliance rate based on the share of inspections marked Good"
-        >
-            <span className="text-[11px] font-semibold tracking-wide text-slate-200">BSPR Status:</span>
-            <div className="relative size-24 sm:size-28">
-                <svg viewBox="0 0 112 112" className="h-full w-full -rotate-90" aria-hidden="true">
-                    <defs>
-                        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-                            <stop offset="0%" stopColor={light} />
-                            <stop offset="100%" stopColor={dark} />
-                        </linearGradient>
-                    </defs>
-                    <circle cx="56" cy="56" r="48" fill="none" stroke="white" strokeOpacity="0.14" strokeWidth="7" />
-                    {progress > 0 && (
-                        <motion.circle
-                            cx="56"
-                            cy="56"
-                            r="48"
-                            fill="none"
-                            stroke={`url(#${gradientId})`}
-                            strokeWidth="7"
-                            strokeLinecap="round"
-                            initial={reduceMotion ? false : { pathLength: 0 }}
-                            animate={{ pathLength: progress / 100 }}
-                            transition={{ duration: reduceMotion ? 0 : 0.8, ease: 'easeOut' }}
-                        />
-                    )}
-                </svg>
-                <div
-                    className="absolute inset-0 flex flex-col items-center justify-center gap-1"
-                    style={{ color: light }}
-                >
-                    <Award className="size-7 sm:size-8" aria-hidden="true" />
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider">{label}</span>
-                </div>
-            </div>
-            <span className="text-2xl font-extrabold leading-none tabular-nums sm:text-3xl">
-                {value == null && <span className="sr-only">No inspection data</span>}
-                <span aria-hidden={value == null}>{displayValue}</span>
-            </span>
-        </div>
-    );
-}
 
 function Trend({ current, previous }) {
     if (previous === 0 && current === 0) {
@@ -155,17 +86,6 @@ export default function Dashboard({
     attention = [],
     user,
 }) {
-    // update once a minute – no need to re-render the whole page every second
-    const [now, setNow] = useState(new Date());
-    useEffect(() => {
-        const t = setInterval(() => setNow(new Date()), 60000);
-        return () => clearInterval(t);
-    }, []);
-
-    const firstName = user?.name?.split(' ')[0] || 'Inspector';
-    const dateText = now.toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'long' });
-    const timeText = now.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' });
-
     const evalMap = useMemo(() => {
         const m = {};
         evaluationStats.forEach((e) => { m[e.evaluation] = Number(e.total); });
@@ -225,39 +145,11 @@ export default function Dashboard({
                 <div className="max-w-7xl mx-auto space-y-5 sm:space-y-6">
 
                     {/* ───────── Hero ───────── */}
-                    <motion.section
-                        variants={fade}
-                        initial="hidden"
-                        animate="show"
-                        className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 text-white p-5 sm:p-7 shadow-lg"
-                    >
-                        <div className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-brand-500/20 blur-2xl" />
-                        <div className="pointer-events-none absolute -left-8 -bottom-12 h-36 w-36 rounded-full bg-brand-500/10 blur-2xl" />
-
-                        <div className="relative flex items-center justify-between gap-4">
-                            <div className="min-w-0">
-                                <p className="text-xs font-semibold uppercase tracking-wider text-brand-400">{dateText} · {timeText}</p>
-                                <h1 className="mt-1 text-2xl sm:text-3xl font-extrabold leading-tight">
-                                    {greeting(now)},<br className="sm:hidden" /> <span className="text-brand-400">{firstName}</span>
-                                </h1>
-                                <p className="mt-2 text-sm text-gray-300 max-w-sm">
-                                    {openIssues > 0
-                                        ? `${openIssues} open issue${openIssues > 1 ? 's' : ''} need your follow-up.`
-                                        : 'All clear — no open issues right now.'}
-                                </p>
-                            </div>
-                            <ComplianceRing value={insights.compliance_rate} tier={insights.compliance_tier} />
-                        </div>
-
-                        <div className="relative mt-5 flex flex-wrap gap-2">
-                            <Link
-                                href="/inspector/visits/create"
-                                className="sb-create"
-                            >
-                                <Plus className="w-4 h-4" strokeWidth={3} /> New Toolbox talk & Inspection
-                            </Link>
-                        </div>
-                    </motion.section>
+                    <DashboardHero
+                        name={user?.name}
+                        fallbackName="Inspector"
+                        compliance={{ rate: insights.compliance_rate, tier: insights.compliance_tier }}
+                    />
 
                     {/* ───────── KPIs ───────── */}
                     <motion.section variants={fade} custom={2} initial="hidden" animate="show" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -282,53 +174,6 @@ export default function Dashboard({
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
                         {/* ───────── Left column ───────── */}
                         <div className="lg:col-span-2 space-y-5 sm:space-y-6">
-
-                            {/* Needs attention */}
-                            <motion.div variants={fade} custom={3} initial="hidden" animate="show">
-                                <Card
-                                    title={
-                                        <span className="inline-flex items-center gap-2">
-                                            Needs attention
-                                            {openIssues > 0 && (
-                                                <span className="rounded-full bg-red-500 text-white text-[10px] font-bold px-2 py-0.5">{openIssues}</span>
-                                            )}
-                                        </span>
-                                    }
-                                >
-                                    {attention.length === 0 ? (
-                                        <div className="px-5 pb-6 pt-2 flex items-center gap-3 text-sm text-gray-500">
-                                            <span className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                                <CheckCircle2 className="w-5 h-5" />
-                                            </span>
-                                            Nothing pending — great job keeping sites safe.
-                                        </div>
-                                    ) : (
-                                        <div className="divide-y divide-gray-100">
-                                            {attention.map((a, i) => {
-                                                const isNc = a.type === 'Non-Conformance';
-                                                return (
-                                                    <Link
-                                                        key={`${a.type}-${a.inspection_id}-${i}`}
-                                                        href={`/inspector/inspections/${a.inspection_id}`}
-                                                        className="flex items-center gap-3 px-5 py-3.5 active:bg-gray-50 hover:bg-gray-50 transition"
-                                                    >
-                                                        <span className={`h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${isNc ? 'bg-red-50 text-red-600' : 'bg-violet-50 text-violet-600'}`}>
-                                                            {isNc ? <AlertTriangle className="w-5 h-5" /> : <MessageSquareWarning className="w-5 h-5" />}
-                                                        </span>
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-semibold text-gray-900 truncate">{a.project_name}</p>
-                                                            <p className="text-xs text-gray-500 truncate">{a.subcon_name}{a.date_open ? ` · opened ${a.date_open}` : ''}</p>
-                                                        </div>
-                                                        <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${isNc ? EVAL.nonconformance.badge : EVAL.clientcomplaint.badge}`}>
-                                                            {isNc ? 'NC' : 'Complaint'}
-                                                        </span>
-                                                    </Link>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                                </Card>
-                            </motion.div>
 
                             {/* Weekly activity */}
                             <motion.div variants={fade} custom={4} initial="hidden" animate="show">
@@ -359,40 +204,6 @@ export default function Dashboard({
                                             </div>
                                         )}
                                     </div>
-                                </Card>
-                            </motion.div>
-
-                            {/* Recent inspections */}
-                            <motion.div variants={fade} custom={5} initial="hidden" animate="show">
-                                <Card title="Recent inspections" action={<SeeAll href="/inspector/inspections" />}>
-                                    {recentInspections.length === 0 ? (
-                                        <p className="px-5 pb-6 text-sm text-gray-400">No inspections yet. Tap + to start one.</p>
-                                    ) : (
-                                        <div className="divide-y divide-gray-100">
-                                            {recentInspections.map((i) => {
-                                                const ev = EVAL[i.evaluation];
-                                                return (
-                                                    <Link
-                                                        key={i.id}
-                                                        href={`/inspector/inspections/${i.id}`}
-                                                        className="flex items-center gap-3 px-5 py-3.5 active:bg-gray-50 hover:bg-gray-50 transition"
-                                                    >
-                                                        <span className="w-1.5 h-10 rounded-full shrink-0" style={{ background: ev?.color || '#9ca3af' }} />
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="text-sm font-semibold text-gray-900 truncate">{i.project_name}</p>
-                                                            <p className="text-xs text-gray-500 truncate">{i.subcon_name} · {i.topic}</p>
-                                                            <p className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1 truncate">
-                                                                <MapPin className="w-3 h-3 shrink-0" /> {i.location || '—'} · {i.inspection_date}
-                                                            </p>
-                                                        </div>
-                                                        <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold ${ev?.badge || 'bg-gray-50 text-gray-600 border-gray-200'}`}>
-                                                            {ev?.label || i.evaluation}
-                                                        </span>
-                                                    </Link>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
                                 </Card>
                             </motion.div>
                         </div>
@@ -435,76 +246,6 @@ export default function Dashboard({
                                                 );
                                             })}
                                         </ul>
-                                    </div>
-                                </Card>
-                            </motion.div>
-
-                            {/* Projects */}
-                            <motion.div variants={fade} custom={4} initial="hidden" animate="show">
-                                <Card title="My projects" action={<SeeAll href="/inspector/projects" />}>
-                                    <div className="px-5 pb-5 space-y-3">
-                                        {projects.length === 0 && <p className="text-sm text-gray-400">No assigned projects.</p>}
-                                        {projects.map((p) => {
-                                            const progress = Math.min(100, Math.max(0, Number(p.progress) || 0));
-                                            return (
-                                                <Link
-                                                    key={p.id}
-                                                    href={`/inspector/projects/${p.id}`}
-                                                    className="block rounded-2xl border border-gray-100 bg-gray-50/60 p-3.5 active:scale-[0.98] transition hover:bg-white hover:shadow-sm"
-                                                >
-                                                    <div className="flex items-start justify-between gap-2">
-                                                        <div className="min-w-0">
-                                                            <p className="text-sm font-bold text-gray-900 truncate">{p.name}</p>
-                                                            <p className="text-xs text-gray-500 truncate flex items-center gap-1">
-                                                                <MapPin className="w-3 h-3 shrink-0" /> {p.location || '—'}
-                                                            </p>
-                                                        </div>
-                                                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold capitalize ${p.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-200 text-gray-600'}`}>
-                                                            {p.status}
-                                                        </span>
-                                                    </div>
-                                                    <div className="mt-3 flex items-center gap-2">
-                                                        <div className="h-1.5 flex-1 rounded-full bg-gray-200 overflow-hidden">
-                                                            <div className="h-full rounded-full bg-brand-500" style={{ width: `${progress}%` }} />
-                                                        </div>
-                                                        <span className="text-[10px] font-semibold text-gray-500">{progress}%</span>
-                                                    </div>
-                                                    <p className="mt-2 text-[11px] text-gray-400">{p.inspection_count} inspection{p.inspection_count === 1 ? '' : 's'}</p>
-                                                </Link>
-                                            );
-                                        })}
-                                    </div>
-                                </Card>
-                            </motion.div>
-
-                            {/* Toolbox talks */}
-                            <motion.div variants={fade} custom={5} initial="hidden" animate="show">
-                                <Card
-                                    title="Toolbox talks"
-                                    action={
-                                        <span className="text-xs font-semibold text-gray-500">{insights.toolbox_this_month ?? 0} this month</span>
-                                    }
-                                >
-                                    <div className="px-5 pb-5 space-y-3">
-                                        {recentToolboxTalks.length === 0 && <p className="text-sm text-gray-400">No toolbox talks yet.</p>}
-                                        {recentToolboxTalks.map((t) => (
-                                            <Link
-                                                key={t.id}
-                                                href={`/inspector/toolbox-talks/detail/${t.id}`}
-                                                className="flex items-center gap-3 active:opacity-70"
-                                            >
-                                                <span className="h-10 w-10 shrink-0 rounded-2xl bg-ink-900 text-brand-400 flex items-center justify-center">
-                                                    <HardHat className="w-5 h-5" />
-                                                </span>
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-semibold text-gray-900 truncate">{t.project_name}</p>
-                                                    <p className="text-xs text-gray-500 truncate">{t.conducted_by} · {t.inspection_date}</p>
-                                                </div>
-                                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-600">
-                                                    <Users className="w-3.5 h-3.5" /> {t.total_attended ?? 0}
-                                                </span>
-                                            </Link>
-                                        ))}
                                     </div>
                                 </Card>
                             </motion.div>

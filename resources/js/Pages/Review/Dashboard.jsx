@@ -1,19 +1,15 @@
 import React from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
-    ClipboardCheck, AlertTriangle, Siren, Users, BarChart3, BadgeCheck, Wallet, ChevronRight, CheckCircle2, Sun, CalendarDays, ArrowUpRight,
+    ClipboardCheck, AlertTriangle, Siren, Users, BarChart3, BadgeCheck, Wallet, ChevronRight, CheckCircle2, ArrowUpRight,
 } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
+import DashboardHero from '@/Components/shared/DashboardHero';
 import { StatusBadge } from '@/Components/inspector/kit';
 import { incidentTone } from './Incidents';
 
 const rm = (v) => `RM${Number(v || 0).toLocaleString('en-MY', { maximumFractionDigits: 2 })}`;
 const monthLabel = (period) => new Date(`${period}-01T00:00:00`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-const greeting = () => {
-    const h = new Date().getHours();
-    return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
-};
-
 const TONES = {
     amber: 'border-amber-200 bg-amber-50 text-amber-700',
     sky: 'border-sky-200 bg-amber-50 text-sky-700',
@@ -64,9 +60,8 @@ const Empty = ({ text }) => (
     </div>
 );
 
-export default function Dashboard({ counts, queue = [], cases = [], incidents = [], performance, today, is_manager }) {
+export default function Dashboard({ counts, queue = [], cases = [], incidents = [], performance, today, compliance, is_manager }) {
     const user = usePage().props.auth?.user;
-    const first = (user?.name || '').split(' ')[0];
     const need =
         counts.visits_verify + (is_manager ? counts.visits_approve : 0) + counts.cases_review + (is_manager ? counts.incidents_approve : counts.incidents_new)
         + counts.staff_pending;
@@ -84,30 +79,18 @@ export default function Dashboard({ counts, queue = [], cases = [], incidents = 
         <ReviewLayout title="Home">
             <Head title="Home" />
             <div className="mx-auto w-full min-w-0 max-w-6xl space-y-5 overflow-x-hidden px-3 pb-12 pt-4 sm:space-y-6 sm:px-4 sm:pt-5">
-                {/* hello + the one number that matters */}
-                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-4 text-white shadow-lg sm:p-7">
-                    <div className="pointer-events-none absolute -right-10 -top-12 h-52 w-52 rounded-full bg-brand-500/20 blur-3xl" />
-                    <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-                        <div>
-                            <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-brand-400"><Sun className="h-4 w-4" /> {greeting()}</p>
-                            <h1 className="mt-1 text-xl font-extrabold sm:text-3xl">{first || 'Welcome'}</h1>
-                            <p className="mt-1 flex items-center gap-2 text-xs text-gray-300 sm:text-sm">
-                                <CalendarDays className="h-4 w-4" />
-                                {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-                            </p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 sm:flex">
-                            <div className="rounded-2xl bg-white/10 px-4 py-3 text-center backdrop-blur sm:px-5">
-                                <p className="text-3xl font-extrabold text-brand-400">{need}</p>
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-300">Need your action</p>
-                            </div>
-                            <div className="rounded-2xl bg-white/10 px-4 py-3 text-center backdrop-blur sm:px-5">
-                                <p className="text-3xl font-extrabold">{today.visits}</p>
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-300">Visits today</p>
-                            </div>
-                        </div>
+                <DashboardHero name={user?.name} fallbackName={is_manager ? 'Manager' : 'Supervisor'} compliance={compliance} />
+
+                <dl className="grid grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+                        <dt className="text-xs font-semibold text-gray-600">Need your action</dt>
+                        <dd className="mt-1 text-xl font-extrabold text-gray-900">{need}</dd>
                     </div>
-                </div>
+                    <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm">
+                        <dt className="text-xs font-semibold text-gray-600">Visits today</dt>
+                        <dd className="mt-1 text-xl font-extrabold text-gray-900">{today.visits}</dd>
+                    </div>
+                </dl>
 
                 {/* what needs a decision */}
                 <Section title={is_manager ? 'Needs your approval' : 'Needs your verification'}>

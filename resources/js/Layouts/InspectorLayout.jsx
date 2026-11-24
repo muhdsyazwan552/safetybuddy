@@ -19,6 +19,7 @@ import {
     X,
     CalendarCheck,
     Siren,
+    AlertTriangle,
 } from 'lucide-react';
 import { confirmLogout } from '@/Helpers/logout';
 
@@ -29,7 +30,7 @@ const TITLES = [
     ['/inspector/incidents', 'Incidents'],
     ['/inspector/attendance', 'Attendance'],
     ['/inspector/inspections/create', 'New Inspection'],
-    ['/inspector/inspections', 'Inspection'],
+    ['/inspector/inspections', 'NC / CC'],
     ['/inspector/toolbox-talks/create', 'New Toolbox Talk'],
     ['/inspector/toolbox-talks', 'Toolbox Talk'],
     ['/inspector/projects', 'Projects'],
@@ -40,7 +41,7 @@ const TITLES = [
 ];
 
 // pages that show the bottom tab bar instead of a back button
-const TOP_LEVEL = ['/inspector/dashboard', '/inspector/visits', '/inspector/attendance', '/inspector/incidents', '/profile', '/inspector/projects', '/inspector/subcon-companies', '/inspector/reports'];
+const TOP_LEVEL = ['/inspector/dashboard', '/inspector/visits', '/inspector/inspections', '/inspector/attendance', '/inspector/incidents', '/profile', '/inspector/projects', '/inspector/subcon-companies', '/inspector/reports'];
 
 const TABS = [
     { name: 'Home', href: '/inspector/dashboard', icon: LayoutDashboard },
@@ -50,6 +51,7 @@ const TABS = [
 ];
 
 const MORE = [
+    { name: 'NC / CC', href: '/inspector/inspections', icon: AlertTriangle },
     { name: 'Attendance', href: '/inspector/attendance', icon: CalendarCheck },
     { name: 'Projects', href: '/inspector/projects', icon: Building2 },
     { name: 'Subcontractors', href: '/inspector/subcon-companies', icon: Users },

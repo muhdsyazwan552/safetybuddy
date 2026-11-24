@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import AppLayout from '@/Pages/WSIS/Layout';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
-import PdfButton from '@/Components/shared/PdfButton';
 import { spPercent } from '@/Components/shared/SpSampling';
 import { EvalBadge, StatusBadge, SectionCard, InfoRow, fmtDate, storageUrl } from '@/Components/inspector/kit';
 
@@ -47,7 +46,6 @@ export default function ToolboxShow({ talk }) {
                         <span className="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white"><ArrowLeft className="h-4 w-4" /></span>
                         Back to toolbox talks
                     </Link>
-                    <PdfButton href={`/pdf/toolbox/${talk.id}`} className="ml-auto mr-2" />
                 </div>
 
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-ink-950 via-ink-900 to-ink-700 p-5 text-white shadow-lg sm:p-7">
