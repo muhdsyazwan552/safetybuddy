@@ -81,8 +81,18 @@ class DetailRows
             'approved_at' => optional($i->approved_at)->format('Y-m-d H:i'),
             'review_comment' => $i->review_comment,
             'visit_key' => $i->toolbox_talk_id ? 'talk-' . $i->toolbox_talk_id : null,
-            'nc' => $i->non_conformance ? ['id' => $i->non_conformance->id, 'series_code' => $i->non_conformance->code, 'status' => $i->non_conformance->status] : null,
-            'cc' => $i->client_complaint ? ['id' => $i->client_complaint->id, 'series_code' => $i->client_complaint->code, 'status' => $i->client_complaint->status] : null,
+            'nc' => self::linkedCase($i->non_conformance),
+            'cc' => self::linkedCase($i->client_complaint),
         ];
+    }
+
+    private static function linkedCase($case): ?array
+    {
+        return $case ? [
+            'id' => $case->id,
+            'series_code' => $case->code,
+            'status' => $case->status,
+            'state' => CaseFeed::state($case),
+        ] : null;
     }
 }

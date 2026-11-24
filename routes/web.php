@@ -400,6 +400,7 @@ Route::middleware(['auth', 'role:7,8'])->prefix('inspector')->name('inspector.')
 
     // Inspections
     Route::get('/inspections', [DashboardController::class, 'inspections'])->name('inspections');
+    Route::get('/cases/{type}/{id}', [DashboardController::class, 'showCase'])->where('type', 'nc|cc')->whereNumber('id')->name('cases.show');
     Route::get('/inspections/detail/{id}', [DashboardController::class, 'showInspection'])->name('inspector.inspections.show');
     // Inspections always start from the site visit flow (toolbox talk first, can be skipped)
     Route::get('/visits', [DashboardController::class, 'visits'])->name('visits');

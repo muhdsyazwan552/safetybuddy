@@ -59,7 +59,7 @@ function Actions({ i, can_verify, can_approve }) {
 
 // The page content, shared with the inspector's inspection page.
 // backHref: where "back" goes; caseHref: link of an NC / CC (null = the user has no case page, shown as text)
-export function InspectionDetail({ inspection: i, backHref = null, caseHref = (type, id) => `/review/cases/${type}/${id}`, children }) {
+export function InspectionDetail({ inspection: i, backHref = null, caseHref = (type, id) => `/review/cases/${type}/${id}`, progressCase, children }) {
     return (
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
@@ -80,7 +80,7 @@ export function InspectionDetail({ inspection: i, backHref = null, caseHref = (t
                     </div>
                 </div>
 
-                <ReviewProgress kind="visit" status={i.status} />
+                <ReviewProgress kind={progressCase ? 'case' : 'visit'} record={progressCase} status={i.status} />
 
                 <SectionCard title="Details" icon={FolderKanban}>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

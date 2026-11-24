@@ -43,6 +43,39 @@ class CaseFeed
         return $rows->sortByDesc('created_at')->values();
     }
 
+    public static function detail(string $type, $case): array
+    {
+        $case->load([...self::WITH, 'inspection.verifier:id,name', 'inspection.approver:id,name']);
+        $row = self::row($type, $case);
+
+        $reviewer = $case->review_by ? \App\Models\CompanyStaff::find($case->review_by) : null;
+        $inspection = $case->inspection;
+        $row['reviewer'] = $reviewer?->name;
+        $row['reviewer_role'] = match ((int) $reviewer?->role_id) {
+            3 => 'Manager',
+            4 => 'Supervisor',
+            default => 'Reviewer',
+        };
+        $row['verifier'] = $inspection?->verifier?->name;
+        $row['verified_at'] = $inspection?->verified_at?->toDateTimeString();
+        $row['approver'] = $inspection?->approver?->name;
+        $row['approved_at'] = $inspection?->approved_at?->toDateTimeString();
+        $row['visit_key'] = $inspection && $inspection->toolbox_talk_id ? 'talk-' . $inspection->toolbox_talk_id : null;
+        $row['evaluation'] = $inspection?->evaluation;
+
+        return $row;
+    }
+
+    public static function state($case): string
+    {
+        return match (true) {
+            $case->status === 'closed' => 'closed',
+            (bool) $case->return_reason => 'returned',
+            (bool) $case->subcon_response => 'responded',
+            default => 'open',
+        };
+    }
+
     public static function row(string $type, $case): array
     {
         $i = $case->inspection;
@@ -51,14 +84,12 @@ class CaseFeed
             $photos = array_filter([$i?->photo]);
         }
 
-        $state = $case->status === 'closed' ? 'closed' : ($case->subcon_response && !$case->return_reason ? 'responded' : ($case->return_reason ? 'returned' : 'open'));
-
         return [
             'key' => $type . '-' . $case->id,
             'type' => $type,
             'id' => $case->id,
             'series_code' => $case->code,
-            'state' => $state, // open | responded | returned | closed
+            'state' => self::state($case),
             'status' => $case->status,
             'date_open' => optional($case->date_open)->format('Y-m-d'),
             'date_close' => optional($case->date_close)->format('Y-m-d'),

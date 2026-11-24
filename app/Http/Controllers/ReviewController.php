@@ -786,25 +786,7 @@ class ReviewController extends Controller
     public function caseShow(string $type, int $id)
     {
         $case = $this->findCase($type, $id);
-        $case->load([...\App\Support\CaseFeed::WITH, 'inspection.verifier:id,name', 'inspection.approver:id,name']);
-        $row = \App\Support\CaseFeed::row($type, $case);
-
-        $reviewer = $case->review_by ? CompanyStaff::find($case->review_by) : null;
-        $inspection = $case->inspection;
-        $row['reviewer'] = $reviewer?->name;
-        $row['reviewer_role'] = match ((int) $reviewer?->role_id) {
-            3 => 'Manager',
-            4 => 'Supervisor',
-            default => 'Reviewer',
-        };
-        $row['verifier'] = $inspection?->verifier?->name;
-        $row['verified_at'] = $inspection?->verified_at?->toDateTimeString();
-        $row['approver'] = $inspection?->approver?->name;
-        $row['approved_at'] = $inspection?->approved_at?->toDateTimeString();
-        $row['visit_key'] = $inspection && $inspection->toolbox_talk_id ? 'talk-' . $inspection->toolbox_talk_id : null;
-        $row['evaluation'] = $inspection?->evaluation;
-
-        return Inertia::render('Review/CaseShow', ['item' => $row]);
+        return Inertia::render('Review/CaseShow', ['item' => CaseFeed::detail($type, $case)]);
     }
 
     /** Full detail of one inspection. */

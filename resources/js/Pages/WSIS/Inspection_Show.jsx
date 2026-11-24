@@ -11,7 +11,7 @@ import AppLayout from '@/Pages/WSIS/Layout';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { EVAL, EvalBadge, StatusBadge, SectionCard, InfoRow, fmtDate, storageUrl } from '@/Components/inspector/kit';
 
-function StatusPanel({ record, type, reviewer, inspectionStatus }) {
+function StatusPanel({ record, type, reviewer }) {
     const [comment, setComment] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
@@ -41,7 +41,6 @@ function StatusPanel({ record, type, reviewer, inspectionStatus }) {
             icon={isNc ? AlertTriangle : MessageSquareWarning}
             tone={open && isNc ? 'danger' : 'default'}
         >
-            <ReviewProgress kind="case" record={record} status={inspectionStatus} className="mb-4" />
             <div className="flex flex-wrap items-center gap-3">
                 <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold uppercase ${open ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
                     {open ? <AlertTriangle className="h-3.5 w-3.5" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -145,6 +144,7 @@ function ReviewPanel({ inspection, can }) {
 }
 
 export default function Inspection_Show({ inspection, photos = [], ncReviewer, ccReviewer, related = [], can = {} }) {
+    const linkedCase = inspection.non_conformance ?? inspection.client_complaint;
     const [expanded, setExpanded] = useState(false);
 
     const ev = EVAL[inspection.evaluation];
@@ -189,7 +189,7 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
                 <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
                     {/* main column */}
                     <div className="space-y-5 lg:col-span-2">
-                        <ReviewProgress kind="visit" status={inspection.status} />
+                        <ReviewProgress kind={linkedCase ? 'case' : 'visit'} record={linkedCase} status={inspection.status} />
                         <SectionCard title="Inspection details" icon={FolderKanban}>
                             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                                 <InfoRow label="Project">{inspection.project?.name}</InfoRow>
@@ -240,8 +240,8 @@ export default function Inspection_Show({ inspection, photos = [], ncReviewer, c
 
                     {/* side column */}
                     <div className="space-y-5">
-                        {inspection.non_conformance && <StatusPanel record={inspection.non_conformance} type="nc" reviewer={ncReviewer} inspectionStatus={inspection.status} />}
-                        {inspection.client_complaint && <StatusPanel record={inspection.client_complaint} type="cc" reviewer={ccReviewer} inspectionStatus={inspection.status} />}
+                        {inspection.non_conformance && <StatusPanel record={inspection.non_conformance} type="nc" reviewer={ncReviewer} />}
+                        {inspection.client_complaint && <StatusPanel record={inspection.client_complaint} type="cc" reviewer={ccReviewer} />}
 
                         {!inspection.non_conformance && !inspection.client_complaint && (
                             <SectionCard title="Follow-up" icon={CheckCircle2}>

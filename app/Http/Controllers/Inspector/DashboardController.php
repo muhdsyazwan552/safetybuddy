@@ -743,6 +743,22 @@ class DashboardController extends Controller
         }
     }
 
+    public function showCase(string $type, int $id)
+    {
+        $user = Auth::user();
+        $staff = CompanyStaff::where('user_id', $user->id)->firstOrFail();
+        $projects = ProjectAssign::where('entity_type', 'staff')->where('entity_id', $staff->id)->select('project_id');
+        $case = \App\Support\CaseFeed::model($type)
+            ->whereHas('inspection', fn ($query) => $query->where('company_id', $user->company_id)->whereIn('project_id', $projects))
+            ->findOrFail($id);
+
+        return Inertia::render('Review/CaseShow', [
+            'item' => \App\Support\CaseFeed::detail($type, $case),
+            'inspector_view' => true,
+            'user' => $user,
+        ]);
+    }
+
     public function showInspection($id)
 {
     try {

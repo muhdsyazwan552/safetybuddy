@@ -4,6 +4,7 @@ import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, ChevronRight, ClipboardCheck, Link2, MessageSquareReply } from 'lucide-react';
 import ReviewLayout from '@/Layouts/ReviewLayout';
+import InspectorLayout from '@/Layouts/InspectorLayout';
 import HeroMeta, { HeroStatus } from '@/Components/shared/HeroMeta';
 import ReviewProgress from '@/Components/shared/ReviewProgress';
 import { SectionCard, InfoRow, EVAL, fmtDate } from '@/Components/inspector/kit';
@@ -33,18 +34,21 @@ function Comment({ name, role, when, text, tone }) {
         </li>
     );
 }
-export default function CaseShow({ item }) {
+export default function CaseShow({ item, inspector_view = false, user }) {
     const isNc = item.type === 'nc';
     const i = item.inspection || {};
     const closed = item.state === 'closed';
     const response = item.return_reason || (closed ? item.comment : null);
+    const Layout = inspector_view ? InspectorLayout : ReviewLayout;
+    const prefix = inspector_view ? '/inspector' : '/review';
+    const inspectionHref = `${prefix}/inspections/${i.id}`;
 
     return (
-        <ReviewLayout title={isNc ? 'Non-conformance' : 'Client complaint'}>
+        <Layout user={user} title={isNc ? 'Non-conformance' : 'Client complaint'}>
             <Head title={isNc ? 'Non-conformance' : 'Client complaint'} />
             <div className="mx-auto max-w-3xl space-y-5 px-4 pb-10 pt-5">
                 <div className="flex items-center justify-between gap-3">
-                    <BackLink href="/review/cases" className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
+                    <BackLink href={inspector_view ? inspectionHref : '/review/cases'} className="inline-flex items-center gap-2 text-sm font-bold text-gray-500">
                         <ArrowLeft className="h-4 w-4" /> Back
                     </BackLink>
                     <PdfButton href={`/pdf/case/${item.type}/${item.id}`} />
@@ -138,7 +142,7 @@ export default function CaseShow({ item }) {
                             />
                         )}
                     </ul>
-                    {!closed && <div className="mt-4"><CaseActions item={item} /></div>}
+                    {!closed && !inspector_view && <div className="mt-4"><CaseActions item={item} /></div>}
                 </SectionCard>
                 <SectionCard title="Related records" icon={Link2}>
                     <ul className="divide-y divide-gray-100">
@@ -147,7 +151,7 @@ export default function CaseShow({ item }) {
                                 <p className="text-sm font-bold text-gray-900">Inspection</p>
                                 <p className="text-xs text-gray-500">The inspection that raised this {isNc ? 'non-conformance' : 'client complaint'}</p>
                             </div>
-                            <Link href={`/review/inspections/${i.id}`} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-ink-900 px-3.5 py-2 text-xs font-bold text-brand-400">
+                            <Link href={inspectionHref} className="inline-flex shrink-0 items-center gap-1 rounded-xl bg-ink-900 px-3.5 py-2 text-xs font-bold text-brand-400">
                                 View <ChevronRight className="h-4 w-4" />
                             </Link>
                         </li>
@@ -157,7 +161,7 @@ export default function CaseShow({ item }) {
                                     <p className="text-sm font-bold text-gray-900">Toolbox talk & inspection</p>
                                     <p className="text-xs text-gray-500">The whole visit this inspection belongs to</p>
                                 </div>
-                                <Link href={`/review/visits/${item.visit_key}`} className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-700">
+                                <Link href={`${prefix}/visits/${item.visit_key}`} className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-bold text-gray-700">
                                     View <ChevronRight className="h-4 w-4" />
                                 </Link>
                             </li>
@@ -165,6 +169,6 @@ export default function CaseShow({ item }) {
                     </ul>
                 </SectionCard>
             </div>
-        </ReviewLayout>
+        </Layout>
     );
 }
