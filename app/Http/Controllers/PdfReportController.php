@@ -61,6 +61,18 @@ class PdfReportController extends Controller
         return CompanyStaff::where('user_id', Auth::id())->value('id');
     }
 
+    /**
+     * An inspector may view (read-only) the report of their own record, or of any record on a project they are assigned to.
+     * Editing stays limited to the owner elsewhere; a PDF only ever reads.
+     */
+    private function inspectorMayView($authorStaffId, $projectId): bool
+    {
+        $me = (int) $this->myStaffId();
+
+        return $me > 0 && ((int) $authorStaffId === $me
+            || ($projectId && ProjectAssign::where('entity_type', 'staff')->where('entity_id', $me)->where('project_id', $projectId)->exists()));
+    }
+
     // ------------------------------------------------------------------ helpers
 
     private function staffName($id): ?string
@@ -170,49 +182,15 @@ class PdfReportController extends Controller
 
     private function addInspectionReportFooter(\Dompdf\Canvas $canvas, array $data): void
     {
-        $signatures = [
-            ['INSPECTOR', $data['inspectors'], 'Report generated on', $data['createdAt']],
-            ['SUPERVISOR', $data['supervisor']['name'], $data['supervisor']['at'] ? 'Checked and verified on' : 'Pending verification', $data['supervisor']['at']],
-            ['MANAGER', $data['manager']['name'], $data['manager']['at'] ? 'Approved on' : 'Pending approval', $data['manager']['at']],
-        ];
-
-        $canvas->page_script(function ($page, $total, $pageCanvas, $fonts) use ($signatures) {
+        // Only the page number is drawn at the page bottom. The Inspector / Supervisor / Manager box is
+        // part of the body (see inspection-report-layout) so it follows the last content with a gap.
+        $canvas->page_script(function ($page, $total, $pageCanvas, $fonts) {
             $margin = 14 * 72 / 25.4;
             $bottom = $pageCanvas->get_height();
             $right = $pageCanvas->get_width() - $margin;
             $regular = $fonts->getFont('DejaVu Sans', 'normal');
-            $bold = $fonts->getFont('DejaVu Sans', 'bold');
-            $ink = [0.12, 0.16, 0.23];
-            $muted = [0.28, 0.33, 0.41];
             $label = (string) $page;
-            $pageCanvas->text($right - $fonts->getTextWidth($label, $regular, 8), $bottom - 24, $label, $regular, 8, $muted);
-
-            if ($page !== $total) {
-                return;
-            }
-
-            $top = $bottom - 77;
-            $columnWidth = ($right - $margin) / count($signatures);
-            $italic = $fonts->getFont('DejaVu Sans', 'italic');
-            $pageCanvas->rectangle($margin, $top, $right - $margin, 47, $ink, 0.6);
-            foreach ([14, 33] as $offset) {
-                $pageCanvas->line($margin, $top + $offset, $right, $top + $offset, $ink, 0.6);
-            }
-            foreach ($signatures as $column => [$role, $name, $caption, $date]) {
-                $left = $margin + $column * $columnWidth;
-                if ($column > 0) {
-                    $pageCanvas->line($left, $top, $left, $top + 47, $ink, 0.6);
-                }
-                $note = $date ? $caption . ' ' . explode(',', $date, 2)[0] : $caption;
-                foreach ([[$role, $bold, 9, 2], [$name ?: '—', $regular, 10, 17], [$note, $italic, 8, 35]] as [$text, $font, $size, $offset]) {
-                    $width = $fonts->getTextWidth($text, $font, $size);
-                    if ($width > $columnWidth - 12) {
-                        $size *= ($columnWidth - 12) / $width;
-                        $width = $fonts->getTextWidth($text, $font, $size);
-                    }
-                    $pageCanvas->text($left + ($columnWidth - $width) / 2, $top + $offset, $text, $font, $size, $ink);
-                }
-            }
+            $pageCanvas->text($right - $fonts->getTextWidth($label, $regular, 8), $bottom - 24, $label, $regular, 8, [0.28, 0.33, 0.41]);
         });
     }
 
@@ -230,7 +208,7 @@ class PdfReportController extends Controller
             ->findOrFail($id);
 
         if ($this->isInspector()) {
-            abort_unless((int) $i->inspection_by === (int) $this->myStaffId(), 403);
+            abort_unless($this->inspectorMayView($i->inspection_by, $i->project_id), 403);
         }
 
         return $i;
@@ -261,7 +239,7 @@ class PdfReportController extends Controller
             ->findOrFail($id);
 
         if ($this->isInspector()) {
-            abort_unless((int) $t->inspection_by === (int) $this->myStaffId(), 403);
+            abort_unless($this->inspectorMayView($t->inspection_by, $t->project_id), 403);
         }
 
         $ref = $t->code ?: 'TBT-' . str_pad($t->id, 5, '0', STR_PAD_LEFT);
@@ -280,13 +258,13 @@ class PdfReportController extends Controller
     {
         preg_match('/^(talk|insp)-(\d+)$/', $key, $m) || abort(404);
         $with = ['project', 'topic', 'subconCompany', 'inspector', 'verifier', 'approver', 'non_conformance', 'client_complaint'];
-        $mine = $this->isInspector() ? (int) $this->myStaffId() : null;
+        $mine = $this->isInspector();
 
         if ($m[1] === 'talk') {
             $t = ToolboxTalks::with(['project', 'CompanyStaff', 'categories:id,name', 'topics:id,name', 'attendees:id,name,role', 'inspections.topic:id,name', 'inspections.subconCompany:id,name'])
                 ->whereHas('project', fn ($q) => $q->where('company_id', $this->companyId()))
                 ->findOrFail($m[2]);
-            $mine && abort_unless((int) $t->inspection_by === $mine, 403);
+            $mine && abort_unless($this->inspectorMayView($t->inspection_by, $t->project_id), 403);
             $list = Inspection::with($with)->where('toolbox_talk_id', $t->id)->orderBy('id')->get();
             $project = optional($t->project)->name;
             $by = optional($t->CompanyStaff)->name;
@@ -295,7 +273,7 @@ class PdfReportController extends Controller
             $t = null;
             $one = Inspection::with($with)->where('company_id', $this->companyId())->findOrFail($m[2]);
             abort_if($one->toolbox_talk_id, 404);
-            $mine && abort_unless((int) $one->inspection_by === $mine, 403);
+            $mine && abort_unless($this->inspectorMayView($one->inspection_by, $one->project_id), 403);
             $list = collect([$one]);
             $project = optional($one->project)->name;
             $by = optional($one->inspector)->name;
@@ -410,7 +388,7 @@ class PdfReportController extends Controller
         abort_unless($inspection && (int) $inspection->company_id === (int) $this->companyId(), 404);
 
         if ($this->isInspector()) {
-            abort_unless((int) $inspection->inspection_by === (int) $this->myStaffId(), 403);
+            abort_unless($this->inspectorMayView($inspection->inspection_by, $inspection->project_id), 403);
         }
 
         $case->load(CaseFeed::WITH);
@@ -497,7 +475,7 @@ class PdfReportController extends Controller
         ])->where('company_id', $this->companyId())->findOrFail($id);
 
         if ($this->isInspector()) {
-            abort_unless((int) $i->reported_by === (int) $this->myStaffId(), 403);
+            abort_unless($this->inspectorMayView($i->reported_by, $i->project_id), 403);
         }
 
         $ref = $i->code ?: 'INC-' . str_pad($i->id, 5, '0', STR_PAD_LEFT);

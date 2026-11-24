@@ -41,6 +41,12 @@
     .category-chart .category-bar-cell { border-left: .5pt solid #cbd5e1; }
     .category-bar { height: 8pt; background: #eab308; }
     .category-value { width: 12%; font-size: 8pt; text-align: right; }
+    /* Inspector / Supervisor / Manager box: right after the last content, one box-height of space above, never split across pages */
+    .signature-box { margin-top: 42pt; border: .6pt solid #1e293b; page-break-inside: avoid; }
+    .signature-box th, .signature-box td { border: .6pt solid #1e293b; padding: 3pt 6pt; text-align: center; vertical-align: middle; }
+    .signature-box th { font-size: 9pt; }
+    .signature-box .signature-name { font-size: 10pt; }
+    .signature-box .signature-note { font-size: 8pt; font-style: italic; }
     .talk-label { margin: 10pt 0 4pt; color: #475569; font-size: 9pt; }
 
 </style>
@@ -51,5 +57,17 @@
     <h1>@yield('heading')</h1>
 </header>
 @yield('body')
+@php
+    $signatureBoxes = [
+        ['INSPECTOR', $inspectors ?? null, 'Report generated on', $createdAt ?? null],
+        ['SUPERVISOR', $supervisor['name'] ?? null, ($supervisor['at'] ?? null) ? 'Checked and verified on' : 'Pending verification', $supervisor['at'] ?? null],
+        ['MANAGER', $manager['name'] ?? null, ($manager['at'] ?? null) ? 'Approved on' : 'Pending approval', $manager['at'] ?? null],
+    ];
+@endphp
+<table class="signature-box">
+    <tr>@foreach($signatureBoxes as [$role, $name, $caption, $date])<th>{{ $role }}</th>@endforeach</tr>
+    <tr>@foreach($signatureBoxes as [$role, $name, $caption, $date])<td class="signature-name">{{ $name ?: '—' }}</td>@endforeach</tr>
+    <tr>@foreach($signatureBoxes as [$role, $name, $caption, $date])<td class="signature-note">{{ $date ? $caption . ' ' . explode(',', $date, 2)[0] : $caption }}</td>@endforeach</tr>
+</table>
 </body>
 </html>
