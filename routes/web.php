@@ -40,7 +40,6 @@ Route::get('/product', function () {
 Route::get('/', function () {
     return Inertia::render('PublicWeb/Index', [
         'subscriptionPlans' => \App\Models\SubscriptionPlan::where('is_active', true)->where('audience', 'normal')->orderBy('sort_order')->get(),
-        'providerPlans' => \App\Models\SubscriptionPlan::where('is_active', true)->where('audience', 'training_provider')->orderBy('sort_order')->get(),
     ]);
 });
 

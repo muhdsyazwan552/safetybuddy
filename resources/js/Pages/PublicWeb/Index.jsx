@@ -241,8 +241,8 @@ function PriceCount({ value, reduce }) {
     return <>{shown.toLocaleString()}</>;
 }
 
-/** The plan cards for the active pricing tab: staggered entrance, lift on hover, glowing popular plan. */
-function PricingPlans({ plans, tab }) {
+/** The plan cards: staggered entrance, lift on hover, glowing popular plan. */
+function PricingPlans({ plans }) {
     const ref = useRef(null);
     const inView = useInView(ref, { once: true, margin: '-80px' });
     const reduce = useReducedMotion();
@@ -257,15 +257,12 @@ function PricingPlans({ plans, tab }) {
         <div ref={ref} className="mx-auto mt-12">
             <AnimatePresence mode="wait" initial={false}>
                 <motion.div
-                    key={tab}
-                    id="pricing-panel"
-                    role="tabpanel"
-                    aria-labelledby={`pricing-tab-${tab}`}
+                    key="standard"
                     variants={list}
                     initial="hidden"
                     animate={inView ? 'show' : 'hidden'}
                     exit="exit"
-                    className={`mx-auto grid gap-5 ${tab === 'provider' ? 'max-w-md' : 'max-w-6xl md:grid-cols-3'}`}
+                    className="mx-auto grid max-w-6xl gap-5 md:grid-cols-3"
                 >
                     {!plans.length && <p className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-sm text-gray-500">No plans available here yet.</p>}
                     {plans.map((p) => (
@@ -291,7 +288,7 @@ function PricingPlans({ plans, tab }) {
                                 {p.price > 0 && <span className={`ml-1 text-base font-normal tracking-normal ${p.popular ? 'text-gray-400' : 'text-gray-500'}`}>/ year</span>}
                             </p>
                             <Link href="/register-view" className={`group mt-6 flex items-center justify-between rounded-full py-2 pl-5 pr-2 text-sm font-semibold transition ${p.popular ? 'bg-brand-500 text-ink-900 hover:bg-brand-400' : 'bg-gray-100 text-ink-900 hover:bg-gray-200'}`}>
-                                {tab === 'provider' ? 'Apply as Training Provider' : 'Get started'}
+                                Get started
                                 <span className="flex h-9 w-9 items-center justify-center rounded-full bg-ink-900 text-brand-400 transition group-hover:rotate-45"><ArrowUpRight className="h-4 w-4" /></span>
                             </Link>
                             <p className={`mt-8 text-[11px] font-bold uppercase tracking-widest ${p.popular ? 'text-brand-400' : 'text-brand-700'}`}>Included user accounts</p>
@@ -320,11 +317,6 @@ function PricingPlans({ plans, tab }) {
     );
 }
 
-const PRICING_TABS = [
-    { id: 'standard', label: 'Standard' },
-    { id: 'provider', label: 'Training Provider' },
-];
-
 const toPlanCard = (plan, extraItems = []) => ({
     name: plan.name,
     seats: [
@@ -347,20 +339,11 @@ const toPlanCard = (plan, extraItems = []) => ({
     ],
 });
 
-export default function Landing({ subscriptionPlans = [], providerPlans = [] }) {
+export default function Landing({ subscriptionPlans = [] }) {
     const [bar, setBar] = useState(true);
     const [faq, setFaq] = useState(0);
-    const [pricingTab, setPricingTab] = useState('standard');
 
     const plans = useMemo(() => subscriptionPlans.map((plan) => toPlanCard(plan)), [subscriptionPlans]);
-    const providerCards = useMemo(
-        () => providerPlans.map((plan) => toPlanCard(plan, [
-            'Listed in Find My Training Provider once verified',
-            'Buy packages for your trainees and share activation codes',
-        ])),
-        [providerPlans]
-    );
-    const shownPlans = pricingTab === 'provider' ? providerCards : plans;
 
     return (
         <div className="font-geist min-h-screen bg-white text-ink-950 antialiased selection:bg-brand-300">
@@ -625,21 +608,10 @@ export default function Landing({ subscriptionPlans = [], providerPlans = [] }) 
                         <div className="text-center">
                             <Reveal><SectionTag>Simple pricing</SectionTag></Reveal>
                             <Reveal delay={0.05}><H2>Clear pricing, no surprises.</H2></Reveal>
-                            <Reveal delay={0.1}><p className="mx-auto mt-4 max-w-md text-gray-500">{pricingTab === 'provider'
-                                ? 'Deliver safety training through Safety Buddy. Apply, get verified and list your company for contractors to find.'
-                                : 'Choose an annual Safety Buddy package. After your first purchase, explore every Safety Buddy module.'}</p></Reveal>
-                            <div role="tablist" aria-label="Plan type" className="mx-auto mt-8 inline-flex rounded-full bg-white p-1.5 shadow-sm ring-1 ring-gray-200">
-                                {PRICING_TABS.map((tab) => (
-                                    <button key={tab.id} type="button" role="tab" id={`pricing-tab-${tab.id}`} aria-selected={pricingTab === tab.id} aria-controls="pricing-panel" onClick={() => setPricingTab(tab.id)}
-                                        className={`relative rounded-full px-6 py-2.5 text-sm font-semibold transition-colors ${pricingTab === tab.id ? 'text-brand-400' : 'text-gray-600 hover:text-ink-900'}`}>
-                                        {pricingTab === tab.id && <motion.span layoutId="pricing-pill" aria-hidden="true" className="absolute inset-0 rounded-full bg-ink-900 shadow" transition={{ type: 'spring', stiffness: 380, damping: 32 }} />}
-                                        <span className="relative">{tab.label}</span>
-                                    </button>
-                                ))}
-                            </div>
+                            <Reveal delay={0.1}><p className="mx-auto mt-4 max-w-md text-gray-500">Choose an annual Safety Buddy package. After your first purchase, explore every Safety Buddy module.</p></Reveal>
                         </div>
 
-                        <PricingPlans plans={shownPlans} tab={pricingTab} />
+                        <PricingPlans plans={plans} />
                         <p className="mx-auto mt-7 max-w-4xl text-center text-sm text-gray-500"><strong className="text-ink-900">Additional User Options</strong> (applicable to all packages): Additional Inspector RM1,000 / year per inspector · Subcontractor (Contractor Representative) RM1,500 / year per representative.</p>
                     </div>
                 </section>
