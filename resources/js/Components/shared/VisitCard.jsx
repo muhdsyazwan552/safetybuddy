@@ -22,9 +22,9 @@ function Row({ label, children }) {
 }
 
 const CASE_STATE = {
-    open: { label: 'Waiting for reply', cls: 'border-amber-200 bg-amber-50 text-amber-700' },
+    open: { label: 'Awaiting reply', cls: 'border-amber-200 bg-amber-50 text-amber-700' },
     responded: { label: 'Replied', cls: 'border-blue-200 bg-blue-50 text-blue-700' },
-    returned: { label: 'Reply returned', cls: 'border-red-200 bg-red-50 text-red-700' },
+    returned: { label: 'Returned', cls: 'border-red-200 bg-red-50 text-red-700' },
     closed: { label: 'Closed', cls: 'border-emerald-200 bg-emerald-50 text-emerald-700' },
 };
 

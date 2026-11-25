@@ -169,7 +169,7 @@ export default function InspectorLayout({ children, user }) {
                         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-500 font-bold text-ink-900">{initial}</div>
                         <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-bold text-white">{authUser?.name}</p>
-                            <p className="truncate text-[10px] uppercase tracking-widest text-ink-300">{authUser?.email || 'Inspector'}</p>
+                            <p className="truncate text-[10px] uppercase tracking-widest text-ink-300">{authUser?.role_label || 'Inspector'}{authUser?.email ? ` · ${authUser.email}` : ''}</p>
                         </div>
                         <button onClick={() => setMoreOpen(false)} className="flex h-10 w-10 items-center justify-center rounded-full text-gray-300 active:bg-white/10" aria-label="Close">
                             <X className="h-6 w-6" />

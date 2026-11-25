@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Enums\UserRole;
+
 use App\Models\CompanyStaff;
 use App\Models\SubconCompany;
 use App\Models\SubscriptionAddon;
@@ -47,7 +49,7 @@ class CompanySeatLimits
         $roles = [];
         foreach (self::ROLES as $roleId => $role) {
             $included = $plan ? (int) $plan->{$role['limit']} : null;
-            $extra = $roleId === 7 ? $extraInspectors : 0;
+            $extra = $roleId === UserRole::Inspector->value ? $extraInspectors : 0;
             $roles[$roleId] = [
                 'name' => $role['name'],
                 'used' => self::used($companyId, $roleId),
@@ -91,7 +93,7 @@ class CompanySeatLimits
             $name = self::ROLES[$roleId]['name'];
             throw ValidationException::withMessages([
                 'role_id' => "The {$snapshot['plan_name']} package allows {$limit} {$name} account(s). This limit has been reached."
-                    . ($roleId === 7 ? ' The company admin can buy extra Inspectors (RM ' . SubscriptionAddon::INSPECTOR_PRICE . ' each) on the Packages page.' : ''),
+                    . ($roleId === UserRole::Inspector->value ? ' The company admin can buy extra Inspectors (RM ' . SubscriptionAddon::INSPECTOR_PRICE . ' each) on the Packages page.' : ''),
             ]);
         }
     }

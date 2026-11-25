@@ -3,6 +3,8 @@
 
 namespace App\Http\Controllers\Inspector;
 
+use App\Enums\UserRole;
+
 use App\Support\UploadedAssets;
 use App\Support\Spgpnc;
 use App\Http\Controllers\Controller;
@@ -389,7 +391,7 @@ class DashboardController extends Controller
     private function currentStaff($user): ?CompanyStaff
     {
         $staff = CompanyStaff::where('user_id', $user->id)->first();
-        if ($staff || (int) $user->role_id !== 2 || !$user->company_id) {
+        if ($staff || (int) $user->role_id !== UserRole::CompanyAdmin->value || !$user->company_id) {
             return $staff;
         }
 
@@ -401,7 +403,7 @@ class DashboardController extends Controller
             'name' => \Illuminate\Support\Str::limit((string) $user->name, 50, ''),
             'email' => strlen($email) <= 50 ? $email : null,
             'contact' => \Illuminate\Support\Str::limit((string) ($user->phone ?? ''), 50, ''),
-            'role_id' => 2,
+            'role_id' => UserRole::CompanyAdmin->value,
             'status' => 'active',
         ]);
     }
@@ -415,7 +417,7 @@ class DashboardController extends Controller
         }
 
         // the company admin uses the same flow, on every project of the company
-        $isAdmin = (int) $user->role_id === 2;
+        $isAdmin = (int) $user->role_id === UserRole::CompanyAdmin->value;
         $projects = $this->visitProjects($staff, $isAdmin, $user->company_id);
 
         return Inertia::render('Inspector/NewVisit', [
@@ -453,8 +455,8 @@ class DashboardController extends Controller
                 'attendees.*' => 'integer',
                 'categories' => 'required|array|min:1',
                 'categories.*' => 'integer|exists:toolbox_categories,id',
-                'img_group' => 'nullable|image|max:5120',
-                'img_attendance' => 'nullable|image|max:5120',
+                'img_group' => 'nullable|mimes:jpg,jpeg,png|max:5120',
+                'img_attendance' => 'nullable|mimes:jpg,jpeg,png|max:5120',
             ];
         } elseif ($toolbox) {
             // not conducted: attendance + Safety Passport sampling are still recorded
@@ -474,7 +476,7 @@ class DashboardController extends Controller
                 'inspections.*.location' => 'required|string|max:50',
                 'inspections.*.description' => 'required_unless:inspections.*.evaluation,good|nullable|string|max:255',
                 'inspections.*.photos' => 'required_unless:inspections.*.evaluation,good|array',
-                'inspections.*.photos.*' => 'image|max:5120',
+                'inspections.*.photos.*' => 'mimes:jpg,jpeg,png|max:5120',
             ];
         }
         $request->validate($rules, [
@@ -483,7 +485,7 @@ class DashboardController extends Controller
             'inspections.*.description.required_unless' => 'Notes / observations are required for inspection #:position.',
         ]);
 
-        if ((int) $user->role_id === 2) {
+        if ((int) $user->role_id === UserRole::CompanyAdmin->value) {
             // company admin: any project of their own company
             abort_unless(
                 Project::where('id', $request->project_id)->where('company_id', $user->company_id)->exists(),
@@ -642,7 +644,7 @@ class DashboardController extends Controller
                 'inspections.*.location' => 'required|string|max:50',
                 'inspections.*.description' => 'required_unless:inspections.*.evaluation,good|nullable|string|max:255',
                 'inspections.*.photos' => 'required_unless:inspections.*.evaluation,good|array',
-                'inspections.*.photos.*' => 'image|max:5120',
+                'inspections.*.photos.*' => 'mimes:jpg,jpeg,png|max:5120',
             ]);
 
             $savedInspections = [];
@@ -754,7 +756,7 @@ class DashboardController extends Controller
             ->whereHas('inspection', fn ($query) => $query->where('company_id', $user->company_id)->whereIn('project_id', $projects))
             ->findOrFail($id);
 
-        return Inertia::render('Review/CaseShow', [
+        return Inertia::render('ManagerSupervisor/CaseShow', [
             'item' => \App\Support\CaseFeed::detail($type, $case),
             'inspector_view' => true,
             'user' => $user,
@@ -843,7 +845,7 @@ class DashboardController extends Controller
     //         'location' => 'nullable|string|max:255',
     //         'inspectee_id' => 'nullable|exists:subcon_staff,id',
     //         'photos' => 'nullable|array',
-    //         'photos.*' => 'image|max:2048',
+    //         'photos.*' => 'mimes:jpg,jpeg,png|max:2048',
     //     ]);
 
     //     $photoPaths = [];
@@ -941,7 +943,7 @@ class DashboardController extends Controller
             'location' => 'nullable|string|max:50',
             'inspectee_id' => 'nullable|exists:subcon_staff,id',
             'photos' => [\Illuminate\Validation\Rule::requiredIf($inspection->evaluation !== 'good' && count($existingPhotos) === 0), 'array'],
-            'photos.*' => 'image|max:5120',
+            'photos.*' => 'mimes:jpg,jpeg,png|max:5120',
         ], ['evaluation.in' => 'The evaluation cannot be changed after the inspection is created.']);
 
         unset($validated['photos'], $validated['evaluation']);
@@ -1001,9 +1003,7 @@ class DashboardController extends Controller
         $this->authorizeRecordChange($inspection, deleting: true);
         $done = $this->manageContext('inspection', $inspection->id)['endpoints']['done'];
         DB::transaction(function () use ($inspection) {
-            // the NC / CC case opened by this inspection goes with it
-            DB::table('non_conformances')->where('inspection_id', $inspection->id)->delete();
-            DB::table('client_complaints')->where('inspection_id', $inspection->id)->delete();
+            // the NC / CC case opened by this inspection is deleted with it (Inspection::deleting)
             $inspection->delete();
         });
 
@@ -1162,8 +1162,8 @@ class DashboardController extends Controller
                 $rules['attendees'] = 'required|array|min:1';
                 $rules['categories'] = 'required|array|min:1';
                 $rules['categories.*'] = 'integer|exists:toolbox_categories,id';
-                $rules['img_group'] = 'nullable|image|max:5120';
-                $rules['img_attendance'] = 'nullable|image|max:5120';
+                $rules['img_group'] = 'nullable|mimes:jpg,jpeg,png|max:5120';
+                $rules['img_attendance'] = 'nullable|mimes:jpg,jpeg,png|max:5120';
             }
 
             $validated = $request->validate($rules, [
@@ -1325,8 +1325,8 @@ class DashboardController extends Controller
             $rules['attendees'] = 'required|array|min:1';
             $rules['categories'] = 'required|array|min:1';
             $rules['categories.*'] = 'integer|exists:toolbox_categories,id';
-            $rules['img_group'] = 'nullable|image|max:5120';
-            $rules['img_attendance'] = 'nullable|image|max:5120';
+            $rules['img_group'] = 'nullable|mimes:jpg,jpeg,png|max:5120';
+            $rules['img_attendance'] = 'nullable|mimes:jpg,jpeg,png|max:5120';
         }
 
         $validated = $request->validate($rules, [
@@ -1497,7 +1497,7 @@ class DashboardController extends Controller
 
     private function isCompanyAdmin(): bool
     {
-        return (int) Auth::user()->role_id === 2;
+        return (int) Auth::user()->role_id === UserRole::CompanyAdmin->value;
     }
 
     /** Where the edit / delete pages send the user afterwards, and the endpoints they post to. */

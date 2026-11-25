@@ -40,7 +40,7 @@ class SubconPortalController extends Controller
 
     private function fileRules(): array
     {
-        return ['file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120'];
+        return ['file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'];
     }
 
     // ------------------------------------------------------------------ daily attendance
@@ -127,7 +127,7 @@ class SubconPortalController extends Controller
         $case = \App\Support\CaseFeed::model($type)::with(\App\Support\CaseFeed::WITH)->findOrFail($id);
         abort_unless((int) optional($case->inspection)->subcon_company_id === (int) $company->id, 404);
 
-        return \Inertia\Inertia::render('SubconPublic/CaseDetail', [
+        return \Inertia\Inertia::render('Contractor/CaseDetail', [
             'company' => ['name' => $company->name, 'code' => $company->code],
             'item' => \App\Support\CaseFeed::row($type, $case),
             'public_token' => $token,
@@ -144,7 +144,7 @@ class SubconPortalController extends Controller
 
         $data = $request->validate([
             'response' => 'required|string|min:5|max:2000',
-            'photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:5120',
+            'photo' => 'required|mimes:jpg,jpeg,png|max:5120',
         ]);
 
         $previousPhoto = UploadedAssets::cleanupOnFailure(function ($upload) use ($case, $data, $company) {

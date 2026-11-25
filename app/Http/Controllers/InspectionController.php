@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Support\UploadedAssets;
 use App\Support\InspectionApproval;
 use App\Models\Inspection;
@@ -60,10 +62,10 @@ class InspectionController extends Controller
             ),
             // company staff (inspectors, site staff, managers) - not just users with role 4
             'employees' => $makeCard(
-                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', 2)->count(),
-                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', 2)->where('status', 'active')->count(),
-                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', 2)->where('created_at', '>=', $thisMonth)->count(),
-                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', 2)->whereBetween('created_at', [$lastMonth, $thisMonth])->count()
+                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', UserRole::CompanyAdmin->value)->count(),
+                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', UserRole::CompanyAdmin->value)->where('status', 'active')->count(),
+                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', UserRole::CompanyAdmin->value)->where('created_at', '>=', $thisMonth)->count(),
+                CompanyStaff::where('company_id', $companyId)->where('role_id', '!=', UserRole::CompanyAdmin->value)->whereBetween('created_at', [$lastMonth, $thisMonth])->count()
             ),
             // executors = subcontractor companies registered under this company
             'executors' => $makeCard(
@@ -113,7 +115,7 @@ class InspectionController extends Controller
         $findingsSummary = $this->getFindingsSummary($inspections, $projects);
         $topicChartData = $this->getInspectionsByTopicData($inspections, ToolboxTopic::all());
 
-        return Inertia::render('WSIS/Dashboard_Inspection', [
+        return Inertia::render('Admin/Company/Safety/Dashboard_Inspection', [
             'title' => 'Inspections Management',
             'inspections' => $inspections,
             'projects' => $projects,
@@ -284,7 +286,7 @@ class InspectionController extends Controller
                 'inspection_items.*.evaluation'        => 'required|in:good,poor,nonconformance,clientcomplaint',
                 'inspection_items.*.description'       => 'required_unless:inspection_items.*.evaluation,good|string',
                 'inspection_items.*.photos'            => 'required_unless:inspection_items.*.evaluation,good|array',
-                'inspection_items.*.photos.*'          => 'image|max:5120',
+                'inspection_items.*.photos.*'          => 'mimes:jpg,jpeg,png|max:5120',
             ]);
 
             $savedInspections = [];
@@ -409,7 +411,7 @@ class InspectionController extends Controller
         $roleId = (int) Auth::user()->role_id;
         $inspection->load(['verifier:id,name', 'approver:id,name']);
 
-        return Inertia::render('WSIS/Inspection_Show', [
+        return Inertia::render('Admin/Company/Safety/Inspection_Show', [
             'title' => 'Inspection Details',
             'inspection' => $inspection,
             'can' => [
@@ -425,9 +427,9 @@ class InspectionController extends Controller
         ]);
     }
 
-    // Role ids: 2 Admin Company, 3 Manager, 4 Supervisor, 8 Project Manager
-    private const VERIFIER_ROLES = [2, 3, 4, 8];
-    private const APPROVER_ROLES = [2, 3, 8];
+    // Role ids: 2 Company Admin, 3 Manager, 4 Supervisor (see the UserRole enum)
+    private const VERIFIER_ROLES = [2, 3, 4];
+    private const APPROVER_ROLES = [2, 3];
 
     private function reviewer(array $roles, Inspection $inspection)
     {
@@ -507,7 +509,7 @@ class InspectionController extends Controller
             'evaluation' => ['sometimes', 'required', \Illuminate\Validation\Rule::in([$inspection->evaluation])],
             'description' => [\Illuminate\Validation\Rule::requiredIf($inspection->evaluation !== 'good'), 'nullable', 'string', 'max:255'],
             'new_photos' => [\Illuminate\Validation\Rule::requiredIf($inspection->evaluation !== 'good' && count($currentPhotos) === 0), 'array'],
-            'new_photos.*' => 'image|mimes:jpeg,png,jpg,gif|max:5120',
+            'new_photos.*' => 'mimes:jpg,jpeg,png|max:5120',
         ], ['evaluation.in' => 'The evaluation cannot be changed after the inspection is created.']);
 
         try {
@@ -562,9 +564,7 @@ class InspectionController extends Controller
             }
 
             \Illuminate\Support\Facades\DB::transaction(function () use ($inspection) {
-                // the NC / CC case opened by this inspection goes with it
-                \Illuminate\Support\Facades\DB::table('non_conformances')->where('inspection_id', $inspection->id)->delete();
-                \Illuminate\Support\Facades\DB::table('client_complaints')->where('inspection_id', $inspection->id)->delete();
+                // the NC / CC case opened by this inspection is deleted with it (Inspection::deleting)
                 $inspection->delete();
             });
 
@@ -640,8 +640,8 @@ class InspectionController extends Controller
             'sp_not_registered' => 'nullable|integer|min:0|max:100000',
             'categories'       => 'nullable|array',
             'categories.*'     => 'integer|exists:toolbox_categories,id',
-            'attendance_photo' => 'nullable|image|max:5120',
-            'group_photo'      => 'nullable|image|max:5120',
+            'attendance_photo' => 'nullable|mimes:jpg,jpeg,png|max:5120',
+            'group_photo'      => 'nullable|mimes:jpg,jpeg,png|max:5120',
         ], [
             'attendee_ids.required' => 'Select at least one person for Safety Passport sampling.',
             'attendee_ids.min' => 'Select at least one person for Safety Passport sampling.',
@@ -720,6 +720,25 @@ class InspectionController extends Controller
         return redirect()->back()->with('success', 'Toolbox talk created successfully!');
     }
 
+    /**
+     * Strict NC / CC rule: a case closes only after the contractor replied (and no returned reply is pending),
+     * and a case cannot be reopened once its inspection is already verified or approved.
+     */
+    private function assertCaseStatusChange($case, string $status): void
+    {
+        if ($status === 'closed' && (!$case->subcon_response || $case->return_reason)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'status' => 'The contractor must submit a corrective action before this case can be closed.',
+            ]);
+        }
+
+        if ($status === 'open' && in_array(optional($case->inspection)->status, [Inspection::STATUS_VERIFIED, Inspection::STATUS_APPROVED], true)) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'status' => 'This case cannot be reopened because its inspection is already verified or approved.',
+            ]);
+        }
+    }
+
     public function updateNonConformanceStatus(Request $request, NoConformance $nonConformance)
     {
         try {
@@ -727,6 +746,8 @@ class InspectionController extends Controller
                 'status' => 'required|in:open,closed', // Using 'closed' to match your frontend
                 'comment' => 'nullable|string|max:1000' // Added comment support
             ]);
+
+            $this->assertCaseStatusChange($nonConformance, $request->status);
 
             $userID = Auth::user()->id;
             $staffID = CompanyStaff::where('user_id', $userID)->select('id')->first();
@@ -784,6 +805,8 @@ class InspectionController extends Controller
                 'status' => 'required|in:open,closed',
                 'comment' => 'nullable|string|max:1000'
             ]);
+
+            $this->assertCaseStatusChange($clientComplaint, $request->status);
 
             $userID = Auth::user()->id;
             $staffID = CompanyStaff::where('user_id', $userID)->select('id')->first();

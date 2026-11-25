@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Models\AccountType;
 use App\Models\Company;
 use App\Models\Module;
@@ -47,12 +49,12 @@ class ProviderPackageController extends Controller
     /** Standalone order pages (no sidebar): buy new packages, or renew a company's plan. */
     public function purchasePage(Request $request)
     {
-        return $this->orderPage($request, 'Company/ProviderPurchase', 'purchase');
+        return $this->orderPage($request, 'Admin/Company/Account/ProviderPurchase', 'purchase');
     }
 
     public function renewPage(Request $request)
     {
-        return $this->orderPage($request, 'Company/ProviderRenew', 'renewal');
+        return $this->orderPage($request, 'Admin/Company/Account/ProviderRenew', 'renewal');
     }
 
     private function orderPage(Request $request, string $component, string $kind)
@@ -114,7 +116,7 @@ class ProviderPackageController extends Controller
         $payment = $paid ? Payments::where('company_id', $provider->id)->where('payment_type', 'activation_code_order')->where('order_no', $batch)->first() : null;
         $first = $codes->first();
 
-        return Inertia::render('Company/ProviderOrderDetails', [
+        return Inertia::render('Admin/Company/Account/ProviderOrderDetails', [
             'order' => [
                 'batch_ref' => $batch,
                 'status' => $codes->every(fn ($code) => $code->status === 'rejected') ? 'rejected' : ($paid ? 'paid' : 'pending'),
@@ -187,7 +189,7 @@ class ProviderPackageController extends Controller
                 'used_at' => $code->used_at?->format('Y-m-d'),
             ]);
 
-        return Inertia::render('Company/ProviderPackages', [
+        return Inertia::render('Admin/Company/Account/ProviderPackages', [
             'section' => $section,
             'tab' => $tab,
             'codes' => $codes,
@@ -287,7 +289,7 @@ class ProviderPackageController extends Controller
     /** A company activates its package with an activation code a Training Provider bought for it. */
     public function redeem(Request $request)
     {
-        abort_unless((int) $request->user()->role_id === 2, 403, 'Only the company admin can use an activation code.');
+        abort_unless((int) $request->user()->role_id === UserRole::CompanyAdmin->value, 403, 'Only the company admin can use an activation code.');
         $validated = $request->validate(['code' => ['required', 'string', 'max:50']]);
         $company = $request->user()->company;
         abort_unless($company, 403, 'No company is linked to your account.');

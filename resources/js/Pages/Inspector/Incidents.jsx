@@ -4,7 +4,7 @@ import { Head, Link } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Plus, Search, X } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import { EmptyState } from '@/Components/inspector/kit';
-import { IncidentCard } from '@/Pages/Review/Incidents';
+import { IncidentCard } from '@/Pages/ManagerSupervisor/Incidents';
 
 const PER_PAGE = 8;
 

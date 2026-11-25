@@ -3,14 +3,9 @@ import ImageViewer from '@/Components/shared/ImageViewer';
 // Used by the subcontractor leader page and the Supervisor / Manager review portal.
 import React from 'react';
 import { REVIEW_STATUS, cardTone } from '@/Components/inspector/kit';
+import { caseStateOf } from '@/Components/shared/caseState';
 import { AlertTriangle, MessageSquareWarning, CheckCircle2, ChevronDown, Clock, RotateCcw } from 'lucide-react';
 
-export const CASE_STATE = {
-    open: { label: 'Awaiting reply', cls: 'bg-amber-50 text-amber-700 border-amber-200', icon: Clock },
-    responded: { label: 'Replied - for review', cls: 'bg-blue-50 text-blue-700 border-blue-200', icon: Clock },
-    returned: { label: 'Returned - reply again', cls: 'bg-red-50 text-red-700 border-red-200', icon: RotateCcw },
-    closed: { label: 'Closed', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: CheckCircle2 },
-};
 
 const fmt = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '-');
 const photoUrl = (p) => (p?.startsWith('http') || p?.startsWith('/') ? p : `/storage/${p}`);
@@ -67,7 +62,7 @@ export default function CaseCard({ item, children, showReply = true, collapsible
                 {i.subcon && <Row label="Subcontractor">{i.subcon}</Row>}
                 {!collapsible && i.inspector && <Row label="Inspector">{i.inspector}</Row>}
                 <Row label="Approval status"><span className={`${statusClass} ${approvalColor}`}>{approval.label}</span></Row>
-                <Row label="Case status"><span className={`${statusClass} ${closed ? 'text-emerald-700' : 'text-amber-700'}`}>{closed ? 'Closed' : 'Open'}</span></Row>
+                <Row label="Case status"><span className={`${statusClass} ${caseStateOf(item).text}`}>{caseStateOf(item).label}</span></Row>
             </dl>
         </>
     );

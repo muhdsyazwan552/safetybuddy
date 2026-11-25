@@ -77,7 +77,7 @@ class SafetyInductionController extends Controller
                 ])->values(),
             ])->values();
 
-        return Inertia::render('WSIS/Safety_Induction', [
+        return Inertia::render('Admin/Company/Safety/Safety_Induction', [
             'title' => 'Safety Passport',
             'topics' => $topics,
             'defaultCount' => count(SafetyInductionDefaults::topics()),

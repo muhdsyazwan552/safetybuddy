@@ -27,6 +27,24 @@ class Inspection extends Model
         static::addGlobalScope(new \App\Models\Scopes\TenantScope());
         static::saving(fn ($model) => \App\Models\Scopes\TenantScope::guardWrite($model));
 
+        // The NC / CC case opened by an inspection never outlives it (there is no foreign key to do this),
+        // together with the contractor's reply photo. Every way of deleting an inspection goes through here.
+        static::deleting(function ($inspection) {
+            foreach (['non_conformances', 'client_complaints'] as $table) {
+                $cases = \Illuminate\Support\Facades\DB::table($table)->where('inspection_id', $inspection->id);
+                foreach ($cases->pluck('response_photo') as $photo) {
+                    if ($photo) {
+                        try {
+                            \App\Support\UploadedAssets::delete($photo);
+                        } catch (\Throwable $e) {
+                            report($e);
+                        }
+                    }
+                }
+                $cases->delete();
+            }
+        });
+
     }
 
     // Add this static property for evaluation options

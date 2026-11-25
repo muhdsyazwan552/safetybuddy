@@ -11,23 +11,26 @@ export function caseState(record) {
 function caseProgress(record, inspectionStatus) {
     const state = caseState(record);
     const returned = state === 'returned';
-    const submitted = state === 'responded' || state === 'closed';
+    const replied = state === 'responded' || state === 'closed';
+    const closed = state === 'closed';
     const approval = inspectionStatus ?? record?.inspection?.approval ?? record?.inspection?.status;
-    const verified = submitted && ['verified', 'approved'].includes(approval);
-    const approved = submitted && approval === 'approved';
+    const verified = ['verified', 'approved'].includes(approval);
+    const approved = approval === 'approved';
 
+    // order: contractor reply -> reviewer closes the case -> supervisor verifies -> manager approves
     return {
         steps: [
-            { label: 'Action', who: 'Waiting action', done: submitted, active: !submitted, returned },
-            { label: 'Submitted', who: 'Done action', done: submitted },
-            { label: verified ? 'Verified' : 'Verify', who: 'Supervisor', done: verified, active: submitted && !verified },
+            { label: 'Reply', who: 'Contractor', done: replied, active: !replied, returned },
+            { label: closed ? 'Case closed' : 'Close case', who: 'Reviewer', done: closed, active: state === 'responded' },
+            { label: verified ? 'Verified' : 'Verify', who: 'Supervisor', done: verified, active: closed && !verified },
             { label: approved ? 'Approved' : 'Approve', who: 'Manager', done: approved, active: verified && !approved },
         ],
-        detail: returned ? 'Returned to subcontractor for corrective action'
-            : !submitted ? 'Awaiting subcontractor action'
-                : !verified ? 'Action submitted. Awaiting supervisor verification.'
-                    : !approved ? 'Verified by supervisor. Awaiting manager approval.'
-                        : state === 'closed' ? 'Approved and closed' : 'Approved by manager',
+        detail: returned ? 'Returned to the contractor for a new reply'
+            : !replied ? 'Awaiting the contractor reply'
+                : !closed ? 'Reply submitted. Awaiting a reviewer to close the case.'
+                    : !verified ? 'Case closed. Awaiting supervisor verification of the inspection.'
+                        : !approved ? 'Verified by supervisor. Awaiting manager approval.'
+                            : 'Approved by manager',
     };
 }
 

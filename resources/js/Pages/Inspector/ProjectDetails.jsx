@@ -3,7 +3,7 @@ import React from 'react';
 import { Head, Link } from '@inertiajs/react';
 import { Plus, HardHat } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
-import { ProjectDetail } from '@/Pages/Review/ProjectShow';
+import { ProjectDetail } from '@/Pages/ManagerSupervisor/ProjectShow';
 
 export default function ProjectDetails({ user, ...props }) {
     return (

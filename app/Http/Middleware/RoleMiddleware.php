@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\UserRole;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -22,7 +23,13 @@ class RoleMiddleware
 
         $user = Auth::user();
 
-        if (in_array($user->role_id, $roles)) {
+        // Accepts slugs (role:manager,supervisor) or legacy numbers (role:3,4).
+        $allowed = array_filter(
+            array_map(fn ($role) => UserRole::resolveId((string) $role), $roles),
+            fn ($id) => $id !== null
+        );
+
+        if (in_array((int) $user->role_id, $allowed, true)) {
             return $next($request);
         }
 

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { validFiles } from '@/Helpers/fileCheck';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
   ArrowRight, ArrowUpRight, CalendarDays, Check, CheckCircle2, Clock3,
@@ -306,7 +307,7 @@ function TrainingProviderApply({ application, plan, canPurchase, hasActiveSafety
           <span className="text-xs">PDF, JPG or PNG (Max. 5 MB)</span>
           {form.data.registration_document && <span className="mt-1 font-semibold text-brand-800">{form.data.registration_document.name}</span>}
         </label>
-        <input id="registration-document" type="file" accept=".pdf,.png,.jpg,.jpeg" className="sr-only" onChange={event => form.setData('registration_document', event.target.files[0] ?? null)} />
+        <input id="registration-document" type="file" accept=".pdf,.png,.jpg,.jpeg" className="sr-only" onChange={event => form.setData('registration_document', validFiles(event.target.files, { maxMB: 5, pdf: true, title: 'Document not accepted' }, event.target)[0] ?? null)} />
         {form.errors.registration_document && <p className="mt-2 text-sm text-rose-600">{form.errors.registration_document}</p>}
       </div>
       <button disabled={!canPurchase || form.processing} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-brand-400 px-6 py-3 font-black text-ink-950 transition hover:bg-brand-300 disabled:cursor-not-allowed disabled:opacity-50">{form.processing ? 'Submitting…' : 'Submit Registration'} <ArrowRight className="h-4 w-4" /></button>
@@ -496,7 +497,7 @@ export default function Plans({ plans = [], hasPurchased = false, hasActiveSafet
   const providerPlans = plans.filter(plan => plan.audience === 'training_provider');
   const tabPlans = tab === 'provider' ? providerPlans : tab === 'under' ? contractorPlans : normalPlans;
   const firstName = (auth?.user?.name ?? '').trim().split(/\s+/)[0];
-  const dashboard = [3, 4].includes(auth?.user?.role_id) ? '/review/dashboard' : [7, 8].includes(auth?.user?.role_id) ? '/inspector/dashboard' : '/dashboard';
+  const dashboard = [3, 4].includes(auth?.user?.role_id) ? '/review/dashboard' : [7].includes(auth?.user?.role_id) ? '/inspector/dashboard' : '/dashboard';
 
   return <><Head title={hasPurchased ? 'Manage packages · Safety Buddy' : 'Safety Buddy packages'} /><main className="min-h-screen bg-[#F8F8F5] text-ink-950">
     <header className="border-b border-white/10 bg-ink-950"><div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-3 sm:px-8"><Link href="/" className="inline-flex min-w-0 items-center gap-3 text-white"><img src="/images/sbc-logo.png" alt="" className="h-11 w-11 shrink-0 rounded-full object-cover ring-1 ring-brand-400/50" /><span className="text-sm font-black tracking-[.12em] sm:text-base">SAFETY BUDDY</span></Link><nav aria-label="Account" className="flex shrink-0 items-center gap-3 text-sm font-semibold sm:gap-5">{hasActiveSafety && <Link href={dashboard} className="text-brand-300 transition hover:text-brand-100">Dashboard</Link>}<button type="button" onClick={() => confirmLogout()} className="text-white/70 transition hover:text-white">Log out</button></nav></div></header>

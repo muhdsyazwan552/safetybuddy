@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Models\CompanyStaff;
 use App\Models\InspectionReport;
 use App\Models\MonthlyReport;
@@ -48,8 +50,8 @@ class PerformanceController extends Controller
         $role = (int) Auth::user()->role_id;
 
         return [
-            'can_verify' => in_array($role, [3, 4], true),
-            'can_approve' => $role === 3,
+            'can_verify' => in_array($role, UserRole::reviewerIds(), true),
+            'can_approve' => $role === UserRole::Manager->value,
         ];
     }
 

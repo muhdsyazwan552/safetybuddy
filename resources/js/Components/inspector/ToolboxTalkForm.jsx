@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { Camera, X, Check, Loader2, Save, Users, Search } from 'lucide-react';
-import { ActionBar, Field, inputClass, labelClass, ghostBtn, primaryBtn } from '@/Components/inspector/kit';
+import { ActionBar, Field, inputClass, labelClass, ghostBtn, primaryBtn, formatBytes } from '@/Components/inspector/kit';
 import SpPerSubcon, { spGroups } from '@/Components/shared/SpPerSubcon';
 import DateInput from '@/Components/shared/DateInput';
 
 const MAX = 5 * 1024 * 1024;
 // local calendar date (toISOString would give the UTC date, i.e. yesterday in Malaysia before 8am)
 const localToday = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-const TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+const TYPES = ['image/jpeg', 'image/png', 'image/jpg'];
 
-function PhotoPicker({ label, preview, existing, error, onPick, onClear }) {
+function PhotoPicker({ label, preview, existing, error, onPick, onClear, size }) {
     const shown = preview || existing;
     return (
         <div>
@@ -20,7 +20,7 @@ function PhotoPicker({ label, preview, existing, error, onPick, onClear }) {
                     <div className="absolute inset-x-0 bottom-0 flex gap-2 bg-gradient-to-t from-black/70 to-transparent p-2">
                         <label className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-white/90 py-2 text-xs font-bold text-gray-800">
                             <Camera className="h-4 w-4" /> Replace
-                            <input type="file" accept="image/*" className="hidden" onChange={onPick} />
+                            <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={onPick} />
                         </label>
                         {preview && (
                             <button type="button" onClick={onClear} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/90 text-red-600" aria-label="Remove">
@@ -33,9 +33,10 @@ function PhotoPicker({ label, preview, existing, error, onPick, onClear }) {
                 <label className="flex aspect-video cursor-pointer flex-col items-center justify-center gap-1.5 rounded-2xl border-2 border-dashed border-gray-300 bg-gray-50 text-gray-500 active:bg-brand-100 transition">
                     <Camera className="h-7 w-7" />
                     <span className="text-xs font-bold">Tap to take / upload</span>
-                    <input type="file" accept="image/*" className="hidden" onChange={onPick} />
+                    <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={onPick} />
                 </label>
             )}
+            {size != null && <p className="mt-1.5 ml-1 text-xs font-medium text-gray-500">Size: {formatBytes(size)} (limit 5&nbsp;MB)</p>}
             {error && <p className="mt-1.5 ml-1 text-xs font-medium text-red-500">{error}</p>}
         </div>
     );
@@ -172,8 +173,8 @@ export default function ToolboxTalkForm({ projects, topics, initial, conductor, 
         const file = e.target.files?.[0];
         e.target.value = '';
         if (!file) return;
-        if (!TYPES.includes(file.type)) return setPhotoErrors((p) => ({ ...p, [field]: 'Only JPEG, PNG or WEBP images are allowed.' }));
-        if (file.size > MAX) return setPhotoErrors((p) => ({ ...p, [field]: 'Image must be smaller than 5 MB.' }));
+        if (!TYPES.includes(file.type)) return setPhotoErrors((p) => ({ ...p, [field]: 'Only JPG, JPEG or PNG images are allowed.' }));
+        if (file.size > MAX) return setPhotoErrors((p) => ({ ...p, [field]: `Image is ${formatBytes(file.size)}; it must be smaller than 5 MB.` }));
         setPhotoErrors((p) => ({ ...p, [field]: null }));
         setFiles((f) => ({ ...f, [field]: file }));
         setPreviews((p) => ({ ...p, [field]: URL.createObjectURL(file) }));
@@ -334,6 +335,7 @@ export default function ToolboxTalkForm({ projects, topics, initial, conductor, 
                                 error={photoErrors.img_group || err.img_group}
                                 onPick={pick('img_group')}
                                 onClear={() => clear('img_group')}
+                                size={files.img_group?.size}
                             />
                             <PhotoPicker
                                 label="Attendance sheet"
@@ -342,6 +344,7 @@ export default function ToolboxTalkForm({ projects, topics, initial, conductor, 
                                 error={photoErrors.img_attendance || err.img_attendance}
                                 onPick={pick('img_attendance')}
                                 onClear={() => clear('img_attendance')}
+                                size={files.img_attendance?.size}
                             />
                         </div>
                     </>

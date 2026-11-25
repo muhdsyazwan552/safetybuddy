@@ -4,7 +4,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Pencil, Trash2 } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import { Sheet, ActionBar, darkBtn, ghostBtn } from '@/Components/inspector/kit';
-import { InspectionDetail } from '@/Pages/Review/InspectionShow';
+import { InspectionDetail } from '@/Pages/ManagerSupervisor/InspectionShow';
 
 export default function ShowInspection({ inspection, user, can_edit = false }) {
     const [confirm, setConfirm] = useState(false);

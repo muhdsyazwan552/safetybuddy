@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Support\UploadedAssets;
 use App\Models\ClientComplaint;
 use App\Models\CompanyStaff;
@@ -53,7 +55,7 @@ class PdfReportController extends Controller
 
     private function isInspector(): bool
     {
-        return in_array((int) $this->user()->role_id, [7, 8], true);
+        return in_array((int) $this->user()->role_id, UserRole::inspectorIds(), true);
     }
 
     private function myStaffId()

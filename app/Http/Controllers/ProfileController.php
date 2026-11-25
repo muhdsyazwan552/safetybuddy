@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Http\Requests\ProfileUpdateRequest;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -21,7 +23,7 @@ class ProfileController extends Controller
     public function edit(Request $request): Response
     {
         $user = $request->user()->loadMissing('role', 'company');
-        $isCompanyAdmin = (int) $user->role_id === 2 && $user->company;
+        $isCompanyAdmin = (int) $user->role_id === UserRole::CompanyAdmin->value && $user->company;
         $subscription = $isCompanyAdmin
             ? SubscriptionPlanController::detailsForCompany((int) $user->company_id)
             : null;

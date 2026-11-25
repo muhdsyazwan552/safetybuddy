@@ -115,7 +115,7 @@ class PaymentHistoryTest extends TestCase
 
         preg_match('/data-page="([^"]+)"/', $response->getContent(), $matches);
         $page = json_decode(html_entity_decode($matches[1] ?? '', ENT_QUOTES), true);
-        $this->assertSame('Company/PaymentHistory', $page['component']);
+        $this->assertSame('Admin/Company/Account/PaymentHistory', $page['component']);
         $this->assertSame([10], array_column($page['props']['payments']['data'], 'id'));
     }
 

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Support\UploadedAssets;
 use App\Models\ComplianceMetrics;
 use App\Models\Company;
@@ -36,7 +38,7 @@ class ContentController extends Controller
             ->orderBy('id')
             ->get(['id', 'title', 'description', 'percent', 'value']);
 
-        return Inertia::render('WSIS/Compliance_Metrics', [
+        return Inertia::render('Admin/Company/Safety/Compliance_Metrics', [
             'title' => 'Compliance & Penalty Settings',
             'metrics' => $metrics,
             'performance' => \App\Models\PerformanceSetting::forCompany($companyId)->snapshot(),
@@ -50,16 +52,16 @@ class ContentController extends Controller
         // Load staff with role relationship
         $staff = CompanyStaff::with('role')  // Add this to load role relationship
             ->where('company_id', $companyId)
-            ->where('role_id', '!=', 2) // the company admin's own record is not an employee
+            ->where('role_id', '!=', UserRole::CompanyAdmin->value) // the company admin's own record is not an employee
             ->get();
 
         // The three working tiers: 1st Manager (3), 2nd Supervisor (4), 3rd Inspector (7).
         // "Project Manager" (8) is no longer offered - it is not one of the tiers.
-        $roles = Role::whereIn('id', [3, 4, 7])
+        $roles = Role::whereIn('id', UserRole::staffIds())
             ->orderByRaw('FIELD(id, 3, 4, 7)')
             ->select('id', 'display_name')->get();
 
-        return Inertia::render('WSIS/Employee', [
+        return Inertia::render('Admin/Company/Safety/Employee', [
             'title' => 'Manage Employee',
             'staff' => $staff,
             'roles' => $roles,
@@ -75,12 +77,12 @@ class ContentController extends Controller
 
             ->get();
 
-        return Inertia::render('WSIS/Project', [
+        return Inertia::render('Admin/Company/Safety/Project', [
             'title'    => 'Project Executor',
             'projects' => $projects,
             'projectTypes' => \App\Models\ProjectType::active()->get(['id', 'name']),
             // active people only: inspectors are company staff with role 7
-            'inspectors' => CompanyStaff::where('company_id', $user->company_id)->where('role_id', 7)
+            'inspectors' => CompanyStaff::where('company_id', $user->company_id)->where('role_id', UserRole::Inspector->value)
                 ->active()->orderBy('name')->get(['id', 'name']),
             'contractors' => SubconCompany::where('company_id', $user->company_id)->where('status', 'active')
                 ->orderBy('name')->get(['id', 'name']),
@@ -96,7 +98,7 @@ class ContentController extends Controller
         $companies = SubconCompany::where('company_id', $user->company_id)->get()
             ->each(fn ($c) => $c->setAttribute('leader_key', $c->leaderKey()));
 
-        return Inertia::render('WSIS/Executor_Project', [
+        return Inertia::render('Admin/Company/Safety/Executor_Project', [
             'title' => 'Contractor',
             'companies' => $companies, // 👈 send to React
             'executorSeats' => CompanySeatLimits::snapshot((int) $user->company_id)['executors'],
@@ -110,7 +112,7 @@ class ContentController extends Controller
         $detail = \App\Support\SubconDetail::for($company);
         $company->setAttribute('leader_key', $company->leaderKey());
 
-        return Inertia::render('WSIS/Executor_Staff', [
+        return Inertia::render('Admin/Company/Safety/Executor_Staff', [
             'title' => $company->name . ' Staff',
             'company' => $company,
         ] + $detail);
@@ -236,7 +238,7 @@ class ContentController extends Controller
 
         $availableStaff = CompanyStaff::with('company', 'role')
             ->active()
-            ->where('role_id', 7)
+            ->where('role_id', UserRole::Inspector->value)
             ->whereNotIn('id', $assignedStaffIds)
             ->get();
 
@@ -258,7 +260,7 @@ class ContentController extends Controller
 
         $availableCompSub = SubconCompany::where('status', 'active')->whereNotIn('id', $assignedCompSubIds)->get();
 
-        return Inertia::render('WSIS/Executor_Project_Details', [
+        return Inertia::render('Admin/Company/Safety/Executor_Project_Details', [
             'project' => [
                 'id' => $project->id,
                 'name' => $project->name,
@@ -429,8 +431,8 @@ class ContentController extends Controller
 
         // dd($inspections);
 
-        return Inertia::render('WSIS/Inspection', [
-            'visits' => \App\Support\VisitFeed::collect($user->company_id, null, null, true),
+        return Inertia::render('Admin/Company/Safety/Inspection', [
+            'visits' => \App\Support\VisitFeed::collect($user->company_id),
             'title' => 'Inspection',
             'projects' => $projects,
             'auth_inspector' => $authInspector, // Add inspectors to props
@@ -461,7 +463,7 @@ class ContentController extends Controller
         $subcons = SubconCompany::whereIn('id', $talk->attendees->pluck('company_id')->unique())->pluck('name', 'id');
         $staffName = fn ($sid) => $sid ? CompanyStaff::whereKey($sid)->value('name') : null;
 
-        return Inertia::render('WSIS/Toolbox_Show', [
+        return Inertia::render('Admin/Company/Safety/Toolbox_Show', [
             'talk' => [
                 'id' => $talk->id,
                 'code' => $talk->code,
@@ -494,10 +496,10 @@ class ContentController extends Controller
     public function visitShow(string $key)
     {
         $companyId = Auth::user()->company_id;
-        $visit = \App\Support\VisitFeed::collect($companyId, null, null, true)->firstWhere('key', $key);
+        $visit = \App\Support\VisitFeed::collect($companyId)->firstWhere('key', $key);
         abort_unless($visit, 404);
 
-        return Inertia::render('WSIS/Visit_Show', ['visit' => $visit]);
+        return Inertia::render('Admin/Company/Safety/Visit_Show', ['visit' => $visit]);
     }
 
     public function nonConformance()
@@ -514,9 +516,10 @@ class ContentController extends Controller
                 $q->where('company_id', $companyId);
             })
             ->latest()
-            ->get();
+            ->get()
+            ->each(fn ($case) => $case->setAttribute('state', \App\Support\CaseFeed::state($case)));
 
-        return Inertia::render('WSIS/Non_Conformance', [
+        return Inertia::render('Admin/Company/Safety/Non_Conformance', [
             'title'           => 'Non-Conformance',
             'nonConformances' => $nonConformances,
         ]);
@@ -536,9 +539,10 @@ class ContentController extends Controller
                 $q->where('company_id', $companyId);
             })
             ->latest()
-            ->get();
+            ->get()
+            ->each(fn ($case) => $case->setAttribute('state', \App\Support\CaseFeed::state($case)));
 
-        return Inertia::render('WSIS/Client_Complaint', [
+        return Inertia::render('Admin/Company/Safety/Client_Complaint', [
             'title'            => 'Client Complaint',
             'clientComplaints' => $clientComplaints,
         ]);
@@ -633,7 +637,7 @@ class ContentController extends Controller
                 ];
             });
 
-        return Inertia::render('WSIS/Incident_Statistic', [
+        return Inertia::render('Admin/Company/Safety/Incident_Statistic', [
             'title'     => 'Incident Statistic',
             'incidents' => $incidents,
         ]);
@@ -648,7 +652,7 @@ class ContentController extends Controller
             ->orderBy('name')
             ->get(['id', 'name']);
 
-        return Inertia::render('WSIS/Man_Hour', [
+        return Inertia::render('Admin/Company/Safety/Man_Hour', [
             'title' => 'Company Manhours',
             'projects' => $projects,
             'entries' => $this->manhourEntries($companyId),
@@ -659,7 +663,7 @@ class ContentController extends Controller
     {
         $staff = CompanyStaff::where('user_id', Auth::id())->first();
 
-        return Inertia::render('WSIS/Man_Hour_Overall', [
+        return Inertia::render('Admin/Company/Safety/Man_Hour_Overall', [
             'title' => 'Overall Manhours',
             'entries' => $this->manhourEntries($staff?->company_id),
         ]);
@@ -703,7 +707,7 @@ class ContentController extends Controller
 
     public function dailyReports()
     {
-        return Inertia::render('WSIS/Daily_Reports', [
+        return Inertia::render('Admin/Company/Safety/Daily_Reports', [
             'title' => 'Daily Reports',
             // Add any other data you want to pass
             'metrics' => [
@@ -715,7 +719,7 @@ class ContentController extends Controller
 
     public function monthlyReports()
     {
-        return Inertia::render('WSIS/Monthly_Reports', [
+        return Inertia::render('Admin/Company/Safety/Monthly_Reports', [
             'title' => 'Monthly Reports',
             // Add any other data you want to pass
             'metrics' => [

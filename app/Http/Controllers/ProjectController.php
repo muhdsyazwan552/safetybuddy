@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -103,7 +105,7 @@ class ProjectController extends Controller
             'company_id'  => 'nullable|exists:companies,id',
             'project_type_id' => 'nullable|exists:project_types,id',
             'inspector_id' => ['nullable', \Illuminate\Validation\Rule::exists('company_staff', 'id')
-                ->where('company_id', $user->company_id)->where('role_id', 7)
+                ->where('company_id', $user->company_id)->where('role_id', UserRole::Inspector->value)
                 ->where(fn ($q) => $q->whereNull('status')->orWhere('status', '!=', 'inactive'))],
             'contractor_id' => ['nullable', \Illuminate\Validation\Rule::exists('subcon_company', 'id')
                 ->where('company_id', $user->company_id)->where('status', 'active')],

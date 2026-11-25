@@ -61,7 +61,7 @@ Route::get('/verify-email/{id}/{hash}', [CompanyEmailVerificationController::cla
 Route::post('/email/verification-notification', [CompanyEmailVerificationController::class, 'resend'])
     ->middleware('throttle:3,1')->name('verification.send');
 
-Route::middleware(['auth', 'role:1'])->prefix('admin')->name('system.admin.')->group(function () {
+Route::middleware(['auth', 'role:system_admin'])->prefix('admin')->name('system.admin.')->group(function () {
     Route::get('/dashboard', [SystemAdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/companies', [SystemAdminController::class, 'companies'])->name('companies.index');
     Route::get('/companies/{company}', [SystemAdminController::class, 'showCompany'])->name('companies.show');
@@ -151,11 +151,11 @@ Route::prefix('subcon')->group(function () {
     Route::delete('/{token}/staff/{staffId}', [SubconPublicController::class, 'destroyStaff'])->name('subcon.public.staff.destroy');
 });
 
-Route::middleware(['auth', 'role:2,3,4,7,8'])->group(function () {
+Route::middleware(['auth', 'role:company_admin,manager,supervisor,inspector'])->group(function () {
     Route::get('/plans', [SubscriptionPlanController::class, 'index'])->name('subscription.plans');
 });
 
-Route::middleware(['auth', 'role:2'])->group(function () {
+Route::middleware(['auth', 'role:company_admin'])->group(function () {
     Route::get('/subscription/start', [SubscriptionPlanController::class, 'start'])->name('subscription.start');
     Route::get('/plans/registered-providers', [\App\Http\Controllers\PublicTrainingProviderController::class, 'list'])->name('subscription.plans.registered-providers');
     Route::get('/plans/reference-code', [SubscriptionPlanController::class, 'checkReferenceCode'])->name('subscription.plans.reference-code');
@@ -179,7 +179,7 @@ Route::middleware(['auth', 'role:2'])->group(function () {
     Route::get('/training-provider/trainees/{trainee}', [\App\Http\Controllers\TrainingProviderController::class, 'showTrainee'])->whereNumber('trainee')->name('training-provider.trainees.show');
 });
 
-Route::middleware(['auth', 'role:2'])->group(function () {
+Route::middleware(['auth', 'role:company_admin'])->group(function () {
 
     Route::get('/compliance-metrics', [ContentController::class, 'compMetrics'])
         ->name('compliance.metrics');
@@ -344,7 +344,7 @@ Route::middleware(['auth', 'role:2'])->group(function () {
 
 
 // Supervisor (4) and Manager (3) review portal: verify / approve inspections, answer NC / CC cases
-Route::middleware(['auth', 'role:3,4'])->prefix('review')->name('review.')->group(function () {
+Route::middleware(['auth', 'role:manager,supervisor'])->prefix('review')->name('review.')->group(function () {
     $c = \App\Http\Controllers\ReviewController::class;
     Route::get('/dashboard', [$c, 'dashboard'])->name('dashboard');
     Route::get('/inspections', [$c, 'inspectionsIndex'])->name('inspections');
@@ -384,7 +384,7 @@ Route::middleware(['auth', 'role:3,4'])->prefix('review')->name('review.')->grou
     Route::post('/cases/{type}/{id}/return', [$c, 'returnCase'])->where('type', 'nc|cc')->name('cases.return');
 });
 
-Route::middleware(['auth', 'role:7,8'])->prefix('inspector')->name('inspector.')->group(function () {
+Route::middleware(['auth', 'role:inspector'])->prefix('inspector')->name('inspector.')->group(function () {
     // Dashboard
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
@@ -446,8 +446,8 @@ Route::middleware('auth')->group(function () {
     Route::patch('/settings/stay-signed-in', [ProfileController::class, 'updateStaySignedIn'])->name('settings.stay-signed-in');
 });
 
-// PDF reports (company admin 2, manager 3, supervisor 4, inspectors 7/8) - scoped to the user's company
-Route::middleware(['auth', 'role:2,3,4,7,8'])->prefix('pdf')->name('pdf.')->group(function () {
+// PDF reports (company admin 2, manager 3, supervisor 4, inspectors 7) - scoped to the user's company
+Route::middleware(['auth', 'role:company_admin,manager,supervisor,inspector'])->prefix('pdf')->name('pdf.')->group(function () {
     $c = \App\Http\Controllers\PdfReportController::class;
     Route::get('/inspection/{id}', [$c, 'inspection'])->where('id', '[0-9]+')->name('inspection');
     Route::get('/toolbox/{id}', [$c, 'toolbox'])->where('id', '[0-9]+')->name('toolbox');
@@ -461,7 +461,7 @@ Route::middleware(['auth', 'role:2,3,4,7,8'])->prefix('pdf')->name('pdf.')->grou
 });
 
 // Company profile (company account only)
-Route::middleware(['auth', 'role:2'])->group(function () {
+Route::middleware(['auth', 'role:company_admin'])->group(function () {
     Route::get('/company-details', [\App\Http\Controllers\CompanyDetailsController::class, 'show'])->name('company.details');
     Route::put('/company-details', [\App\Http\Controllers\CompanyDetailsController::class, 'update'])->name('company.details.update');
     Route::post('/company-details/logo', [\App\Http\Controllers\CompanyDetailsController::class, 'uploadLogo'])->name('company.details.logo');

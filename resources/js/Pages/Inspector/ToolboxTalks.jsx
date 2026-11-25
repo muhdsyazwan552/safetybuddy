@@ -4,7 +4,7 @@ import SeriesCode from '@/Components/shared/SeriesCode';
 import { Head, Link, router } from '@inertiajs/react';
 import { Plus, CalendarDays, Users, UserRound, CheckCircle2, XCircle, ChevronRight, Pencil, Trash2, Eye } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
-import { ListHeader, Sheet, EmptyState, Pager, Field, inputClass, fmtDate, primaryBtn, ghostBtn } from '@/Components/inspector/kit';
+import { ListHeader, Sheet, EmptyState, Pager, Field, inputClass, fmtDate, primaryBtn, ghostBtn, StatusBadge } from '@/Components/inspector/kit';
 import DateInput from '@/Components/shared/DateInput';
 
 export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}, user }) {
@@ -82,10 +82,13 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
                                                 <CalendarDays className="h-3.5 w-3.5" /> {fmtDate(t.inspection_date)}
                                             </p>
                                         </div>
-                                        <span className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${conducted(t) ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}>
-                                            {conducted(t) ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                                            {conducted(t) ? 'Conducted' : 'Skipped'}
-                                        </span>
+                                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                                            <StatusBadge value={t.status} />
+                                            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${conducted(t) ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}>
+                                                {conducted(t) ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                                {conducted(t) ? 'Conducted' : 'Not conducted'}
+                                            </span>
+                                        </div>
                                     </div>
 
                                     {conducted(t) && topicsOf(t).length > 0 && (
@@ -133,9 +136,12 @@ export default function ToolboxTalks({ toolboxTalks, projects = [], filters = {}
                                             <td className="px-5 py-3.5 text-gray-600">{t.total_attended ?? 0}</td>
                                             <td className="whitespace-nowrap px-5 py-3.5 text-gray-600">{fmtDate(t.inspection_date)}</td>
                                             <td className="px-5 py-3.5">
-                                                <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${conducted(t) ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}>
-                                                    {conducted(t) ? 'Conducted' : 'Skipped'}
-                                                </span>
+                                                <div className="flex flex-col items-start gap-1.5">
+                                                    <StatusBadge value={t.status} />
+                                                    <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase ${conducted(t) ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}>
+                                                        {conducted(t) ? 'Conducted' : 'Not conducted'}
+                                                    </span>
+                                                </div>
                                             </td>
                                             <td className="px-5 py-3.5">
                                                 <div className="flex justify-end gap-1.5">

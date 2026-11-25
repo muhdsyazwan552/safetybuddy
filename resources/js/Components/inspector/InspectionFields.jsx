@@ -1,6 +1,6 @@
 import React from 'react';
 import { Camera, Lock, X } from 'lucide-react';
-import { EVAL, EVAL_ORDER, Field, inputClass, labelClass } from '@/Components/inspector/kit';
+import { EVAL, EVAL_ORDER, Field, inputClass, labelClass, formatBytes } from '@/Components/inspector/kit';
 import DateInput from '@/Components/shared/DateInput';
 
 /**
@@ -16,7 +16,7 @@ export default function InspectionFields({
     evaluations = EVAL_ORDER,
     evaluationLocked = false,
     errors = {},
-    newPhotos = [],          // [{ preview }]
+    newPhotos = [],          // [{ preview, size }]
     onPickPhotos,            // (FileList) => void
     onRemovePhoto,           // (index) => void
     existingPhotos = [],     // [url]
@@ -132,6 +132,9 @@ export default function InspectionFields({
                     {newPhotos.map((p, idx) => (
                         <div key={p.preview} className="relative aspect-square overflow-hidden rounded-2xl border-2 border-brand-500">
                             <img src={p.preview} alt="" className="h-full w-full object-cover" />
+                            {p.size != null && (
+                                <span className="absolute bottom-1 left-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] font-bold text-white">{formatBytes(p.size)}</span>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => onRemovePhoto(idx)}
@@ -147,14 +150,18 @@ export default function InspectionFields({
                         <span className="text-[11px] font-bold">Add photo</span>
                         <input
                             type="file"
-                            accept="image/*"
+                            accept="image/jpeg,image/png"
                             multiple
                             className="hidden"
                             onChange={(e) => { onPickPhotos(e.target.files); e.target.value = ''; }}
                         />
                     </label>
                 </div>
-                <p className="mt-2 ml-1 text-[11px] text-gray-400">JPG / PNG, up to 5&nbsp;MB each.</p>
+                <p className="mt-2 ml-1 text-[11px] text-gray-400">JPG / PNG, up to 5&nbsp;MB each.
+                    {newPhotos.length > 0 && newPhotos.every((p) => p.size != null) && (
+                        <> New: {newPhotos.length} photo{newPhotos.length > 1 ? 's' : ''}, {formatBytes(newPhotos.reduce((t, p) => t + p.size, 0))} total.</>
+                    )}
+                </p>
                 {errors.photos && <p className="mt-1 ml-1 text-xs font-medium text-red-500">{errors.photos}</p>}
             </div>
         </div>

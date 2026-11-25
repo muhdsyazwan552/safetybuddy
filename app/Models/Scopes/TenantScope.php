@@ -2,6 +2,8 @@
 
 namespace App\Models\Scopes;
 
+use App\Enums\UserRole;
+
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Scope;
@@ -25,7 +27,7 @@ class TenantScope implements Scope
     public static function companyId(): ?int
     {
         $user = Auth::user();
-        if (!$user || !$user->company_id || (int) $user->role_id === 1) {
+        if (!$user || !$user->company_id || (int) $user->role_id === UserRole::SystemAdmin->value) {
             return null;
         }
         if (request()->routeIs('subcon.public.*')) {

@@ -32,5 +32,16 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        // Uploads bigger than PHP's post_max_size never reach validation, so the
+        // form would fail silently. Turn that into a clear, field-level message.
+        $exceptions->render(function (\Illuminate\Http\Exceptions\PostTooLargeException $e, \Illuminate\Http\Request $request) {
+            $message = 'The files you selected are too large to upload together (server limit: '
+                . ini_get('post_max_size') . '). Please remove some photos or use smaller ones, then try again.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message, 'errors' => ['photos' => [$message]]], 422);
+            }
+
+            return back()->withErrors(['photos' => $message]);
+        });
     })->create();

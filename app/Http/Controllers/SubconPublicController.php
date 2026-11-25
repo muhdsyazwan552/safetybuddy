@@ -119,7 +119,7 @@ class SubconPublicController extends Controller
             ];
         }
 
-        return Inertia::render('SubconPublic/CompanyDetails', [
+        return Inertia::render('Contractor/CompanyDetails', [
             'cases' => $cases,
             'performance' => $performance,
             'attendance_projects' => $attendanceProjects,
@@ -181,7 +181,7 @@ class SubconPublicController extends Controller
             'passport_topics.*' => 'integer',
             'cert_title' => 'nullable|required_with:cert_file|string|max:255',
             'cert_expiry' => 'nullable|date',
-            'cert_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png,webp', 'max:5120'],
+            'cert_file' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:5120'],
         ], [
             'passport_topics.required' => 'Tick every Safety Passport item before registering.',
             'cert_title.required_with' => 'Give the certification a name.',

@@ -11,6 +11,13 @@ export const EVAL = {
 };
 export const EVAL_ORDER = ['good', 'poor', 'nonconformance', 'clientcomplaint'];
 
+export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export function formatBytes(bytes = 0) {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
 export const inputClass =
     'w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-base text-gray-900 placeholder-gray-400 ' +
     'focus:bg-white focus:border-brand-500 focus:ring-4 focus:ring-brand-500/20 transition disabled:opacity-60';

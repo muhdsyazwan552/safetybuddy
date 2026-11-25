@@ -2,7 +2,7 @@
 import React from 'react';
 import { Head, router, usePage } from '@inertiajs/react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
-import AppLayout from '@/Pages/WSIS/Layout';
+import AppLayout from '@/Pages/Admin/Company/Safety/Layout';
 import ToolboxTalkForm from '@/Components/inspector/ToolboxTalkForm';
 import { storageUrl } from '@/Components/inspector/kit';
 

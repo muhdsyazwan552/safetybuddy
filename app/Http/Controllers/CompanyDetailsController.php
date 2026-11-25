@@ -53,7 +53,7 @@ class CompanyDetailsController extends Controller
     {
         $company = Company::findOrFail($request->user()->company_id);
         $validated = $request->validate([
-            'logo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'logo' => ['required', 'mimes:jpg,jpeg,png', 'max:2048'],
         ]);
 
         $oldPath = $company->logo_path;

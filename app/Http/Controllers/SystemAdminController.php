@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Models\Company;
 use App\Models\AccountType;
 use App\Models\CompanyStaff;
@@ -42,7 +44,7 @@ class SystemAdminController extends Controller
                         ->orWhere('code', 'like', "%{$search}%")
                         ->orWhere('registration_no', 'like', "%{$search}%")
                         ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhereIn('id', User::query()->select('company_id')->where('role_id', 2)
+                        ->orWhereIn('id', User::query()->select('company_id')->where('role_id', UserRole::CompanyAdmin->value)
                             ->where(function ($users) use ($search) {
                                 $users->where('name', 'like', "%{$search}%")
                                     ->orWhere('email', 'like', "%{$search}%");
@@ -55,7 +57,7 @@ class SystemAdminController extends Controller
             ->withQueryString();
 
         $companyIds = $companies->getCollection()->pluck('id');
-        $admins = User::query()->whereIn('company_id', $companyIds)->where('role_id', 2)
+        $admins = User::query()->whereIn('company_id', $companyIds)->where('role_id', UserRole::CompanyAdmin->value)
             ->orderBy('id')->get(['id', 'company_id', 'name', 'email', 'phone', 'email_verified_at'])
             ->groupBy('company_id');
         $subscriptions = SubscriptionsCompany::query()->whereIn('company_id', $companyIds)
@@ -83,7 +85,7 @@ class SystemAdminController extends Controller
             ];
         }));
 
-        return Inertia::render('Admin/Companies', [
+        return Inertia::render('Admin/System/Companies', [
             'title' => 'Companies',
             'companies' => $companies,
             'accountTypes' => AccountType::orderBy('sort_order')->get(['id', 'name']),
@@ -95,12 +97,12 @@ class SystemAdminController extends Controller
     public function showCompany(Company $company)
     {
         $company->load(['accountType:id,name', 'trainingProvider:id,name,email,contact']);
-        $admins = User::query()->where('company_id', $company->id)->where('role_id', 2)
+        $admins = User::query()->where('company_id', $company->id)->where('role_id', UserRole::CompanyAdmin->value)
             ->orderBy('name')->get(['id', 'name', 'email', 'phone', 'created_at', 'email_verified_at']);
         $subscriptions = $company->subscriptions()->with(['module:id,name,code,price', 'plan:id,name,price_yearly'])
             ->orderByDesc('end_date')->orderByDesc('id')->get();
         $staff = CompanyStaff::where('company_id', $company->id)->with('role:id,name,display_name')->orderBy('name')->get();
-        $directEmployees = User::where('company_id', $company->id)->whereIn('role_id', [3, 4, 7])
+        $directEmployees = User::where('company_id', $company->id)->whereIn('role_id', UserRole::staffIds())
             ->when($staff->pluck('user_id')->filter()->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $staff->pluck('user_id')->filter()->all()))
             ->with('role:id,name,display_name')->orderBy('name')->get();
         $contractors = SubconCompany::where('company_id', $company->id)->with('subconStaff')->orderBy('name')->get();
@@ -126,7 +128,7 @@ class SystemAdminController extends Controller
                 })
             : null;
 
-        return Inertia::render('Admin/CompanyDetails', [
+        return Inertia::render('Admin/System/CompanyDetails', [
             'title' => $company->name,
             'company' => [
                 'id' => $company->id,
@@ -203,7 +205,7 @@ class SystemAdminController extends Controller
 
     public function dashboard()
     {
-        return Inertia::render('Admin/System_Dashboard', [
+        return Inertia::render('Admin/System/System_Dashboard', [
             'title' => 'System Administration',
             'paymentCards' => $this->paymentCards(),
             'approvals' => $this->pendingApprovals(),
@@ -213,7 +215,7 @@ class SystemAdminController extends Controller
 
     public function users()
     {
-        return Inertia::render('Admin/Users', [
+        return Inertia::render('Admin/System/Users', [
             'title' => 'Users',
             'users' => User::with(['role:id,display_name,name', 'company:id,name'])
                 ->latest('created_at')
@@ -225,7 +227,7 @@ class SystemAdminController extends Controller
 
     public function createUser()
     {
-        return Inertia::render('Admin/UserCreate', [
+        return Inertia::render('Admin/System/UserCreate', [
             'title' => 'Create user',
             'roles' => Role::orderBy('id')->get(['id', 'name', 'display_name']),
             'companies' => Company::orderBy('name')->get(['id', 'name']),
@@ -328,7 +330,7 @@ class SystemAdminController extends Controller
         $since = $months->first()['from']->lt($weeks->first()['from']) ? $months->first()['from'] : $weeks->first()['from'];
         $payments = $this->confirmedPayments($since);
         $addons = DB::table('subscription_addons')->whereNotIn('payment_id', fn ($q) => $q->select('id')->from('payments')->where('payment_status', 'failed'))->where('created_at', '>=', $since)->get(['total_amount', 'created_at'])->map(function ($row) { $row->created_at = Carbon::parse($row->created_at); return $row; });
-        $signups = DB::table('users')->where('role_id', 2)->where('created_at', '>=', $since)->pluck('created_at')->map(fn ($date) => Carbon::parse($date));
+        $signups = DB::table('users')->where('role_id', UserRole::CompanyAdmin->value)->where('created_at', '>=', $since)->pluck('created_at')->map(fn ($date) => Carbon::parse($date));
 
         $build = fn ($buckets) => $buckets->map(function ($bucket) use ($payments, $addons, $signups) {
             $within = fn ($date) => $date >= $bucket['from'] && $date <= $bucket['to'];
@@ -363,7 +365,7 @@ class SystemAdminController extends Controller
 
         $validated['password'] = Hash::make($validated['password']);
         DB::transaction(function () use ($validated) {
-            if (in_array((int) $validated['role_id'], [3, 4, 7], true)) {
+            if (in_array((int) $validated['role_id'], UserRole::staffIds(), true)) {
                 if (empty($validated['company_id'])) {
                     throw ValidationException::withMessages(['company_id' => 'Select a company for this employee role.']);
                 }
@@ -387,12 +389,12 @@ class SystemAdminController extends Controller
             'password' => ['nullable', 'string', 'min:10', 'confirmed'],
         ]);
 
-        if ($request->user()->is($user) && (int) $validated['role_id'] !== 1) {
+        if ($request->user()->is($user) && (int) $validated['role_id'] !== UserRole::SystemAdmin->value) {
             return back()->withErrors(['role_id' => 'You cannot remove your own System Admin role.']);
         }
 
         if (CompanyStaff::where('user_id', $user->id)->exists()
-            && (! in_array((int) $validated['role_id'], [3, 4, 7], true) || empty($validated['company_id']))) {
+            && (! in_array((int) $validated['role_id'], UserRole::staffIds(), true) || empty($validated['company_id']))) {
             return back()->withErrors(['role_id' => 'Linked staff accounts must keep an employee role and company.']);
         }
 
@@ -406,7 +408,7 @@ class SystemAdminController extends Controller
             $newCompanyId = $validated['company_id'] ?? null;
             $newRoleId = (int) $validated['role_id'];
             $roleOrCompanyChanged = $newRoleId !== (int) $user->role_id || (int) $newCompanyId !== (int) $user->company_id;
-            if ($roleOrCompanyChanged && in_array($newRoleId, [3, 4, 7], true)) {
+            if ($roleOrCompanyChanged && in_array($newRoleId, UserRole::staffIds(), true)) {
                 if (! $newCompanyId) {
                     throw ValidationException::withMessages(['company_id' => 'Select a company for this employee role.']);
                 }
@@ -463,7 +465,7 @@ class SystemAdminController extends Controller
                 'created_at' => $subscription->created_at?->format('Y-m-d H:i:s'),
             ]);
 
-        return Inertia::render('Admin/Subscription_Management', [
+        return Inertia::render('Admin/System/Subscription_Management', [
             'title' => 'Subscription Management',
             'stats' => [
                 'active' => $subscriptions->where('status', 'active')->count(),
@@ -481,7 +483,7 @@ class SystemAdminController extends Controller
             ? SubscriptionsCompany::with(['company:id,name', 'module:id,name,code', 'plan:id,name'])->findOrFail($request->query('renew'))
             : null;
 
-        return Inertia::render('Admin/SubscriptionCreate', [
+        return Inertia::render('Admin/System/SubscriptionCreate', [
             'title' => $renew ? 'Renew Subscription' : 'Create Subscription',
             'companies' => Company::orderBy('name')->get(['id', 'name', 'code']),
             'packages' => Module::orderBy('name')->get(['id', 'name', 'code', 'price', 'is_active']),
@@ -508,7 +510,7 @@ class SystemAdminController extends Controller
     {
         $subscription->load(['company:id,name,code,email,contact,account_type_id', 'company.accountType:id,name', 'module:id,name,code,description,price', 'plan:id,name,price_yearly,manager_limit,supervisor_limit,inspector_limit,contractor_limit']);
 
-        return Inertia::render('Admin/SubscriptionDetails', [
+        return Inertia::render('Admin/System/SubscriptionDetails', [
             'title' => 'Subscription Details',
             'subscription' => [
                 'id' => $subscription->id,
@@ -536,7 +538,7 @@ class SystemAdminController extends Controller
 
     public function packages()
     {
-        return Inertia::render('Admin/Packages', [
+        return Inertia::render('Admin/System/Packages', [
             'title' => 'Packages',
             'packages' => Module::orderBy('name')->get(['id', 'code', 'name', 'description', 'price', 'is_active']),
             'subscriptionPlans' => SubscriptionPlan::orderBy('sort_order')->get(),
@@ -545,12 +547,12 @@ class SystemAdminController extends Controller
 
     public function createPackage()
     {
-        return Inertia::render('Admin/PackageForm', ['title' => 'Add Package', 'package' => null]);
+        return Inertia::render('Admin/System/PackageForm', ['title' => 'Add Package', 'package' => null]);
     }
 
     public function editPackage(Module $module)
     {
-        return Inertia::render('Admin/PackageForm', [
+        return Inertia::render('Admin/System/PackageForm', [
             'title' => 'Edit Package',
             'package' => $module->only(['id', 'code', 'name', 'description', 'price', 'is_active']),
         ]);
@@ -558,7 +560,7 @@ class SystemAdminController extends Controller
 
     public function approvals()
     {
-        return Inertia::render('Admin/Approvals', [
+        return Inertia::render('Admin/System/Approvals', [
             'title' => 'Subscription Approvals',
             'planRequests' => SubscriptionPlanRequest::with(['company:id,name,code', 'plan:id,name,code'])
                 ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")->latest()->get(),
@@ -567,7 +569,7 @@ class SystemAdminController extends Controller
 
     public function slotOrders()
     {
-        return Inertia::render('Admin/SlotOrders', [
+        return Inertia::render('Admin/System/SlotOrders', [
             'title' => 'Slot Orders',
             'slotOrders' => \App\Models\SubscriptionAddon::with(['payment:id,payment_status', 'company:id,name,code'])
                 ->latest('id')->limit(200)->get()

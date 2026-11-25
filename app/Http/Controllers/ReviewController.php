@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Support\UploadedAssets;
 use App\Models\CompanyStaff;
 use App\Models\Inspection;
@@ -43,9 +45,9 @@ class ReviewController extends Controller
         $role = (int) Auth::user()->role_id;
 
         return [
-            'is_manager' => $role === 3,
-            'can_verify' => in_array($role, [3, 4], true),
-            'can_approve' => $role === 3,
+            'is_manager' => $role === UserRole::Manager->value,
+            'can_verify' => in_array($role, UserRole::reviewerIds(), true),
+            'can_approve' => $role === UserRole::Manager->value,
         ];
     }
 
@@ -144,7 +146,7 @@ class ReviewController extends Controller
         // The month filter only asks for the performance cards (Inertia partial reload). Answer just that:
         // everything else below (visits, cases, incidents, report refresh) does not depend on the month and is heavy.
         if ($request->header('X-Inertia-Partial-Data') === 'performance') {
-            return Inertia::render('Review/Dashboard', ['performance' => $this->performanceFor($companyId, $month, $currentPeriod)]);
+            return Inertia::render('ManagerSupervisor/Dashboard', ['performance' => $this->performanceFor($companyId, $month, $currentPeriod)]);
         }
 
         // keep the daily reports up to date, at most once a minute per company (the reports page always refreshes)
@@ -176,7 +178,7 @@ class ReviewController extends Controller
             ->groupBy('evaluation')->pluck('total', 'evaluation');
         $settings = PerformanceSetting::where('company_id', $companyId)->first()?->snapshot() ?? Spgpnc::DEFAULTS;
 
-        return Inertia::render('Review/Dashboard', [
+        return Inertia::render('ManagerSupervisor/Dashboard', [
             'compliance' => Spgpnc::dashboardCompliance($inspectionTotals->sum(), $inspectionTotals->get('good', 0), $settings),
             'counts' => [
                 'visits_verify' => $toVerify->count(),
@@ -205,7 +207,7 @@ class ReviewController extends Controller
 
     public function inspectionsIndex(Request $request)
     {
-        return Inertia::render('Review/Inspections', [
+        return Inertia::render('ManagerSupervisor/Inspections', [
             'inspections' => $this->inspections()->latest('id')->get(),
             'filter' => $request->query('status', 'all'),
             ...$this->roleFlags(),
@@ -250,7 +252,7 @@ class ReviewController extends Controller
         $subcons = \Illuminate\Support\Facades\DB::table('project_assign')->where('entity_type', 'compsub')->whereIn('project_id', $ids)
             ->selectRaw('project_id, count(*) as n')->groupBy('project_id')->pluck('n', 'project_id');
 
-        return Inertia::render('Review/Projects', [
+        return Inertia::render('ManagerSupervisor/Projects', [
             'filters' => ['q' => $q, 'status' => $status],
             'statusCounts' => $statusCounts,
             'projects' => $rows->map(fn ($p) => [
@@ -310,7 +312,7 @@ class ReviewController extends Controller
         $manhours = \App\Models\Manhour::where('project_id', $id)
             ->selectRaw('count(distinct work_date) as days, coalesce(sum(worker_count * working_hours), 0) as total')->first();
 
-        return Inertia::render('Review/ProjectShow', [
+        return Inertia::render('ManagerSupervisor/ProjectShow', [
             'project' => $project->only(['id', 'name', 'location', 'status', 'start_date', 'end_date']),
             'stats' => [
                 'inspections' => $inspections->count(),
@@ -354,7 +356,7 @@ class ReviewController extends Controller
         $today = \App\Models\Manhour::whereIn('subcon_company_id', $ids)->where('work_date', now()->toDateString())
             ->selectRaw('subcon_company_id, sum(worker_count) as n')->groupBy('subcon_company_id')->pluck('n', 'subcon_company_id');
 
-        return Inertia::render('Review/Subcons', [
+        return Inertia::render('ManagerSupervisor/Subcons', [
             'filters' => ['q' => $q],
             'companies' => $companies->map(fn ($c) => [
                 'id' => $c->id,
@@ -375,7 +377,7 @@ class ReviewController extends Controller
         $company = \App\Support\SubconDetail::find($id, $this->companyId());
         $detail = \App\Support\SubconDetail::for($company);
 
-        return Inertia::render('Review/SubconShow', [
+        return Inertia::render('ManagerSupervisor/SubconShow', [
             'company' => $company->only(['id', 'name', 'email', 'contact', 'address', 'status']),
         ] + $detail);
     }
@@ -413,7 +415,7 @@ class ReviewController extends Controller
         $rows = $f['sort'] === 'oldest' ? $rows->sortBy('created_at') : $rows->sortByDesc('created_at');
         [$page, $meta] = $this->pageOf($rows->values(), $f['page']);
 
-        return Inertia::render('Review/Cases', [
+        return Inertia::render('ManagerSupervisor/Cases', [
             'cases' => $page,
             'meta' => $meta,
             'counts' => $counts,
@@ -506,7 +508,7 @@ class ReviewController extends Controller
         $rows = $f['sort'] === 'oldest' ? $rows->sortBy('sort') : $rows->sortByDesc('sort');
         [$page, $meta] = $this->pageOf($rows->values(), $f['page']);
 
-        return Inertia::render('Review/Visits', [
+        return Inertia::render('ManagerSupervisor/Visits', [
             'visits' => $page,
             'meta' => $meta,
             'counts' => $counts,
@@ -546,7 +548,7 @@ class ReviewController extends Controller
 
     public function visitApprove(int $id)
     {
-        abort_unless((int) Auth::user()->role_id === 3, 403, 'Only a Manager can approve.');
+        abort_unless((int) Auth::user()->role_id === UserRole::Manager->value, 403, 'Only a Manager can approve.');
         $staffId = CompanyStaff::where('user_id', Auth::id())->value('id');
         $talk = $this->visitTalk($id);
 
@@ -604,6 +606,8 @@ class ReviewController extends Controller
                 'project' => optional($t->project)->name,
                 'by' => optional($t->CompanyStaff)->name,
                 'conducted' => $t->conducted === 'yes',
+                'status' => $t->status ?: \App\Models\Inspection::STATUS_PENDING,
+                'review_comment' => $t->review_comment,
                 'attended' => (int) $t->total_attended,
                 'categories' => $t->categories->pluck('name')->values(),
                 'sp_sampled' => $t->sp_sampled,
@@ -612,7 +616,7 @@ class ReviewController extends Controller
                 'inspections' => $t->inspections()->count(),
             ]);
 
-        return Inertia::render('Review/Toolbox', ['talks' => $talks]);
+        return Inertia::render('ManagerSupervisor/Toolbox', ['talks' => $talks]);
     }
 
     // ------------------------------------------------------------------ reported accidents (incidents)
@@ -698,7 +702,7 @@ class ReviewController extends Controller
         $rows = $f['sort'] === 'oldest' ? $rows->sortBy('date') : $rows->sortByDesc('date');
         [$page, $meta] = $this->pageOf($rows->values(), $f['page']);
 
-        return Inertia::render('Review/Incidents', [
+        return Inertia::render('ManagerSupervisor/Incidents', [
             'incidents' => $page,
             'meta' => $meta,
             'counts' => $counts,
@@ -722,7 +726,7 @@ class ReviewController extends Controller
             'incident_id' => $incident->id,
             'staff_id' => $staff?->id,
             'staff_name' => $staff?->name ?? $user->name,
-            'role_label' => (int) $user->role_id === 3 ? 'Manager' : 'Supervisor',
+            'role_label' => (int) $user->role_id === UserRole::Manager->value ? 'Manager' : 'Supervisor',
             'type' => $type,
             'message' => $message,
         ]);
@@ -731,7 +735,7 @@ class ReviewController extends Controller
     /** A Supervisor reviews a submitted incident. */
     public function incidentRespond(Request $request, int $id)
     {
-        abort_unless((int) Auth::user()->role_id === 4, 403, 'Only a Supervisor can review incidents.');
+        abort_unless((int) Auth::user()->role_id === UserRole::Supervisor->value, 403, 'Only a Supervisor can review incidents.');
         $data = $request->validate(['message' => 'required|string|min:3|max:2000']);
         $incident = $this->incidentOwn($id);
         abort_unless(in_array(strtolower((string) $incident->status), ['', 'open'], true), 422, 'Only submitted incidents can be reviewed.');
@@ -745,7 +749,7 @@ class ReviewController extends Controller
     /** A Manager approves an incident after the Supervisor's review. */
     public function incidentClose(Request $request, int $id)
     {
-        abort_unless((int) Auth::user()->role_id === 3, 403, 'Only a Manager can approve incidents.');
+        abort_unless((int) Auth::user()->role_id === UserRole::Manager->value, 403, 'Only a Manager can approve incidents.');
         $data = $request->validate(['message' => 'required|string|min:3|max:2000']);
         $incident = $this->incidentOwn($id);
         abort_unless(strtolower((string) $incident->status) === 'inprogress', 422, 'The incident must be reviewed before approval.');
@@ -759,7 +763,7 @@ class ReviewController extends Controller
     /** Manager reopens a closed incident. */
     public function incidentReopen(Request $request, int $id)
     {
-        abort_unless((int) Auth::user()->role_id === 3, 403, 'Only a Manager can reopen an incident.');
+        abort_unless((int) Auth::user()->role_id === UserRole::Manager->value, 403, 'Only a Manager can reopen an incident.');
         $data = $request->validate(['message' => 'nullable|string|max:2000']);
         $incident = $this->incidentOwn($id);
         abort_unless(strtolower((string) $incident->status) === 'closed', 422, 'Only a closed incident can be reopened.');
@@ -774,11 +778,11 @@ class ReviewController extends Controller
     {
         $incident = $this->incidentQuery()->findOrFail($id);
 
-        return Inertia::render('Review/IncidentShow', [
+        return Inertia::render('ManagerSupervisor/IncidentShow', [
             'incident' => $this->incidentRow($incident, true),
-            'can_review_incident' => (int) Auth::user()->role_id === 4,
-            'can_approve_incident' => (int) Auth::user()->role_id === 3,
-            'can_reopen_incident' => (int) Auth::user()->role_id === 3,
+            'can_review_incident' => (int) Auth::user()->role_id === UserRole::Supervisor->value,
+            'can_approve_incident' => (int) Auth::user()->role_id === UserRole::Manager->value,
+            'can_reopen_incident' => (int) Auth::user()->role_id === UserRole::Manager->value,
         ]);
     }
 
@@ -788,7 +792,7 @@ class ReviewController extends Controller
         $visit = \App\Support\VisitFeed::collect($this->companyId())->firstWhere('key', $key);
         abort_unless($visit, 404);
 
-        return Inertia::render('Review/VisitShow', ['visit' => $visit] + $this->roleFlags());
+        return Inertia::render('ManagerSupervisor/VisitShow', ['visit' => $visit] + $this->roleFlags());
     }
 
     /** Full detail of one toolbox talk: attendance, Safety Passport sampling and its calculation. */
@@ -801,14 +805,14 @@ class ReviewController extends Controller
             ->whereHas('project', fn ($q) => $q->where('company_id', $this->companyId()))
             ->findOrFail($id);
 
-        return Inertia::render('Review/ToolboxShow', ['talk' => \App\Support\DetailRows::toolbox($t)]);
+        return Inertia::render('ManagerSupervisor/ToolboxShow', ['talk' => \App\Support\DetailRows::toolbox($t)]);
     }
 
     /** Full detail of one NC / CC case with its timeline. */
     public function caseShow(string $type, int $id)
     {
         $case = $this->findCase($type, $id);
-        return Inertia::render('Review/CaseShow', ['item' => CaseFeed::detail($type, $case)]);
+        return Inertia::render('ManagerSupervisor/CaseShow', ['item' => CaseFeed::detail($type, $case)]);
     }
 
     /** Full detail of one inspection. */
@@ -822,7 +826,7 @@ class ReviewController extends Controller
             ->where('company_id', $this->companyId())
             ->findOrFail($id);
 
-        return Inertia::render('Review/InspectionShow', ['inspection' => \App\Support\DetailRows::inspection($i)] + $this->roleFlags());
+        return Inertia::render('ManagerSupervisor/InspectionShow', ['inspection' => \App\Support\DetailRows::inspection($i)] + $this->roleFlags());
     }
 
     private function findCase(string $type, int $id)
@@ -833,13 +837,16 @@ class ReviewController extends Controller
         return $case;
     }
 
-    /** Approve the subcontractor's reply - the case is closed. */
+    /**
+     * Accept the contractor's reply - the case is closed. The inspection can only be verified and approved after this.
+     */
     public function closeCase(Request $request, string $type, int $id)
     {
         $case = $this->findCase($type, $id);
-        if ($case->inspection->status !== Inspection::STATUS_APPROVED || !$case->subcon_response || $case->return_reason) {
+        abort_if($case->status === 'closed', 422, 'This case is already closed.');
+        if (!$case->subcon_response || $case->return_reason) {
             throw \Illuminate\Validation\ValidationException::withMessages([
-                'comment' => 'The case needs a submitted corrective action and an approved inspection before it can be closed.',
+                'comment' => 'The contractor must submit a corrective action (and any returned reply must be answered again) before the case can be closed.',
             ]);
         }
         $data = $request->validate(['comment' => 'nullable|string|max:1000']);

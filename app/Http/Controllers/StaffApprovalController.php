@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Support\UploadedAssets;
 use App\Models\CompanyStaff;
 use App\Models\SubconStaff;
@@ -22,7 +24,7 @@ class StaffApprovalController extends Controller
 
     public function index()
     {
-        $isManager = (int) Auth::user()->role_id === 3;
+        $isManager = (int) Auth::user()->role_id === UserRole::Manager->value;
 
         $rows = $this->query()->where('status', 'pending')->orderBy('created_at')->get()
             ->map(fn (SubconStaff $s) => [
@@ -40,7 +42,7 @@ class StaffApprovalController extends Controller
                 'can_approve' => $s->is_safetypassport && !($isManager ? $s->manager_approved_at : $s->supervisor_approved_at),
             ])->values();
 
-        return Inertia::render('Review/StaffApproval', [
+        return Inertia::render('ManagerSupervisor/StaffApproval', [
             'staff' => $rows,
             'myRole' => $isManager ? 'manager' : 'supervisor',
         ]);
@@ -51,7 +53,7 @@ class StaffApprovalController extends Controller
     {
         $s = $this->query()->with('certifications')->findOrFail($id);
         $company = $s->subconCompany()->first();
-        $isManager = (int) Auth::user()->role_id === 3;
+        $isManager = (int) Auth::user()->role_id === UserRole::Manager->value;
 
         $names = CompanyStaff::whereIn('id', array_filter([$s->supervisor_approved_by, $s->manager_approved_by]))->pluck('name', 'id');
         $ackedAt = \Illuminate\Support\Facades\DB::table('subcon_induction_acks')->where('subcon_company_id', $company->id)->pluck('acknowledged_at', 'topic_id');
@@ -63,7 +65,7 @@ class StaffApprovalController extends Controller
             'items' => $t->items->map(fn ($i) => ['type' => $i->type, 'content' => $i->content])->values(),
         ])->values();
 
-        return Inertia::render('Review/StaffApprovalShow', [
+        return Inertia::render('ManagerSupervisor/StaffApprovalShow', [
             'staff' => [
                 'id' => $s->id,
                 'code' => $s->code,
@@ -96,7 +98,7 @@ class StaffApprovalController extends Controller
     /** Record my approval (Manager or Supervisor) on one worker; false when there is nothing to do. */
     private function approveOne(SubconStaff $staff): bool
     {
-        $manager = (int) Auth::user()->role_id === 3;
+        $manager = (int) Auth::user()->role_id === UserRole::Manager->value;
         if (!$staff->is_safetypassport || $staff->status !== 'pending' || ($manager ? $staff->manager_approved_at : $staff->supervisor_approved_at)) {
             return false;
         }
@@ -120,7 +122,7 @@ class StaffApprovalController extends Controller
 
         return back()->with('success', $staff->status === 'active'
             ? "{$staff->name} is now Active."
-            : ((int) Auth::user()->role_id === 3 ? 'Approved. Waiting for the Supervisor to verify.' : 'Verified. Waiting for the Manager to approve.'));
+            : ((int) Auth::user()->role_id === UserRole::Manager->value ? 'Approved. Waiting for the Supervisor to verify.' : 'Verified. Waiting for the Manager to approve.'));
     }
 
     /** Approve the selected workers in one go. */
@@ -133,7 +135,7 @@ class StaffApprovalController extends Controller
             $done += $this->approveOne($staff) ? 1 : 0;
         }
 
-        $verb = (int) Auth::user()->role_id === 3 ? 'approved' : 'verified';
+        $verb = (int) Auth::user()->role_id === UserRole::Manager->value ? 'approved' : 'verified';
 
         return back()->with('success', $done ? "{$done} staff {$verb}." : 'Nothing to ' . ($verb === 'approved' ? 'approve' : 'verify') . ' in the selection.');
     }

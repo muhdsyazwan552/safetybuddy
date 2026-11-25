@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\UserRole;
+
 use App\Http\Controllers\SubscriptionPlanController;
 use Closure;
 use Illuminate\Http\Request;
@@ -11,11 +13,11 @@ class EnsureCompanyPurchased
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if (!$request->user() || !in_array((int) $request->user()->role_id, [2, 3, 4, 7, 8], true)) {
+        if (!$request->user() || !in_array((int) $request->user()->role_id, UserRole::companyIds(), true)) {
             return $next($request);
         }
 
-        if ((int) $request->user()->role_id === 2
+        if ((int) $request->user()->role_id === UserRole::CompanyAdmin->value
             && $request->user()->email_verification_required
             && ! $request->user()->hasVerifiedEmail()) {
             if (! $request->is('verify-email', 'verify-email/*', 'email/verification-notification', 'logout')) {

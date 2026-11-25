@@ -6,10 +6,10 @@ import {
     Check, X, ChevronLeft, Plus, Trash2, Send, Loader2, AlertCircle, ClipboardCheck, HardHat, ArrowRight, CheckCircle2,
 } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
-import AppLayout from '@/Pages/WSIS/Layout';
+import AppLayout from '@/Pages/Admin/Company/Safety/Layout';
 import InspectionFields from '@/Components/inspector/InspectionFields';
 import ToolboxTalkForm from '@/Components/inspector/ToolboxTalkForm';
-import { ActionBar, Field, EVAL, inputClass, ghostBtn, darkBtn, primaryBtn } from '@/Components/inspector/kit';
+import { ActionBar, Field, EVAL, inputClass, ghostBtn, darkBtn, primaryBtn, formatBytes } from '@/Components/inspector/kit';
 import DateInput from '@/Components/shared/DateInput';
 
 // local calendar date (toISOString would give the UTC date, i.e. yesterday in Malaysia before 8am)
@@ -119,10 +119,13 @@ export default function NewVisit({
         setIdx(Math.min(idx, next.length - 1));
     };
     const pickPhotos = (fileList) => {
-        const all = Array.from(fileList || []);
+        const picked = Array.from(fileList || []);
+        const okType = (f) => /^image\/(jpeg|png)$/.test(f.type);
+        const badType = picked.filter((f) => !okType(f));
+        const all = picked.filter(okType);
         const files = all.filter((f) => f.size <= 5 * 1024 * 1024);
         const skipped = all.length - files.length;
-        setErrors((e) => ({ ...e, photos: skipped ? `${skipped} photo(s) were not added: each photo must be smaller than 5 MB.` : undefined }));
+        setErrors((e) => ({ ...e, photos: (badType.length ? `Only JPG, JPEG or PNG photos are allowed. Not added: ${badType.map((f) => f.name).join(', ')}. ` : '') + (skipped ? `${skipped} photo(s) not added (max 5 MB each): ${all.filter((f) => f.size > 5 * 1024 * 1024).map((f) => `${f.name} (${formatBytes(f.size)})`).join(', ')}` : '') || undefined }));
         const previews = files.map((f) => URL.createObjectURL(f));
         setItems((all) => all.map((it, i) => (i === idx ? { ...it, photos: [...it.photos, ...files], previews: [...it.previews, ...previews] } : it)));
     };
@@ -385,7 +388,7 @@ export default function NewVisit({
                                 categories={categories}
                                 evaluations={evaluations.length ? evaluations : undefined}
                                 errors={errors}
-                                newPhotos={item.previews.map((preview) => ({ preview }))}
+                                newPhotos={item.previews.map((preview, i) => ({ preview, size: item.photos[i]?.size }))}
                                 onPickPhotos={pickPhotos}
                                 onRemovePhoto={removePhoto}
                             />

@@ -218,7 +218,7 @@ class SystemAdminCompaniesTest extends TestCase
     {
         $this->actingAs(User::findOrFail(1))->get(route('system.admin.companies.index', ['search' => 'owner@acme.test']))
             ->assertOk()->assertInertia(fn (Assert $page) => $page
-                ->component('Admin/Companies')
+                ->component('Admin/System/Companies')
                 ->where('companies.total', 1)
                 ->where('companies.data.0.name', 'Acme Safety')
                 ->where('companies.data.0.account_type', 'Normal')
@@ -227,7 +227,7 @@ class SystemAdminCompaniesTest extends TestCase
 
         $this->actingAs(User::findOrFail(1))->get(route('system.admin.companies.show', 10))
             ->assertOk()->assertInertia(fn (Assert $page) => $page
-                ->component('Admin/CompanyDetails')
+                ->component('Admin/System/CompanyDetails')
                 ->where('company.name', 'Acme Safety')
                 ->where('admins.0.email', 'owner@acme.test')
                 ->where('subscriptions.0.module', 'Safety Buddy')
@@ -244,13 +244,13 @@ class SystemAdminCompaniesTest extends TestCase
     public function test_subscription_and_package_pages_and_package_edit(): void
     {
         $this->actingAs(User::findOrFail(1))->get(route('system.admin.subscriptions'))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/Subscription_Management')->where('subscriptions.0.company_name', 'Acme Safety')->etc());
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/Subscription_Management')->where('subscriptions.0.company_name', 'Acme Safety')->etc());
         $this->get(route('system.admin.subscriptions.show', 1))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/SubscriptionDetails')->where('subscription.company.name', 'Acme Safety')->etc());
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/SubscriptionDetails')->where('subscription.company.name', 'Acme Safety')->etc());
         $this->get(route('system.admin.subscriptions.create', ['renew' => 1]))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/SubscriptionCreate')->where('renew.company_id', 10)->etc());
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/SubscriptionCreate')->where('renew.company_id', 10)->etc());
         $this->get(route('system.admin.packages.index'))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/Packages')->where('packages.0.name', 'Safety Buddy')->etc());
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/Packages')->where('packages.0.name', 'Safety Buddy')->etc());
         $this->get(route('system.admin.packages.create'))->assertOk();
         $this->get(route('system.admin.packages.edit', 1))->assertOk();
         DB::table('subscription_plans')->insert(['id' => 1, 'code' => 'STARTER', 'name' => 'Starter', 'price_yearly' => 100]);
@@ -260,7 +260,7 @@ class SystemAdminCompaniesTest extends TestCase
             ['id' => 2, 'batch_ref' => 'BATCH-1', 'provider_company_id' => 10, 'plan_id' => 1, 'price_yearly' => 100, 'status' => 'pending'],
         ]);
         $this->get(route('system.admin.approvals'))->assertOk()->assertInertia(fn (Assert $page) => $page
-            ->component('Admin/Approvals')->where('planRequests.0.status', 'pending')->missing('packageOrders')->missing('trainingApplications')->etc());
+            ->component('Admin/System/Approvals')->where('planRequests.0.status', 'pending')->missing('packageOrders')->missing('trainingApplications')->etc());
 
         $this->put(route('system.admin.packages.update', 1), [
             'code' => 'SB360', 'name' => 'Updated Safety Buddy', 'description' => 'Updated', 'price' => 150, 'is_active' => 'N',
@@ -294,14 +294,14 @@ class SystemAdminCompaniesTest extends TestCase
         DB::table('subscriptions_company')->where('id', 1)->update(['subscription_plan_id' => 1]);
 
         $this->actingAs(User::findOrFail(1))->get(route('system.admin.packages.index'))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/Packages')->where('subscriptionPlans.0.name', 'Starter')->etc());
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/Packages')->where('subscriptionPlans.0.name', 'Starter')->etc());
         $this->get(route('system.admin.plans.create'))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/PlanCreate')->etc());
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/PlanCreate')->etc());
         $this->get(route('system.admin.plans.show', 1))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/PlanDetails')
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/PlanDetails')
                 ->where('plan.provider_price_yearly', 700)->where('usage.subscriptions', 1)->etc());
         $this->get(route('system.admin.plans.edit', 1))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/PlanEdit')->where('plan.code', 'STARTER')->etc());
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/PlanEdit')->where('plan.code', 'STARTER')->etc());
 
         $this->put(route('system.admin.plans.update', 1), [
             'name' => 'Starter Plus', 'price_yearly' => 900, 'provider_price_yearly' => 750,
@@ -336,10 +336,10 @@ class SystemAdminCompaniesTest extends TestCase
         ]);
 
         $this->actingAs(User::findOrFail(1))->get(route('system.admin.training-providers.approvals'))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/TrainingProviderApprovals')
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/TrainingProviderApprovals')
                 ->where('applications.0.company.name', 'Acme Safety')->where('applications.0.certificates_count', 1)->etc());
         $this->get(route('system.admin.training-providers.approvals.show', 1))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/TrainingProviderApprovalDetails')
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/TrainingProviderApprovalDetails')
                 ->where('application.company.name', 'Acme Safety')->where('application.certificates.0.issuing_body', 'Training Board')->etc());
 
         $this->post(route('system.admin.training-providers.approve', 1))->assertSessionHasErrors('reviewed');
@@ -393,21 +393,21 @@ class SystemAdminCompaniesTest extends TestCase
         ]);
 
         $this->actingAs(User::findOrFail(1))->get(route('system.admin.training-providers.index', ['search' => 'PRO-123']))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/TrainingProviders')
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/TrainingProviders')
                 ->where('providers.total', 1)
                 ->where('providers.data.0.name', 'Provider One')
                 ->where('providers.data.0.trainees_count', 1)
                 ->missing('orders')
                 ->etc());
         $this->get(route('system.admin.training-providers.companies', 12))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/CompanyDetails')
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/CompanyDetails')
                 ->where('company.name', 'Provider One')
                 ->where('company.is_training_provider', true)
                 ->where('linkedCompanies.data.0.name', 'Linked Trainee')
                 ->where('linkedCompanies.data.0.package', 'Starter')
                 ->etc());
         $this->get(route('system.admin.companies.show', 13))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/CompanyDetails')
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/CompanyDetails')
                 ->where('company.name', 'Linked Trainee')
                 ->where('slots.roles.3.used', 1)
                 ->where('employees.0.name', 'Site Manager')
@@ -415,14 +415,14 @@ class SystemAdminCompaniesTest extends TestCase
                 ->where('contractors.0.staff.0.name', 'Contractor Worker')
                 ->etc());
         $this->get(route('system.admin.training-providers.orders'))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/TrainingProviderOrders')
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/TrainingProviderOrders')
                 ->where('orders.0.quantity', 2)
                 ->where('orders.0.provider_id', 12)
                 ->where('orders.0.available', 0)
                 ->missing('orders.0.codes.0')
                 ->etc());
         $this->get(route('system.admin.training-providers.orders.show', 'ORDER-1'))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/TrainingProviderOrderDetails')
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/TrainingProviderOrderDetails')
                 ->where('order.provider', 'Provider One')
                 ->where('order.codes.0.code', null)
                 ->etc());
@@ -434,7 +434,7 @@ class SystemAdminCompaniesTest extends TestCase
             'code' => 'PRO-PK-DDDD-EEEE-FFFF', 'status' => 'available',
         ]);
         $this->get(route('system.admin.training-providers.orders.show', 'ORDER-1'))
-            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/TrainingProviderOrderDetails')
+            ->assertOk()->assertInertia(fn (Assert $page) => $page->component('Admin/System/TrainingProviderOrderDetails')
                 ->where('order.status', 'partially used')
                 ->where('order.used', 1)
                 ->where('order.available', 1)

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -63,7 +65,7 @@ class AuthController extends Controller
             $user = Auth::user();
             $role_id = $user->role_id;
 
-            if ($role_id == 2 && $user->email_verification_required && ! $user->hasVerifiedEmail()) {
+            if ($role_id == UserRole::CompanyAdmin->value && $user->email_verification_required && ! $user->hasVerifiedEmail()) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
@@ -77,7 +79,7 @@ class AuthController extends Controller
             // Role-based redirection
             $redirectPath = $this->getRedirectPathByRole($role_id);
 
-            return $role_id == 2 ? redirect()->to($redirectPath) : redirect()->intended($redirectPath);
+            return $role_id == UserRole::CompanyAdmin->value ? redirect()->to($redirectPath) : redirect()->intended($redirectPath);
         }
 
         Log::debug('Authentication failed', ['email' => $credentials['email']]);
@@ -98,24 +100,24 @@ class AuthController extends Controller
      */
     protected function getRedirectPathByRole($role_id)
     {
-        if ($role_id == 1) {
+        if ($role_id == UserRole::SystemAdmin->value) {
             return '/admin/dashboard';
         }
 
         // Company accounts go straight to the dashboard when their package is active.
-        if ($role_id == 2) {
+        if ($role_id == UserRole::CompanyAdmin->value) {
             return \App\Http\Controllers\SubscriptionPlanController::hasActiveSafety((int) Auth::user()->company_id)
                 ? '/dashboard'
                 : '/plans';
         }
 
         // Manager (3) and Supervisor (4) use the review portal
-        if (in_array($role_id, [3, 4])) {
+        if (in_array($role_id, UserRole::reviewerIds())) {
             return '/review/dashboard';
         }
 
-        // Roles 7, 8 go to inspector dashboard
-        if (in_array($role_id, [7, 8])) {
+        // Inspectors (role 7) go to the inspector dashboard
+        if (in_array($role_id, UserRole::inspectorIds())) {
             return '/inspector/dashboard';
         }
 
@@ -169,7 +171,7 @@ class AuthController extends Controller
                 'phone' => $validated['phone'],
                 'address' => $validated['address'],
                 'company_id' => $companyId,
-                'role_id' => 2,
+                'role_id' => UserRole::CompanyAdmin->value,
                 'email_verification_required' => true,
             ]);
         });
@@ -197,12 +199,12 @@ class AuthController extends Controller
 
     public function listProject()
     {
-        return Inertia::render('WSIS/ListProject', []);
+        return Inertia::render('Admin/Company/Safety/ListProject', []);
     }
 
     public function index()
     {
-        return Inertia::render('Admin/Dashboard', []);
+        return Inertia::render('Admin/System/Dashboard', []);
     }
 
     public function logout(Request $request)

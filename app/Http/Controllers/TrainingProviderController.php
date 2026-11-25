@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Support\UploadedAssets;
 use App\Models\SubscriptionPlan;
 use App\Models\SubscriptionPlanRequest;
@@ -23,7 +25,7 @@ class TrainingProviderController extends Controller
 {
     public function store(Request $request)
     {
-        abort_unless((int) $request->user()->role_id === 2, 403, 'Only the company admin can apply.');
+        abort_unless((int) $request->user()->role_id === UserRole::CompanyAdmin->value, 403, 'Only the company admin can apply.');
         $companyId = (int) $request->user()->company_id;
         abort_unless($companyId, 403, 'No company is linked to your account.');
 
@@ -110,7 +112,7 @@ class TrainingProviderController extends Controller
             ->orderByDesc('provider_linked_at')->get(['id', 'name', 'code', 'email', 'contact', 'provider_linked_at', 'training_provider_company_id'])
             ->map(fn (Company $trainee) => $this->traineeSummary($company, $trainee))->values();
 
-        return \Inertia\Inertia::render('Company/Trainees', [
+        return \Inertia\Inertia::render('Admin/Company/Account/Trainees', [
             'referenceCode' => $company->reference_code,
             'trainees' => $trainees,
         ]);
@@ -122,7 +124,7 @@ class TrainingProviderController extends Controller
         $provider = $this->providerCompany($request);
         $company = Company::where('training_provider_company_id', $provider->id)->findOrFail($trainee);
 
-        return \Inertia\Inertia::render('Company/TraineeDetails', [
+        return \Inertia\Inertia::render('Admin/Company/Account/TraineeDetails', [
             'trainee' => $this->traineeSummary($provider, $company),
             'subscriptions' => \App\Models\SubscriptionsCompany::with('plan:id,name')
                 ->where('company_id', $company->id)
@@ -196,7 +198,7 @@ class TrainingProviderController extends Controller
             ];
         }));
 
-        return \Inertia\Inertia::render('Admin/TrainingProviders', [
+        return \Inertia\Inertia::render('Admin/System/TrainingProviders', [
             'title' => 'Training Providers',
             'providers' => $providers,
             'filters' => ['search' => $search],
@@ -217,7 +219,7 @@ class TrainingProviderController extends Controller
             ->orderByRaw('MAX(id) DESC')->limit(100)->pluck('batch_ref');
         $batchRefs = $pendingBatches->merge($recentBatches)->unique();
 
-        return \Inertia\Inertia::render('Admin/TrainingProviderOrders', [
+        return \Inertia\Inertia::render('Admin/System/TrainingProviderOrders', [
             'title' => 'Training Provider Activation Code Orders',
             'orders' => \App\Models\PackageActivationCode::with(['provider:id,name,code', 'plan:id,name', 'usedBy:id,name,code'])
                 ->whereIn('batch_ref', $batchRefs)->latest('id')->get()->groupBy('batch_ref')
@@ -231,7 +233,7 @@ class TrainingProviderController extends Controller
             ->where('batch_ref', $batch)->latest('id')->get();
         abort_if($codes->isEmpty(), 404);
 
-        return \Inertia\Inertia::render('Admin/TrainingProviderOrderDetails', [
+        return \Inertia\Inertia::render('Admin/System/TrainingProviderOrderDetails', [
             'title' => 'Activation Code Order '.$batch,
             'order' => $this->formatOrder($codes, $batch, true),
         ]);
@@ -279,7 +281,7 @@ class TrainingProviderController extends Controller
 
     public function approvalsIndex()
     {
-        return \Inertia\Inertia::render('Admin/TrainingProviderApprovals', [
+        return \Inertia\Inertia::render('Admin/System/TrainingProviderApprovals', [
             'title' => 'Training Provider Approvals',
             'applications' => TrainingProviderApplication::with([
                 'company:id,name,code,registration_no,state', 'plan:id,name',
@@ -295,7 +297,7 @@ class TrainingProviderController extends Controller
         $company = $application->company;
         $requester = \App\Models\User::find($application->requested_by, ['id', 'name', 'email', 'phone']);
 
-        return \Inertia\Inertia::render('Admin/TrainingProviderApprovalDetails', [
+        return \Inertia\Inertia::render('Admin/System/TrainingProviderApprovalDetails', [
             'title' => 'Review Training Provider',
             'application' => [
                 'id' => $application->id,

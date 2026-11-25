@@ -1,4 +1,5 @@
 import BackLink from '@/Components/shared/BackLink';
+import { validFiles } from '@/Helpers/fileCheck';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import {
@@ -140,8 +141,8 @@ function CompanyForm({ company }) {
             <CompanyAvatar name={company.name} logoUrl={logoPreview || company.logo_url} className="h-20 w-20 text-3xl shadow-sm" />
             <div className="min-w-0 flex-1">
                 <label htmlFor="company-logo" className="block text-sm font-bold text-ink-950">Company logo</label>
-                <p className="mt-0.5 text-xs text-gray-500">JPG, PNG or WebP, up to 2 MB. A square image works best.</p>
-                <input ref={logoInput} id="company-logo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => logoForm.setData('logo', event.target.files?.[0] || null)} className="mt-3 block w-full max-w-sm text-xs text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-semibold file:text-ink-950 file:shadow-sm hover:file:bg-brand-50" />
+                <p className="mt-0.5 text-xs text-gray-500">JPG, JPEG or PNG, up to 2 MB. A square image works best.</p>
+                <input ref={logoInput} id="company-logo" type="file" accept="image/jpeg,image/png" onChange={(event) => logoForm.setData('logo', validFiles(event.target.files, { maxMB: 2, title: 'Logo not accepted' }, event.target)[0] || null)} className="mt-3 block w-full max-w-sm text-xs text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-2 file:font-semibold file:text-ink-950 file:shadow-sm hover:file:bg-brand-50" />
                 {logoForm.errors.logo && <p className="mt-2 text-xs font-semibold text-red-600" role="alert">{logoForm.errors.logo}</p>}
             </div>
             <button type="submit" disabled={!logoForm.data.logo || logoForm.processing} className="inline-flex items-center gap-2 rounded-lg bg-ink-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40">{logoForm.processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}{company.logo_url ? 'Replace logo' : 'Upload logo'}</button>
@@ -388,10 +389,10 @@ export default function Edit({ account = {}, company = null, accountType = null,
     const { auth } = usePage().props;
     const user = auth.user;
     const roleId = Number(user.role_id);
-    if ([3, 4, 7, 8].includes(roleId)) {
+    if ([3, 4, 7].includes(roleId)) {
         return <PortalProfile user={user} account={account} mustVerifyEmail={mustVerifyEmail} status={status} staySignedIn={staySignedIn} />;
     }
-    const dashboard = [3, 4].includes(roleId) ? '/review/dashboard' : [7, 8].includes(roleId) ? '/inspector/dashboard' : '/dashboard';
+    const dashboard = [3, 4].includes(roleId) ? '/review/dashboard' : [7].includes(roleId) ? '/inspector/dashboard' : '/dashboard';
     const tabs = [
         ...(company ? [
             { id: 'membership', label: 'Membership', icon: PackageCheck },

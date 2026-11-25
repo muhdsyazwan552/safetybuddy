@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Support\UploadedAssets;
 use App\Models\Incident;
 use App\Models\Project;
@@ -24,7 +26,7 @@ class IncidentController extends Controller
     /** Inspector / Supervisor / Manager can only name themselves as the responsible person. */
     private function reportsAsSelf(): bool
     {
-        return in_array((int) Auth::user()->role_id, [3, 4, 7, 8], true);
+        return in_array((int) Auth::user()->role_id, UserRole::staffIds(), true);
     }
 
     public function create(Request $request)
@@ -48,7 +50,7 @@ class IncidentController extends Controller
             }
         }
 
-        return Inertia::render('WSIS/Incident_Create', [
+        return Inertia::render('Admin/Company/Safety/Incident_Create', [
             'portal'          => $inspector ? 'inspector' : 'admin',
             'endpoints'       => $inspector ? [
                 'store'       => '/inspector/incidents',

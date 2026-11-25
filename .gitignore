@@ -27,3 +27,7 @@ Thumbs.db
 .deploy.env
 
 .env.e2e
+
+# QA audit screenshots/reports and scratch files (not for push)
+/docs/status-audit/
+/tmp/

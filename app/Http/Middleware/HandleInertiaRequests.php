@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\UserRole;
+
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -50,7 +52,7 @@ class HandleInertiaRequests extends Middleware
     /** System admin sidebar: how many items wait for approval on each menu. */
     private function adminBadges($user): ?array
     {
-        if (! $user || (int) $user->role_id !== 1) {
+        if (! $user || (int) $user->role_id !== UserRole::SystemAdmin->value) {
             return null;
         }
 
@@ -64,7 +66,7 @@ class HandleInertiaRequests extends Middleware
 
     private function reviewBadges($user): ?array
     {
-        if (! $user || ! in_array((int) $user->role_id, [3, 4], true) || ! $user->company_id) {
+        if (! $user || ! in_array((int) $user->role_id, UserRole::reviewerIds(), true) || ! $user->company_id) {
             return null;
         }
 
@@ -94,6 +96,7 @@ class HandleInertiaRequests extends Middleware
             'phone' => $user->phone,
             'company_id' => $user->company_id,
             'role_id' => $user->role_id,
+            'role_label' => UserRole::labelFor($user->role_id),
             'email_verified_at' => $user->email_verified_at,
             'created_at' => $user->created_at,
             'company' => $user->company ? [

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Models\Module;
 use App\Models\Payments;
 use App\Models\SubscriptionAddon;
@@ -57,7 +59,7 @@ class SubscriptionPlanController extends Controller
      */
     public function linkReferenceCode(Request $request)
     {
-        abort_unless((int) $request->user()->role_id === 2, 403, 'Only the company admin can use a reference code.');
+        abort_unless((int) $request->user()->role_id === UserRole::CompanyAdmin->value, 403, 'Only the company admin can use a reference code.');
         $validated = $request->validate(['code' => ['required', 'string', 'max:50']]);
         $company = $request->user()->company;
         abort_unless($company, 403, 'No company is linked to your account.');
@@ -114,8 +116,8 @@ class SubscriptionPlanController extends Controller
             $role = (int) $request->user()->role_id;
 
             return redirect()->to(match (true) {
-                $role === 2 => route('manage.package'),
-                in_array($role, [3, 4], true) => '/review/dashboard',
+                $role === UserRole::CompanyAdmin->value => route('manage.package'),
+                in_array($role, UserRole::reviewerIds(), true) => '/review/dashboard',
                 default => '/inspector/dashboard',
             });
         }
@@ -130,7 +132,7 @@ class SubscriptionPlanController extends Controller
             ] : null,
             'hasPurchased' => self::hasPurchased((int) $companyId),
             'hasActiveSafety' => self::hasActiveSafety((int) $companyId),
-            'canPurchase' => (int) $request->user()->role_id === 2,
+            'canPurchase' => (int) $request->user()->role_id === UserRole::CompanyAdmin->value,
             'currentPackage' => $details['currentPackage'],
             'subscriptionHistory' => $details['history'],
             'inspectorSeats' => self::hasActiveSafety((int) $companyId) ? [
@@ -246,7 +248,7 @@ class SubscriptionPlanController extends Controller
     /** Extra Inspector seats: RM 800 each, one-time, available on any package and active straight away. */
     public function storeInspectorAddon(Request $request)
     {
-        abort_unless((int) $request->user()->role_id === 2, 403, 'Only the company admin can buy extra Inspectors.');
+        abort_unless((int) $request->user()->role_id === UserRole::CompanyAdmin->value, 403, 'Only the company admin can buy extra Inspectors.');
         $companyId = (int) $request->user()->company_id;
         abort_unless($companyId, 403, 'No company is linked to your account.');
 
@@ -391,7 +393,7 @@ class SubscriptionPlanController extends Controller
 
     public function createPlan()
     {
-        return Inertia::render('Admin/PlanCreate', ['title' => 'Add Safety Buddy Plan']);
+        return Inertia::render('Admin/System/PlanCreate', ['title' => 'Add Safety Buddy Plan']);
     }
 
     public function storePlan(Request $request)
@@ -417,7 +419,7 @@ class SubscriptionPlanController extends Controller
 
     public function showPlan(SubscriptionPlan $subscriptionPlan)
     {
-        return Inertia::render('Admin/PlanDetails', [
+        return Inertia::render('Admin/System/PlanDetails', [
             'title' => $subscriptionPlan->name,
             'plan' => $subscriptionPlan,
             'usage' => [
@@ -431,7 +433,7 @@ class SubscriptionPlanController extends Controller
 
     public function editPlan(SubscriptionPlan $subscriptionPlan)
     {
-        return Inertia::render('Admin/PlanEdit', [
+        return Inertia::render('Admin/System/PlanEdit', [
             'title' => 'Edit '.$subscriptionPlan->name,
             'plan' => $subscriptionPlan,
         ]);

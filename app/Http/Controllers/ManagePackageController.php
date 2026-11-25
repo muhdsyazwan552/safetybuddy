@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Models\Payments;
 use App\Models\PackageActivationCode;
 use App\Models\SubscriptionPlanRequest;
@@ -62,7 +64,7 @@ class ManagePackageController extends Controller
                 'payment_id' => $addon->payment_id,
             ])->values();
 
-        return Inertia::render('Company/ManagePackage', [
+        return Inertia::render('Admin/Company/Account/ManagePackage', [
             'history' => $history,
             'active' => (bool) $subscription,
             'seats' => $subscription ? [
@@ -161,7 +163,7 @@ class ManagePackageController extends Controller
             ->whereNotIn('payment_type', ['addon_inspector', 'addon_executor'])
             ->latest('id')->value('total_amount') : null;
 
-        return Inertia::render('Company/PaymentHistory', [
+        return Inertia::render('Admin/Company/Account/PaymentHistory', [
             'payments' => $payments,
             // a company registered under a Training Provider does not see package prices: the provider pays for them
             'filters' => ['search' => $search, 'status' => $statusFilter],
@@ -246,7 +248,7 @@ class ManagePackageController extends Controller
 
     public function store(Request $request)
     {
-        abort_unless((int) $request->user()->role_id === 2, 403, 'Only the company admin can buy extra seats.');
+        abort_unless((int) $request->user()->role_id === UserRole::CompanyAdmin->value, 403, 'Only the company admin can buy extra seats.');
         $companyId = (int) $request->user()->company_id;
         abort_unless($companyId, 403, 'No company is linked to your account.');
 

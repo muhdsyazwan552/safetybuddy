@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
+
 use App\Models\User;
 use App\Models\CompanyStaff;
 use App\Models\Company;
@@ -30,7 +32,7 @@ public function store(Request $request)
         'contact' => 'required|string|unique:company_staff,contact', // Changed from 'phone' to 'contact'
         'email' => 'required|email|unique:company_staff,email|unique:users,email',
         // only the three tiers can be created here (never e.g. system admin)
-        'role_id' => ['required', \Illuminate\Validation\Rule::in([3, 4, 7])],
+        'role_id' => ['required', \Illuminate\Validation\Rule::in(UserRole::staffIds())],
     ], [
         // deactivated employees stay in the table, so their email / phone can never be registered again
         'contact.unique' => 'This phone number is already registered (it may belong to a deactivated employee) and cannot be used again.',
@@ -107,7 +109,7 @@ public function update(Request $request, $id)
         ], 422);
     }
 
-    $allowedRoles = [3, 4, 7];
+    $allowedRoles = UserRole::staffIds();
     // a legacy role (e.g. old "Project Manager") may stay untouched while other fields are edited
     if ($staff->role_id && !in_array((int) $staff->role_id, $allowedRoles, true)) {
         $allowedRoles[] = (int) $staff->role_id;
@@ -133,7 +135,7 @@ public function update(Request $request, $id)
             'role_id' => $validated['role_id'],
         ]);
 
-        if ($staff->user_id && ($user = User::find($staff->user_id)) && !in_array((int) $user->role_id, [1, 2], true)) {
+        if ($staff->user_id && ($user = User::find($staff->user_id)) && !in_array((int) $user->role_id, [UserRole::SystemAdmin->value, UserRole::CompanyAdmin->value], true)) {
             $user->update([
                 'name' => $validated['name'],
                 'email' => $validated['email'] ?? $user->email,
@@ -162,7 +164,7 @@ public function destroy($id)
     }
 
     $user = $staff->user_id ? User::find($staff->user_id) : null;
-    if ($user && in_array((int) $user->role_id, [1, 2], true)) {
+    if ($user && in_array((int) $user->role_id, [UserRole::SystemAdmin->value, UserRole::CompanyAdmin->value], true)) {
         return response()->json(['success' => false, 'message' => 'An admin account cannot be deactivated here.'], 422);
     }
 

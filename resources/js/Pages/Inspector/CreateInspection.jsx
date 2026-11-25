@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Plus, Trash2, ChevronLeft, ChevronRight, Send, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
 import InspectionFields from '@/Components/inspector/InspectionFields';
-import { ActionBar, Sheet, EVAL, ghostBtn, darkBtn, primaryBtn } from '@/Components/inspector/kit';
+import { ActionBar, Sheet, EVAL, ghostBtn, darkBtn, primaryBtn, formatBytes } from '@/Components/inspector/kit';
 
 const today = () => new Date().toISOString().split('T')[0];
 const blank = (id) => ({
@@ -63,8 +63,14 @@ export default function CreateInspection({ projects = [], categories = [], evalu
     };
 
     const pickPhotos = (fileList) => {
-        const files = Array.from(fileList || []).filter((f) => f.size <= 5 * 1024 * 1024);
-        if (files.length !== (fileList?.length || 0)) setServerError('Some photos were skipped (over 5 MB).');
+        const picked = Array.from(fileList || []);
+        const okType = (f) => /^image\/(jpeg|png)$/.test(f.type);
+        const badType = picked.filter((f) => !okType(f));
+        const all = picked.filter(okType);
+        const files = all.filter((f) => f.size <= 5 * 1024 * 1024);
+        const big = all.filter((f) => f.size > 5 * 1024 * 1024);
+        if (big.length) setServerError(`Skipped (over 5 MB): ${big.map((f) => `${f.name} (${formatBytes(f.size)})`).join(', ')}`);
+        if (badType.length) setServerError(`Only JPG, JPEG or PNG photos are allowed. Not added: ${badType.map((f) => f.name).join(', ')}`);
         const previews = files.map((f) => URL.createObjectURL(f));
         setItems((all) => all.map((it, i) => (i === step ? { ...it, photos: [...it.photos, ...files], previews: [...it.previews, ...previews] } : it)));
     };
@@ -198,7 +204,7 @@ export default function CreateInspection({ projects = [], categories = [], evalu
                         categories={categories}
                         evaluations={evaluations.length ? evaluations : undefined}
                         errors={errors}
-                        newPhotos={item.previews.map((preview) => ({ preview }))}
+                        newPhotos={item.previews.map((preview, i) => ({ preview, size: item.photos[i]?.size }))}
                         onPickPhotos={pickPhotos}
                         onRemovePhoto={removePhoto}
                     />

@@ -2,7 +2,7 @@
 import React from 'react';
 import { Head } from '@inertiajs/react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
-import { IncidentDetail } from '@/Pages/Review/IncidentShow';
+import { IncidentDetail } from '@/Pages/ManagerSupervisor/IncidentShow';
 
 export default function IncidentShow({ incident, user }) {
     return (

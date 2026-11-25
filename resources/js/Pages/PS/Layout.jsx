@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import Navbar from '../Layouts_Admin/Navbar';
-import Sidebar from '../Layouts_Admin/Sidebar';
+import Navbar from '@/Pages/Layouts_Admin/Navbar';
+import Sidebar from '@/Pages/Layouts_Admin/Sidebar';
 import Toast from '@/Components/Toast';
 
 export default function Layout({ children, title }) {

@@ -2,9 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import { Save, Loader2 } from 'lucide-react';
 import InspectorLayout from '@/Layouts/InspectorLayout';
-import AppLayout from '@/Pages/WSIS/Layout';
+import AppLayout from '@/Pages/Admin/Company/Safety/Layout';
 import InspectionFields from '@/Components/inspector/InspectionFields';
-import { ActionBar, ghostBtn, primaryBtn, parsePhotos, storageUrl } from '@/Components/inspector/kit';
+import { ActionBar, ghostBtn, primaryBtn, parsePhotos, storageUrl, formatBytes } from '@/Components/inspector/kit';
 
 export default function EditInspection({ inspection, projects = [], subconCompanies = [], categories = [], user, portal = 'inspector', endpoints = null }) {
     const isAdmin = portal === 'admin';
@@ -39,10 +39,13 @@ export default function EditInspection({ inspection, projects = [], subconCompan
     };
 
     const pick = (fileList) => {
-        const all = Array.from(fileList || []);
+        const picked = Array.from(fileList || []);
+        const okType = (f) => /^image\/(jpeg|png)$/.test(f.type);
+        const badType = picked.filter((f) => !okType(f));
+        const all = picked.filter(okType);
         const files = all.filter((f) => f.size <= 5 * 1024 * 1024);
         const skipped = all.length - files.length;
-        setErrors((e) => ({ ...e, photos: skipped ? `${skipped} photo(s) were not added: each photo must be smaller than 5 MB.` : undefined }));
+        setErrors((e) => ({ ...e, photos: (badType.length ? `Only JPG, JPEG or PNG photos are allowed. Not added: ${badType.map((f) => f.name).join(', ')}. ` : '') + (skipped ? `${skipped} photo(s) not added (max 5 MB each): ${all.filter((f) => f.size > 5 * 1024 * 1024).map((f) => `${f.name} (${formatBytes(f.size)})`).join(', ')}` : '') || undefined }));
         setPhotos((p) => [...p, ...files.map((file) => ({ file, preview: URL.createObjectURL(file) }))]);
     };
 
@@ -99,7 +102,7 @@ export default function EditInspection({ inspection, projects = [], subconCompan
                         evaluationLocked
                         errors={errors}
                         existingPhotos={parsePhotos(inspection.photo).map(storageUrl)}
-                        newPhotos={photos.map((p) => ({ preview: p.preview }))}
+                        newPhotos={photos.map((p) => ({ preview: p.preview, size: p.file?.size }))}
                         onPickPhotos={pick}
                         onRemovePhoto={(idx) => setPhotos((p) => p.filter((_, i) => i !== idx))}
                     />

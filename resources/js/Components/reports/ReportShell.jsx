@@ -1,6 +1,6 @@
 // Picks the page shell for the portal the report is opened from.
 import React from 'react';
-import AppLayout from '@/Pages/WSIS/Layout';
+import AppLayout from '@/Pages/Admin/Company/Safety/Layout';
 import ReviewLayout from '@/Layouts/ReviewLayout';
 
 export default function ReportShell({ portal, title, wide = false, children }) {
