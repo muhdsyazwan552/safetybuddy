@@ -606,7 +606,7 @@ export default function Landing({ subscriptionPlans = [] }) {
                 <section id="pricing" className="scroll-mt-20 bg-gray-50 py-20">
                     <div className="mx-auto max-w-[1400px] px-5 sm:px-8">
                         <div className="text-center">
-                            <Reveal><SectionTag>Simple pricing</SectionTag></Reveal>
+                            
                             <Reveal delay={0.05}><H2>Clear pricing, no surprises.</H2></Reveal>
                             <Reveal delay={0.1}><p className="mx-auto mt-4 max-w-md text-gray-500">Choose an annual Safety Buddy package. After your first purchase, explore every Safety Buddy module.</p></Reveal>
                         </div>
